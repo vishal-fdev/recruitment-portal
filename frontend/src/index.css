@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global fixes */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+/* Shared input style */
+.input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 12px;
+}

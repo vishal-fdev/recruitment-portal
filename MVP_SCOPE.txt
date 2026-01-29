@@ -1,0 +1,20 @@
+PROJECT: Recruitment Vendor Management Portal
+
+ROLES:
+- Vendor
+- Vendor Management Team
+- Hiring Manager
+
+CORE FEATURES (MVP):
+- Role-based login
+- Job creation (Vendor Management)
+- Vendor resume upload
+- Skill-based resume visibility for Hiring Managers
+- Candidate status workflow
+- Interview scheduling (basic)
+- Email notifications (optional)
+
+OUT OF SCOPE:
+- Resume parsing
+- AI matching
+- Advanced analytics
