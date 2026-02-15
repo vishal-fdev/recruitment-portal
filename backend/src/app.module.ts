@@ -1,3 +1,4 @@
+// src/app.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -8,22 +9,20 @@ import { CandidatesModule } from './candidates/candidates.module';
 import { JobsModule } from './jobs/jobs.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 
-
 @Module({
   imports: [
     TypeOrmModule.forRoot({
-      type: 'sqlite',
+      type: 'better-sqlite3',
       database: 'recruitment-demo.db',
       autoLoadEntities: true,
       synchronize: true,
     }),
-    AuthModule,        // 🔴 MUST BE HERE
+    AuthModule,
     UsersModule,
     VendorsModule,
     CandidatesModule,
     JobsModule,
     DashboardModule,
-    
   ],
 })
 export class AppModule {}

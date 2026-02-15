@@ -6,6 +6,8 @@ import { Job } from './job.entity';
 import { JobVendor } from './job-vendor.entity';
 import { Vendor } from '../vendors/vendors.entity';
 import { Candidate } from '../candidates/candidate.entity';
+import { InterviewRound } from './interview-round.entity';
+import { InterviewPanel } from './interview-panel.entity';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { Candidate } from '../candidates/candidate.entity';
       JobVendor,
       Vendor,
       Candidate,
+      InterviewPanel,
+      InterviewRound,
     ]),
   ],
   controllers: [JobsController],

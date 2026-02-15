@@ -1,26 +1,31 @@
+// src/auth/withRoleGuard.tsx
+
 import { Navigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { authService } from './authService';
+import type { UserRole } from './authService';
 
 interface Props {
-  allowedRole: 'VENDOR' | 'VENDOR_MANAGER' | 'HIRING_MANAGER';
+  allowedRole: UserRole | UserRole[];
   children: ReactNode;
 }
 
 const WithRoleGuard = ({ allowedRole, children }: Props) => {
-  const token = localStorage.getItem('token');
-  const role = localStorage.getItem('role');
+  const token = authService.getToken();
+  const role = authService.getRole();
 
-  // 🔒 No token → login
-  if (!token) {
+  if (!token || !role) {
     return <Navigate to="/login" replace />;
   }
 
-  // 🔒 Role mismatch → login
-  if (role !== allowedRole) {
+  const allowedRoles = Array.isArray(allowedRole)
+    ? allowedRole
+    : [allowedRole];
+
+  if (!allowedRoles.includes(role)) {
     return <Navigate to="/login" replace />;
   }
 
-  // ✅ Authorized
   return <>{children}</>;
 };
 

@@ -14,18 +14,26 @@ import VendorDashboard from './pages/vendor/VendorDashboard';
 import CandidateManagement from './pages/vendor/CandidateManagement';
 import CreateCandidateForm from './pages/vendor/CreateCandidateForm';
 import VendorJobs from './pages/vendor/Jobs';
+import VendorDetails from './pages/vendor-manager/VendorDetails';
 
 /* vendor manager pages */
 import VendorManagerDashboard from './pages/vendor-manager/VendorManagerDashboard';
 import VMCandidates from './pages/vendor-manager/Candidates';
 import VMJobs from './pages/vendor-manager/Jobs';
 import VMVendors from './pages/vendor-manager/Vendors';
-import CreateJob from './pages/vendor-manager/CreateJob';
+
+/* vendor manager head pages */
+import VMHDashboard from './pages/vendor-manager-head/DashboardHome';
+import JobApprovals from './pages/vendor-manager-head/JobApprovals';
+import VMHJobDetails from './pages/vendor-manager-head/JobDetails';
 
 /* hiring manager pages */
 import HiringManagerDashboard from './pages/hiring-manager/HiringManagerDashboard';
 import HMCandidates from './pages/hiring-manager/Candidates';
 import HMPartnerSlots from './pages/hiring-manager/PartnerSlots';
+import HMJobs from './pages/hiring-manager/Jobs';
+import CreateJob from './pages/hiring-manager/CreateJob';
+import HMJobDetails from './pages/hiring-manager/JobDetails'; // ✅ FIXED
 
 const App = () => {
   return (
@@ -46,9 +54,10 @@ const App = () => {
         <Route path="candidates" element={<CandidateManagement />} />
         <Route path="candidates/create" element={<CreateCandidateForm />} />
         <Route path="jobs" element={<VendorJobs />} />
+        <Route path="profile/:id" element={<VendorDetails />} />
       </Route>
 
-      {/* ============== VENDOR MANAGER ============== */}
+      {/* ================= VENDOR MANAGER ================= */}
       <Route
         path="/vendor-manager"
         element={
@@ -60,11 +69,27 @@ const App = () => {
         <Route index element={<VendorManagerDashboard />} />
         <Route path="candidates" element={<VMCandidates />} />
         <Route path="jobs" element={<VMJobs />} />
-        <Route path="jobs/create" element={<CreateJob />} />
         <Route path="vendors" element={<VMVendors />} />
+        <Route path="vendors/:id" element={<VendorDetails />} />
       </Route>
 
-      {/* ============== HIRING MANAGER ============== */}
+      {/* ================= VENDOR MANAGER HEAD ================= */}
+      <Route
+        path="/vendor-manager-head"
+        element={
+          <WithRoleGuard allowedRole="VENDOR_MANAGER_HEAD">
+            <VendorManagerLayout />
+          </WithRoleGuard>
+        }
+      >
+        <Route index element={<VMHDashboard />} />
+        <Route path="jobs" element={<JobApprovals />} />
+        <Route path="jobs/:id" element={<VMHJobDetails />} />
+        <Route path="vendors/:id" element={<VendorDetails />} />
+        <Route path="vendors" element={<VMVendors/>} />
+      </Route>
+
+      {/* ================= HIRING MANAGER ================= */}
       <Route
         path="/hiring-manager"
         element={
@@ -74,6 +99,9 @@ const App = () => {
         }
       >
         <Route index element={<HiringManagerDashboard />} />
+        <Route path="jobs" element={<HMJobs />} />
+        <Route path="jobs/create" element={<CreateJob />} />
+        <Route path="jobs/:id" element={<HMJobDetails />} /> {/* ✅ FIXED */}
         <Route path="candidates" element={<HMCandidates />} />
         <Route path="partner-slots" element={<HMPartnerSlots />} />
       </Route>

@@ -1,24 +1,53 @@
+import { useEffect, useState } from 'react';
+import api from '../api/api';
+
 interface Props {
-  resumePath: string;
+  candidateId: number;
   onClose: () => void;
 }
 
-const ResumeModal = ({ resumePath, onClose }: Props) => {
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white w-[80%] h-[85%] rounded-lg shadow relative">
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 text-xl"
-        >
-          ✖
-        </button>
+const ResumeModal = ({ candidateId, onClose }: Props) => {
+  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
 
-        <iframe
-          src={`http://localhost:3000${resumePath}`}
-          title="Resume"
-          className="w-full h-full rounded-b-lg"
-        />
+  useEffect(() => {
+    const fetchResume = async () => {
+      try {
+        const res = await api.get(
+          `/candidates/${candidateId}/resume`,
+          { responseType: 'blob' }
+        );
+
+        const blobUrl = URL.createObjectURL(res.data);
+        setResumeUrl(blobUrl);
+      } catch {
+        alert('Unable to load resume');
+      }
+    };
+
+    fetchResume();
+
+    return () => {
+      if (resumeUrl) URL.revokeObjectURL(resumeUrl);
+    };
+  }, [candidateId]);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+      <div className="bg-white w-[85%] h-[90%] rounded-lg shadow relative">
+        <div className="flex justify-between items-center px-4 py-2 border-b">
+          <h2 className="font-semibold">Candidate Resume</h2>
+          <button onClick={onClose} className="text-lg">✖</button>
+        </div>
+
+        {resumeUrl ? (
+          <iframe
+            src={resumeUrl}
+            className="w-full h-full rounded-b-lg"
+            title="Resume"
+          />
+        ) : (
+          <div className="p-6 text-center">Loading resume…</div>
+        )}
       </div>
     </div>
   );

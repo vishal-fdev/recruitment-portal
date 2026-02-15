@@ -1,3 +1,4 @@
+// src/pages/vendor-manager/ManageJobModal.tsx
 import { useEffect, useState } from 'react';
 import api from '../../api/api';
 
@@ -10,7 +11,6 @@ interface Vendor {
 interface JobDetails {
   id: number;
   title: string;
-  isActive: boolean;
   vendors: Vendor[];
 }
 
@@ -23,7 +23,6 @@ interface Props {
 const ManageJobModal = ({ jobId, onClose, onUpdated }: Props) => {
   const [job, setJob] = useState<JobDetails | null>(null);
 
-  // 🔹 Fetch job + vendors
   useEffect(() => {
     api
       .get(`/jobs/${jobId}`)
@@ -33,17 +32,6 @@ const ManageJobModal = ({ jobId, onClose, onUpdated }: Props) => {
 
   if (!job) return null;
 
-  // 🔹 Toggle job open / close
-  const toggleJobStatus = async () => {
-    await api.patch(`/jobs/${job.id}/status`, {
-      isActive: !job.isActive,
-    });
-
-    setJob({ ...job, isActive: !job.isActive });
-    onUpdated();
-  };
-
-  // 🔹 Toggle vendor enable / disable
   const toggleVendor = async (
     vendorId: string,
     isEnabled: boolean,
@@ -56,11 +44,11 @@ const ManageJobModal = ({ jobId, onClose, onUpdated }: Props) => {
     setJob({
       ...job,
       vendors: job.vendors.map((v) =>
-        v.id === vendorId
-          ? { ...v, isEnabled }
-          : v,
+        v.id === vendorId ? { ...v, isEnabled } : v,
       ),
     });
+
+    onUpdated();
   };
 
   return (
@@ -74,28 +62,12 @@ const ManageJobModal = ({ jobId, onClose, onUpdated }: Props) => {
         </button>
 
         <h2 className="text-lg font-semibold mb-4">
-          Manage Job – {job.title}
+          Assign Vendors – {job.title}
         </h2>
 
-        {/* Job status */}
-        <div className="flex items-center justify-between mb-6">
-          <span className="font-medium">Job Status</span>
-          <button
-            onClick={toggleJobStatus}
-            className={`px-3 py-1 text-sm rounded ${
-              job.isActive
-                ? 'bg-red-100 text-red-700'
-                : 'bg-green-100 text-green-700'
-            }`}
-          >
-            {job.isActive ? 'Close Job' : 'Open Job'}
-          </button>
-        </div>
-
-        {/* Vendors */}
         <div>
           <h3 className="font-medium mb-2">
-            Assigned Vendors
+            Vendor Access
           </h3>
 
           {job.vendors.length === 0 && (
@@ -110,7 +82,6 @@ const ManageJobModal = ({ jobId, onClose, onUpdated }: Props) => {
               className="flex items-center justify-between py-2 border-b"
             >
               <span className="text-sm">{v.email}</span>
-
               <input
                 type="checkbox"
                 checked={v.isEnabled}

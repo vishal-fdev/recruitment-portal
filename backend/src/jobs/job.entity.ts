@@ -1,3 +1,5 @@
+// src/jobs/job.entity.ts
+
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -5,13 +7,18 @@ import {
   OneToMany,
   CreateDateColumn,
 } from 'typeorm';
+
 import { JobVendor } from './job-vendor.entity';
 import { Candidate } from '../candidates/candidate.entity';
+import { InterviewRound } from './interview-round.entity';
+import { JobStatus } from './job-status.enum';
 
 @Entity()
 export class Job {
   @PrimaryGeneratedColumn()
   id: number;
+
+  /* ================= BASIC ================= */
 
   @Column()
   title: string;
@@ -22,17 +29,69 @@ export class Job {
   @Column()
   experience: string;
 
+  @Column({ nullable: true })
+  department: string;
+
+  /* ================= CONTRACT ================= */
+
+  @Column({ nullable: true })
+  employmentType: string;
+
+  @Column({ nullable: true })
+  budget: string;
+
+  @Column({ nullable: true })
+  startDate: string;
+
+  @Column({ nullable: true })
+  endDate: string;
+
+  /* ================= DESCRIPTION ================= */
+
+  @Column({ type: 'text', nullable: true })
+  description: string;
+
+  /* ================= APPROVAL ================= */
+
+  @Column({
+    type: 'text',
+    default: JobStatus.PENDING_APPROVAL,
+  })
+  status: JobStatus;
+
   @Column({ default: true })
   isActive: boolean;
+
+  /* ================= JD ================= */
+
+  @Column({ nullable: true })
+  jdPath: string;
+
+  @Column({ nullable: true })
+  jdFileName: string;
+
+  @Column({ nullable: true })
+  jdMimeType: string;
+
+  /* ================= TIMESTAMP ================= */
 
   @CreateDateColumn()
   createdAt: Date;
 
-  // ✅ Job ↔ Vendors (via join table)
+  /* ================= RELATIONS ================= */
+
   @OneToMany(() => JobVendor, (jv) => jv.job)
   jobVendors: JobVendor[];
 
-  // ✅ Job ↔ Candidates
   @OneToMany(() => Candidate, (c) => c.job)
   candidates: Candidate[];
+
+  @OneToMany(
+    () => InterviewRound,
+    (round) => round.job,
+    {
+      cascade: true,
+    },
+  )
+  interviewRounds: InterviewRound[];
 }

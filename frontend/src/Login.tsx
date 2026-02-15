@@ -1,5 +1,4 @@
 // src/Login.tsx
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from './api/api';
@@ -9,11 +8,10 @@ import type { UserRole } from './auth/authService';
 const normalizeRole = (role: string): UserRole => {
   switch (role) {
     case 'VENDOR':
-      return 'VENDOR';
     case 'VENDOR_MANAGER':
-      return 'VENDOR_MANAGER';
+    case 'VENDOR_MANAGER_HEAD':
     case 'HIRING_MANAGER':
-      return 'HIRING_MANAGER';
+      return role;
     default:
       throw new Error('Invalid role received from backend');
   }
@@ -43,14 +41,15 @@ const Login = () => {
       const token: string = res.data.access_token;
       const normalizedRole = normalizeRole(res.data.user.role);
 
-      // ✅ SINGLE SOURCE OF TRUTH
       authService.login(token, normalizedRole);
 
-      // ✅ ROLE-BASED REDIRECT (NO RELOAD)
+      // ✅ ROLE-BASED REDIRECT
       if (normalizedRole === 'VENDOR') {
         navigate('/vendor', { replace: true });
       } else if (normalizedRole === 'VENDOR_MANAGER') {
         navigate('/vendor-manager', { replace: true });
+      } else if (normalizedRole === 'VENDOR_MANAGER_HEAD') {
+        navigate('/vendor-manager-head', { replace: true });
       } else if (normalizedRole === 'HIRING_MANAGER') {
         navigate('/hiring-manager', { replace: true });
       }
@@ -86,6 +85,9 @@ const Login = () => {
             >
               <option value="VENDOR">Vendor</option>
               <option value="VENDOR_MANAGER">Vendor Manager</option>
+              <option value="VENDOR_MANAGER_HEAD">
+                Vendor Manager Head
+              </option>
               <option value="HIRING_MANAGER">Hiring Manager</option>
             </select>
           </div>

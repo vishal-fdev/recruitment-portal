@@ -1,4 +1,4 @@
-// frontend/src/vendor-manager/CreateVendorModal.tsx
+// src/pages/vendor-manager/CreateVendorModal.tsx
 import { useState } from 'react';
 
 interface Props {
@@ -7,14 +7,33 @@ interface Props {
 }
 
 const CreateVendorModal = ({ onClose, onCreated }: Props) => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    contactPerson: '',
+    phone: '',
+    country: '',
+    state: '',
+    city: '',
+    address: '',
+    taxId: '',
+    vendorType: '',
+  });
 
+  const [submitting, setSubmitting] = useState(false);
   const token = localStorage.getItem('token');
 
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
+  };
+
   const submit = async () => {
-    if (!name || !email || submitting) return;
+    if (!form.name || !form.email || submitting) return;
 
     try {
       setSubmitting(true);
@@ -25,17 +44,18 @@ const CreateVendorModal = ({ onClose, onCreated }: Props) => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ name, email }),
+        body: JSON.stringify(form),
       });
 
       if (!res.ok) {
         throw new Error('Failed to create vendor');
       }
 
-      onCreated(); // ✅ refresh vendor list
-      onClose();   // ✅ close modal
+      onCreated();
+      onClose();
     } catch (err) {
       console.error(err);
+      alert('Failed to create vendor');
     } finally {
       setSubmitting(false);
     }
@@ -43,39 +63,28 @@ const CreateVendorModal = ({ onClose, onCreated }: Props) => {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white w-[420px] rounded-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">
-          Add Vendor
+      <div className="bg-white w-[700px] rounded-lg p-8 max-h-[90vh] overflow-auto">
+        <h2 className="text-xl font-semibold mb-6">
+          Create Vendor Partner
         </h2>
 
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm block mb-1">
-              Vendor Name
-            </label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full border p-2 rounded"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm block mb-1">
-              Vendor Email
-            </label>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border p-2 rounded"
-            />
-          </div>
+        <div className="grid grid-cols-2 gap-6">
+          <Input label="Vendor Name" name="name" value={form.name} onChange={handleChange} />
+          <Input label="Vendor Email" name="email" value={form.email} onChange={handleChange} />
+          <Input label="Contact Person" name="contactPerson" value={form.contactPerson} onChange={handleChange} />
+          <Input label="Phone Number" name="phone" value={form.phone} onChange={handleChange} />
+          <Input label="Country" name="country" value={form.country} onChange={handleChange} />
+          <Input label="State" name="state" value={form.state} onChange={handleChange} />
+          <Input label="City" name="city" value={form.city} onChange={handleChange} />
+          <Input label="Address" name="address" value={form.address} onChange={handleChange} />
+          <Input label="Tax ID / PAN" name="taxId" value={form.taxId} onChange={handleChange} />
+          <Input label="Vendor Type" name="vendorType" value={form.vendorType} onChange={handleChange} />
         </div>
 
-        <div className="flex justify-end gap-3 mt-6">
+        <div className="flex justify-end gap-4 mt-8">
           <button
             onClick={onClose}
-            className="px-4 py-2 border rounded text-sm"
+            className="px-4 py-2 border rounded-md text-sm"
           >
             Cancel
           </button>
@@ -83,9 +92,9 @@ const CreateVendorModal = ({ onClose, onCreated }: Props) => {
           <button
             disabled={submitting}
             onClick={submit}
-            className="px-4 py-2 bg-emerald-600 text-white rounded text-sm disabled:opacity-60"
+            className="px-5 py-2 bg-emerald-600 text-white rounded-md text-sm disabled:opacity-60"
           >
-            {submitting ? 'Adding...' : 'Add Vendor'}
+            {submitting ? 'Creating…' : 'Create Vendor'}
           </button>
         </div>
       </div>
@@ -94,3 +103,22 @@ const CreateVendorModal = ({ onClose, onCreated }: Props) => {
 };
 
 export default CreateVendorModal;
+
+const Input = ({
+  label,
+  name,
+  value,
+  onChange,
+}: any) => (
+  <div>
+    <label className="block text-sm font-medium mb-1">
+      {label}
+    </label>
+    <input
+      name={name}
+      value={value}
+      onChange={onChange}
+      className="w-full border rounded-md px-3 py-2"
+    />
+  </div>
+);

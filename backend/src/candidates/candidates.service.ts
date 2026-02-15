@@ -1,4 +1,3 @@
-// src/candidates/candidates.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -29,7 +28,9 @@ export class CandidatesService {
     private readonly jobVendorRepo: Repository<JobVendor>,
   ) {}
 
-  // CREATE CANDIDATE
+  // =========================
+  // CREATE CANDIDATE (Vendor)
+  // =========================
   async createCandidate(
     data: any,
     resumePath: string,
@@ -55,21 +56,27 @@ export class CandidatesService {
     return this.candidateRepo.save(candidate);
   }
 
+  // =========================
   // ROLE-AWARE FETCH
+  // =========================
   async getCandidatesForUser(user: any) {
     if (user.role === 'VENDOR') {
       return this.candidateRepo.find({
         where: { vendor: { id: user.vendorId } },
+        relations: ['job'],
         order: { createdAt: 'DESC' },
       });
     }
 
     return this.candidateRepo.find({
+      relations: ['vendor', 'job'],
       order: { createdAt: 'DESC' },
     });
   }
 
-  // SUBMIT CANDIDATE TO JOB
+  // =========================
+  // SUBMIT → JOB (Vendor)
+  // =========================
   async submitCandidateToJob(
     candidateId: number,
     jobId: number,
@@ -107,8 +114,20 @@ export class CandidatesService {
     return this.candidateRepo.save(candidate);
   }
 
+  // =========================
   // UPDATE STAGE (Hiring Manager)
-  async updateStage(candidateId: number, status: CandidateStatus) {
+  // =========================
+  async updateStage(
+    candidateId: number,
+    nextStatus: CandidateStatus,
+  ) {
+    // ✅ ENUM SAFETY (important for SQLite)
+    if (!Object.values(CandidateStatus).includes(nextStatus)) {
+      throw new BadRequestException(
+        `Invalid candidate status: ${nextStatus}`,
+      );
+    }
+
     const candidate = await this.candidateRepo.findOne({
       where: { id: candidateId },
     });
@@ -117,12 +136,38 @@ export class CandidatesService {
       throw new NotFoundException('Candidate not found');
     }
 
-    candidate.status = status;
+    /**
+     * ✅ Relaxed rules for Hiring Manager UI
+     * HM can directly decide after submission
+     */
+    const allowedFromSubmitted = [
+      CandidateStatus.SCREENING,
+      CandidateStatus.TECH_SELECTED,
+      CandidateStatus.TECH_REJECTED,
+      CandidateStatus.OPS_SELECTED,
+      CandidateStatus.OPS_REJECTED,
+    ];
+
+    if (
+      candidate.status === CandidateStatus.SUBMITTED &&
+      !allowedFromSubmitted.includes(nextStatus)
+    ) {
+      throw new BadRequestException(
+        `Invalid transition from ${candidate.status} to ${nextStatus}`,
+      );
+    }
+
+    candidate.status = nextStatus;
     return this.candidateRepo.save(candidate);
   }
 
-  // RESUME ACCESS
-  async getResumePathForUser(candidateId: number, user: any) {
+  // =========================
+  // RESUME ACCESS (SECURE)
+  // =========================
+  async getResumePathForUser(
+    candidateId: number,
+    user: any,
+  ) {
     const candidate = await this.candidateRepo.findOne({
       where: { id: candidateId },
       relations: ['vendor'],

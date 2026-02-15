@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   PieChart,
   Pie,
@@ -10,37 +11,55 @@ import {
   Tooltip,
 } from 'recharts';
 
-const stats = {
-  totalVendors: 12,
-  activeJobs: 53,
-  totalCandidates: 812,
-};
+import type { DashboardStats, SubmissionStat } from '../../services/dashboardService';
+import { getDashboardStats } from '../../services/dashboardService';
 
-const stageData = [
-  { name: 'Screening', value: 128 },
-  { name: 'Interviewing', value: 94 },
-  { name: 'On Hold', value: 22 },
-  { name: 'Onboarded', value: 47 },
-  { name: 'Rejected', value: 521 },
-];
+/* ------------------ COLORS ------------------ */
 
-const stageColors = [
+const STAGE_COLORS = [
   '#10b981',
   '#3b82f6',
   '#f59e0b',
   '#22c55e',
+  '#ef4444',
   '#64748b',
 ];
 
-const weeklySubmissions = [
-  { day: 'Mon', count: 18 },
-  { day: 'Tue', count: 22 },
-  { day: 'Wed', count: 16 },
-  { day: 'Thu', count: 9 },
-  { day: 'Fri', count: 14 },
-];
-
 const DashboardHome = () => {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const data = await getDashboardStats();
+        setStats(data);
+      } catch (err) {
+        console.error('Failed to load dashboard stats', err);
+      }
+    };
+
+    loadStats();
+  }, []);
+
+  /* ------------------ SAFE DERIVED DATA ------------------ */
+
+  const kpis = stats?.kpis ?? {};
+
+  const stageData = Object.entries(stats?.stageSummary ?? {}).map(
+    ([name, value]) => ({
+      name,
+      value: Number(value),
+    }),
+  );
+
+  const weeklySubmissions: SubmissionStat[] =
+    stats?.submissionsByDate ?? [];
+
+  const totalWeeklySubmissions = weeklySubmissions.reduce(
+    (sum: number, d: SubmissionStat) => sum + d.count,
+    0,
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -56,16 +75,16 @@ const DashboardHome = () => {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
-          label="Total Vendors"
-          value={stats.totalVendors}
+          label="Active Vendors"
+          value={kpis.activeVendors ?? 0}
         />
         <StatCard
           label="Active Jobs"
-          value={stats.activeJobs}
+          value={kpis.activeJobs ?? 0}
         />
         <StatCard
           label="Total Candidates"
-          value={stats.totalCandidates}
+          value={kpis.totalCandidates ?? 0}
         />
       </div>
 
@@ -74,26 +93,34 @@ const DashboardHome = () => {
         {/* Candidate Stage Summary */}
         <Card title="Candidate Stage Summary">
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={stageData}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={70}
-                  outerRadius={100}
-                  paddingAngle={2}
-                >
-                  {stageData.map((_, index) => (
-                    <Cell
-                      key={index}
-                      fill={stageColors[index]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {stageData.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center pt-20">
+                No data available
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stageData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={70}
+                    outerRadius={100}
+                    paddingAngle={2}
+                  >
+                    {stageData.map((_, index) => (
+                      <Cell
+                        key={index}
+                        fill={
+                          STAGE_COLORS[index % STAGE_COLORS.length]
+                        }
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2 mt-4 text-sm">
@@ -106,7 +133,7 @@ const DashboardHome = () => {
                   className="w-3 h-3 rounded-full"
                   style={{
                     backgroundColor:
-                      stageColors[index],
+                      STAGE_COLORS[index % STAGE_COLORS.length],
                   }}
                 />
                 <span className="text-gray-600">
@@ -122,7 +149,7 @@ const DashboardHome = () => {
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weeklySubmissions}>
-                <XAxis dataKey="day" />
+                <XAxis dataKey="label" />
                 <YAxis allowDecimals={false} />
                 <Tooltip />
                 <Bar
@@ -135,11 +162,7 @@ const DashboardHome = () => {
           </div>
 
           <p className="text-sm text-gray-500 mt-2">
-            Total submissions this week:{' '}
-            {weeklySubmissions.reduce(
-              (sum, d) => sum + d.count,
-              0
-            )}
+            Total submissions this week: {totalWeeklySubmissions}
           </p>
         </Card>
       </div>
@@ -149,7 +172,7 @@ const DashboardHome = () => {
 
 export default DashboardHome;
 
-/* ---------------- UI Helpers ---------------- */
+/* ---------------- UI HELPERS ---------------- */
 
 const StatCard = ({
   label,
@@ -160,9 +183,7 @@ const StatCard = ({
 }) => (
   <div className="bg-white rounded-lg shadow p-6">
     <p className="text-sm text-gray-500">{label}</p>
-    <p className="text-3xl font-semibold mt-2">
-      {value}
-    </p>
+    <p className="text-3xl font-semibold mt-2">{value}</p>
   </div>
 );
 
@@ -174,9 +195,7 @@ const Card = ({
   children: React.ReactNode;
 }) => (
   <div className="bg-white rounded-lg shadow p-6">
-    <h2 className="text-sm font-medium mb-4">
-      {title}
-    </h2>
+    <h2 className="text-sm font-medium mb-4">{title}</h2>
     {children}
   </div>
 );

@@ -11,11 +11,16 @@ export class UsersService implements OnModuleInit {
     private readonly userRepo: Repository<User>,
   ) {}
 
-  // ✅ ONLY seed non-vendor system users
+  /**
+   * ✅ Runs once when application boots
+   */
   async onModuleInit() {
     await this.seedSystemUsers();
   }
 
+  // ======================
+  // BASIC QUERIES
+  // ======================
   async findAll(): Promise<User[]> {
     return this.userRepo.find();
   }
@@ -27,10 +32,13 @@ export class UsersService implements OnModuleInit {
   }
 
   // ======================
-  // 🔒 SYSTEM USERS ONLY
+  // 🔒 SYSTEM USER SEEDING
   // ======================
   private async seedSystemUsers(): Promise<void> {
-    const usersToSeed = [
+    const usersToSeed: {
+      email: string;
+      role: UserRole;
+    }[] = [
       {
         email: 'vendormanager@test.com',
         role: UserRole.VENDOR_MANAGER,
@@ -38,6 +46,10 @@ export class UsersService implements OnModuleInit {
       {
         email: 'hiringmanager@test.com',
         role: UserRole.HIRING_MANAGER,
+      },
+      {
+        email: 'vmh@test.com',
+        role: UserRole.VENDOR_MANAGER_HEAD,
       },
     ];
 
@@ -47,14 +59,15 @@ export class UsersService implements OnModuleInit {
       });
 
       if (!exists) {
-        await this.userRepo.save({
+        const user = this.userRepo.create({
           email: u.email,
           role: u.role,
           isActive: true,
         });
+
+        await this.userRepo.save(user);
+        console.log(`✅ Seeded user: ${u.email}`);
       }
     }
-
-    console.log('✅ System users seeded');
   }
 }
