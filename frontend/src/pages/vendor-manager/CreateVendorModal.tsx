@@ -38,7 +38,10 @@ const CreateVendorModal = ({ onClose, onCreated }: Props) => {
     try {
       setSubmitting(true);
 
-      const res = await fetch('http://localhost:3000/vendors', {
+      const API =
+  import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+const res = await fetch(`${API}/vendors`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

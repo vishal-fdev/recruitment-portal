@@ -2,8 +2,11 @@
 import axios from 'axios';
 import { authService } from '../auth/authService';
 
+const API_URL =
+  import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 const api = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: API_URL,
 });
 
 /**
