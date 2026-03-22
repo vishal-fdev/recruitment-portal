@@ -12,9 +12,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    // ✅ SINGLE SOURCE OF TRUTH FOR req.user
     return {
-      id: payload.id,
+      id: payload.userId, // ✅ FIXED
       email: payload.email,
       role: payload.role,
       vendorId: payload.vendorId,

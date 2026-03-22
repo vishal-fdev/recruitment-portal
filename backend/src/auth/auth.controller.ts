@@ -1,5 +1,3 @@
-// src/auth/auth.controller.ts
-
 import {
   Controller,
   Post,
@@ -18,12 +16,14 @@ export class AuthController {
 
   @Post('login')
   async login(@Body('email') email: string) {
-
     if (!email) {
       throw new UnauthorizedException('Email is required');
     }
 
-    const user = await this.usersService.findByEmail(email);
+    // ✅ NORMALIZE EMAIL (VERY IMPORTANT)
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await this.usersService.findByEmail(normalizedEmail);
 
     if (!user) {
       throw new UnauthorizedException('User not found');
@@ -33,13 +33,8 @@ export class AuthController {
       throw new UnauthorizedException('User inactive');
     }
 
-    /*
-      ROLE IS NOW TAKEN DIRECTLY FROM DATABASE
-      NO ROLE COMPARISON FROM UI
-    */
-
     const payload = {
-      userId: user.id,
+      userId: user.id, // ✅ consistent
       email: user.email,
       role: user.role,
       vendorId: user.vendor?.id ?? null,
@@ -47,13 +42,7 @@ export class AuthController {
 
     return {
       access_token: this.jwtService.sign(payload),
-
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        vendorId: user.vendor?.id ?? null,
-      },
+      user: payload,
     };
   }
 }
