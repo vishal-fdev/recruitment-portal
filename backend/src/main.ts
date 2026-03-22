@@ -9,7 +9,8 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:5173',
-      'https://recruitment-portal-five.vercel.app', // ✅ ADD THIS
+      'https://recruitment-portal-five.vercel.app', 
+      'https://aurasol.in',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
