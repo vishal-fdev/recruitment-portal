@@ -1,6 +1,8 @@
 // src/app.module.ts
+
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -11,17 +13,26 @@ import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
+    /* ✅ LOAD ENV VARIABLES */
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+
+    /* ✅ DATABASE CONNECTION */
     TypeOrmModule.forRoot({
-  type: 'postgres',
-  url: process.env.DATABASE_URL,
+      type: 'postgres',
+      url: process.env.DATABASE_URL,
 
-  entities: [__dirname + '/**/*.entity{.ts,.js}'],
+      entities: [__dirname + '/**/*.entity{.ts,.js}'],
 
-  synchronize: true, // OK for now (dev/demo)
-  ssl: {
-    rejectUnauthorized: false,
-  },
-}),
+      synchronize: true, // OK for dev (⚠️ turn OFF in prod)
+
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    }),
+
+    /* MODULES */
     AuthModule,
     UsersModule,
     VendorsModule,
