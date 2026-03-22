@@ -1,45 +1,77 @@
-// src/components/Topbar.tsx
-import { useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
-import { authService } from '../auth/authService';
+import { LogOut } from "lucide-react";
+import hpeLogo from "../assets/hpe-logo.png";
 
-const roleLabelMap: Record<string, string> = {
-  VENDOR: 'Vendor',
-  VENDOR_MANAGER: 'Vendor Manager',
-  VENDOR_MANAGER_HEAD: 'Vendor Manager Head',
-  HIRING_MANAGER: 'Hiring Manager',
-};
+interface TopbarProps {
+  role: string;
+  onLogout: () => void;
+}
 
-const Topbar = () => {
-  const navigate = useNavigate();
-  const role = authService.getRole();
-
-  const handleLogout = () => {
-    authService.logout();
-    navigate('/login', { replace: true });
-  };
+const Topbar = ({ role, onLogout }: TopbarProps) => {
 
   return (
-    <header className="h-16 bg-white border-b flex items-center justify-between px-6">
-      <h1 className="text-lg font-semibold text-gray-800">
-        Epicenter
-      </h1>
+    <header
+      className="
+      sticky top-0 z-40
+      bg-white
+      border-b
+      flex items-center justify-between
+      px-8
+      h-20
+      shadow-sm
+    "
+    >
 
-      <div className="flex items-center gap-4">
-        {role && (
-          <span className="px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700 font-medium">
-            {roleLabelMap[role]}
-          </span>
-        )}
+      {/* LEFT LOGO */}
+
+      <div className="flex items-center">
+
+        <img
+          src={hpeLogo}
+          alt="HPE"
+          className="
+            h-14
+            w-auto
+            object-contain
+            transition-transform duration-300
+            hover:scale-105
+          "
+        />
+
+      </div>
+
+      {/* RIGHT */}
+
+      <div className="flex items-center gap-6">
+
+        <span
+          className="
+          text-xs
+          bg-emerald-100
+          text-emerald-700
+          px-4 py-1
+          rounded-full
+          font-medium
+          tracking-wide
+        "
+        >
+          {role.replaceAll("_", " ")}
+        </span>
 
         <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition"
+          onClick={onLogout}
+          className="
+            flex items-center gap-2
+            text-sm text-gray-600
+            hover:text-red-600
+            transition
+          "
         >
           <LogOut size={18} />
-          <span className="text-sm">Logout</span>
+          Logout
         </button>
+
       </div>
+
     </header>
   );
 };

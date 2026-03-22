@@ -1,4 +1,5 @@
 // src/candidates/candidates.controller.ts
+
 import {
   Controller,
   Post,
@@ -13,6 +14,7 @@ import {
   ParseIntPipe,
   Res,
 } from '@nestjs/common';
+
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -30,6 +32,8 @@ import { CandidateStatus } from './candidate-status.enum';
 export class CandidatesController {
   constructor(private readonly service: CandidatesService) {}
 
+  /* ================= CREATE ================= */
+
   @Post()
   @Roles(UserRole.VENDOR)
   @UseInterceptors(
@@ -37,10 +41,7 @@ export class CandidatesController {
       storage: diskStorage({
         destination: './uploads/resumes',
         filename: (_, file, cb) => {
-          cb(
-            null,
-            Date.now() + extname(file.originalname),
-          );
+          cb(null, Date.now() + extname(file.originalname));
         },
       }),
     }),
@@ -57,29 +58,36 @@ export class CandidatesController {
     );
   }
 
+  /* ================= LIST ================= */
+
   @Get()
   @Roles(
     UserRole.VENDOR,
     UserRole.VENDOR_MANAGER,
+    UserRole.VENDOR_MANAGER_HEAD,
     UserRole.HIRING_MANAGER,
   )
   findAll(@Req() req: any) {
     return this.service.getCandidatesForUser(req.user);
   }
 
-  @Post(':id/submit/:jobId')
-  @Roles(UserRole.VENDOR)
-  submit(
+  /* ================= GET ONE ================= */
+
+  @Get(':id')
+  @Roles(
+    UserRole.VENDOR,
+    UserRole.VENDOR_MANAGER,
+    UserRole.VENDOR_MANAGER_HEAD,
+    UserRole.HIRING_MANAGER,
+  )
+  getOne(
     @Param('id', ParseIntPipe) id: number,
-    @Param('jobId', ParseIntPipe) jobId: number,
     @Req() req: any,
   ) {
-    return this.service.submitCandidateToJob(
-      id,
-      jobId,
-      req.user.vendorId,
-    );
+    return this.service.getCandidateById(id, req.user);
   }
+
+  /* ================= MANUAL STATUS UPDATE ================= */
 
   @Patch(':id/status')
   @Roles(UserRole.HIRING_MANAGER)
@@ -90,10 +98,34 @@ export class CandidatesController {
     return this.service.updateStage(id, status);
   }
 
+  /* ================= INTERVIEW FEEDBACK ================= */
+
+  @Patch(':id/interview')
+  @Roles(UserRole.HIRING_MANAGER)
+  submitFeedback(
+    @Param('id', ParseIntPipe) id: number,
+    @Body()
+    body: {
+      roundId: number;
+      feedback: string;
+      decision: 'SELECT' | 'REJECT';
+    },
+  ) {
+    return this.service.submitInterviewFeedback(
+      id,
+      body.roundId,
+      body.feedback,
+      body.decision,
+    );
+  }
+
+  /* ================= RESUME ================= */
+
   @Get(':id/resume')
   @Roles(
     UserRole.VENDOR,
     UserRole.VENDOR_MANAGER,
+    UserRole.VENDOR_MANAGER_HEAD,
     UserRole.HIRING_MANAGER,
   )
   async resume(
@@ -101,10 +133,12 @@ export class CandidatesController {
     @Req() req: any,
     @Res() res: Response,
   ) {
-    const path = await this.service.getResumePathForUser(
-      id,
-      req.user,
-    );
+    const path =
+      await this.service.getResumePathForUser(
+        id,
+        req.user,
+      );
+
     return res.sendFile(path, { root: '.' });
   }
 }

@@ -1,4 +1,5 @@
 // src/dashboard/dashboard.service.ts
+
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -24,6 +25,7 @@ export class DashboardService {
   // ======================================================
   // MAIN DASHBOARD ENTRY (ROLE AWARE)
   // ======================================================
+
   async getSummary(user: any) {
     if (user.role === 'VENDOR') {
       return this.getVendorDashboard(user);
@@ -43,6 +45,7 @@ export class DashboardService {
   // ======================================================
   // VENDOR DASHBOARD
   // ======================================================
+
   private async getVendorDashboard(user: any) {
     const candidates = await this.candidateRepo.find({
       where: { vendor: { id: user.vendorId } },
@@ -59,10 +62,16 @@ export class DashboardService {
 
     return {
       kpis: {
-        activeCandidates: candidates.length,
+        totalCandidates: candidates.length,
         openJobs: jobs.filter((j) => j.isActive).length,
-        submissions: candidates.filter(
-          (c) => c.status !== CandidateStatus.NEW,
+        screening: candidates.filter(
+          (c) => c.status === CandidateStatus.SCREENING,
+        ).length,
+        selected: candidates.filter(
+          (c) => c.status === CandidateStatus.SELECTED,
+        ).length,
+        rejected: candidates.filter(
+          (c) => c.status === CandidateStatus.REJECTED,
         ).length,
       },
 
@@ -77,6 +86,7 @@ export class DashboardService {
   // ======================================================
   // VENDOR MANAGER DASHBOARD (GLOBAL)
   // ======================================================
+
   private async getVendorManagerDashboard() {
     const [vendors, jobs, candidates] = await Promise.all([
       this.vendorRepo.find(),
@@ -90,6 +100,15 @@ export class DashboardService {
           .length,
         activeJobs: jobs.filter((j) => j.isActive).length,
         totalCandidates: candidates.length,
+        screening: candidates.filter(
+          (c) => c.status === CandidateStatus.SCREENING,
+        ).length,
+        selected: candidates.filter(
+          (c) => c.status === CandidateStatus.SELECTED,
+        ).length,
+        rejected: candidates.filter(
+          (c) => c.status === CandidateStatus.REJECTED,
+        ).length,
       },
 
       stageSummary: this.buildStageSummary(candidates),
@@ -102,8 +121,8 @@ export class DashboardService {
 
   // ======================================================
   // HIRING MANAGER DASHBOARD
-  // (Currently global – safe until HM-job ownership added)
   // ======================================================
+
   private async getHiringManagerDashboard(_user: any) {
     const [jobs, candidates] = await Promise.all([
       this.jobRepo.find(),
@@ -114,10 +133,14 @@ export class DashboardService {
       kpis: {
         openJobs: jobs.filter((j) => j.isActive).length,
         totalCandidates: candidates.length,
-        interviews: candidates.filter(
-          (c) =>
-            c.status === CandidateStatus.SCREENING ||
-            c.status === CandidateStatus.TECH_SELECTED,
+        screening: candidates.filter(
+          (c) => c.status === CandidateStatus.SCREENING,
+        ).length,
+        selected: candidates.filter(
+          (c) => c.status === CandidateStatus.SELECTED,
+        ).length,
+        rejected: candidates.filter(
+          (c) => c.status === CandidateStatus.REJECTED,
         ).length,
       },
 
@@ -132,11 +155,12 @@ export class DashboardService {
   // ======================================================
   // HELPERS
   // ======================================================
+
   private buildStageSummary(candidates: Candidate[]) {
     const summary: Record<string, number> = {};
 
-    Object.values(CandidateStatus).forEach((s) => {
-      summary[s] = 0;
+    Object.values(CandidateStatus).forEach((status) => {
+      summary[status] = 0;
     });
 
     for (const c of candidates) {
@@ -173,7 +197,16 @@ export class DashboardService {
   private buildWeeklySubmissions(
     candidates: Candidate[],
   ) {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const days = [
+      'Sun',
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+    ];
+
     const counts: Record<string, number> = {};
 
     days.forEach((d) => (counts[d] = 0));

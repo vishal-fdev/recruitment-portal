@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DeepPartial } from 'typeorm';
+import { Repository, DeepPartial, In, ILike } from 'typeorm';
 
 import { Job } from './job.entity';
 import { JobVendor } from './job-vendor.entity';
@@ -14,6 +14,10 @@ import { Candidate } from '../candidates/candidate.entity';
 import { InterviewRound } from './interview-round.entity';
 import { InterviewPanel } from './interview-panel.entity';
 import { JobStatus } from './job-status.enum';
+import {
+  JobPosition,
+  JobPositionStatus,
+} from './job-position.entity';
 
 @Injectable()
 export class JobsService {
@@ -35,60 +39,69 @@ export class JobsService {
 
     @InjectRepository(InterviewPanel)
     private readonly panelRepo: Repository<InterviewPanel>,
+
+    @InjectRepository(JobPosition)
+    private readonly positionRepo: Repository<JobPosition>,
   ) {}
 
   /* ======================================================
-     ROLE-AWARE JOB LIST
+     ROLE BASED JOB LIST
   ====================================================== */
 
-  async getJobsForUser(user: any): Promise<Job[]> {
-    // 🔹 Vendor → assigned + approved
+  async getJobsForUser(user: any): Promise<any[]> {
     if (user.role === 'VENDOR') {
       const mappings = await this.jobVendorRepo.find({
         where: {
-          vendor: { id: user.vendorId },
+          vendor: { id: user.vendor?.id || user.vendorId },
           isEnabled: true,
         },
         relations: ['job'],
       });
 
-      return mappings
-        .map((m) => m.job)
-        .filter(
-          (j) =>
-            j &&
-            j.isActive &&
-            j.status === JobStatus.APPROVED,
-        );
-    }
+      const allowedIds = mappings.map((m) => m.job.id);
+      if (!allowedIds.length) return [];
 
-    // 🔹 Vendor Manager → approved only
-    if (user.role === 'VENDOR_MANAGER') {
-      return this.jobRepo.find({
-        where: { status: JobStatus.APPROVED },
+      const jobs = await this.jobRepo.find({
+        where: {
+          id: In(allowedIds),
+          status: JobStatus.APPROVED,
+          isActive: true,
+        },
+        relations: ['positions'],
         order: { createdAt: 'DESC' },
       });
+
+      return jobs
+        .map((job) => {
+          const openPositions =
+            job.positions?.filter(
+              (p) =>
+                p.status === JobPositionStatus.OPEN &&
+                p.openings > 0,
+            ) || [];
+
+          return {
+            ...job,
+            positions: openPositions,
+          };
+        })
+        .filter((job) => job.positions.length > 0);
     }
 
-    // 🔥 Vendor Manager Head → SEE ALL JOBS
-    if (user.role === 'VENDOR_MANAGER_HEAD') {
-      return this.jobRepo.find({
-        order: { createdAt: 'DESC' },
-      });
-    }
-
-    // 🔹 Hiring Manager → all jobs
-    return this.jobRepo.find({
+    const jobs = await this.jobRepo.find({
+      relations: ['positions'],
       order: { createdAt: 'DESC' },
     });
+
+    return jobs;
   }
 
   /* ======================================================
-     CREATE JOB + INTERVIEW ROUNDS
+     CREATE JOB (UPDATED)
   ====================================================== */
 
   async createJob(data: any): Promise<Job> {
-    const { interviewRounds, ...jobData } = data;
+    const { interviewRounds, positions, ...jobData } = data;
 
     const jobEntity = this.jobRepo.create(
       jobData as DeepPartial<Job>,
@@ -98,6 +111,30 @@ export class JobsService {
     jobEntity.isActive = true;
 
     const savedJob = await this.jobRepo.save(jobEntity);
+
+    /* ================= POSITIONS ================= */
+
+    if (Array.isArray(positions) && positions.length) {
+      for (const pos of positions) {
+        const positionEntity =
+          this.positionRepo.create({
+            level: pos.level,
+            openings: Number(pos.openings || 0),
+            status: JobPositionStatus.OPEN,
+
+            // ✅ NEW FIELDS (SAFE ADDITION)
+            requestType: pos.requestType || 'NEW',
+            backfillEmployeeId: pos.backfillEmployeeId || null,
+            backfillEmployeeName: pos.backfillEmployeeName || null,
+
+            job: savedJob,
+          });
+
+        await this.positionRepo.save(positionEntity);
+      }
+    }
+
+    /* ================= INTERVIEW ================= */
 
     if (Array.isArray(interviewRounds)) {
       for (const round of interviewRounds) {
@@ -111,10 +148,11 @@ export class JobsService {
           await this.roundRepo.save(roundEntity);
 
         if (Array.isArray(round.panels)) {
-          for (const panelName of round.panels) {
+          for (const panel of round.panels) {
             const panelEntity =
               this.panelRepo.create({
-                name: panelName,
+                name: panel.name,   // ✅ FIXED
+                email: panel.email, // ✅ NEW
                 round: savedRound,
               });
 
@@ -128,17 +166,63 @@ export class JobsService {
   }
 
   /* ======================================================
+     TEMPLATE FETCH (UPDATED)
+  ====================================================== */
+
+  async getTemplateByTitle(title: string) {
+    if (!title) return null;
+
+    const job = await this.jobRepo.findOne({
+      where: { title: ILike(title) },
+      relations: [
+        'positions',
+        'interviewRounds',
+        'interviewRounds.panels',
+      ],
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!job) return null;
+
+    return {
+      title: job.title,
+      location: job.location,
+      experience: job.experience,
+      department: job.department,
+      budget: job.budget,
+      description: job.description,
+      positions: job.positions?.map((p) => ({
+        level: p.level,
+        openings: p.openings,
+        requestType: p.requestType,
+        backfillEmployeeId: p.backfillEmployeeId,
+        backfillEmployeeName: p.backfillEmployeeName,
+      })),
+      interviewRounds: job.interviewRounds?.map((r) => ({
+        roundName: r.roundName,
+        mode: r.mode,
+        panels: r.panels?.map((p) => ({
+          name: p.name,
+          email: p.email,
+        })),
+      })),
+    };
+  }
+
+  /* ======================================================
      GET JOB BY ID
   ====================================================== */
 
-  async getJobById(jobId: number): Promise<Job> {
+  async getJobById(jobId: number): Promise<any> {
     const job = await this.jobRepo.findOne({
       where: { id: jobId },
       relations: [
+        'jobVendors',
+        'jobVendors.vendor',
         'interviewRounds',
         'interviewRounds.panels',
-        'jobVendors',
         'candidates',
+        'positions',
       ],
     });
 
@@ -146,7 +230,73 @@ export class JobsService {
       throw new NotFoundException('Job not found');
     }
 
-    return job;
+    const allVendors = await this.vendorRepo.find({
+      where: { isActive: true },
+    });
+
+    const vendors = allVendors.map((vendor) => {
+      const mapping = job.jobVendors.find(
+        (jv) => jv.vendor.id === vendor.id,
+      );
+
+      return {
+        id: vendor.id,
+        email: vendor.email,
+        isEnabled: mapping ? mapping.isEnabled : false,
+      };
+    });
+
+    return {
+      ...job,
+      vendors,
+    };
+  }
+
+  /* ======================================================
+     OTHER METHODS (UNCHANGED)
+  ====================================================== */
+
+  async toggleVendor(jobId: number, vendorId: string, isEnabled: boolean) {
+    let mapping = await this.jobVendorRepo.findOne({
+      where: {
+        job: { id: jobId },
+        vendor: { id: vendorId },
+      },
+      relations: ['job', 'vendor'],
+    });
+
+    if (!mapping) {
+      const job = await this.jobRepo.findOne({ where: { id: jobId } });
+      const vendor = await this.vendorRepo.findOne({ where: { id: vendorId } });
+
+      if (!job || !vendor) {
+        throw new NotFoundException('Job or Vendor not found');
+      }
+
+      mapping = this.jobVendorRepo.create({
+        job,
+        vendor,
+        isEnabled,
+      });
+    } else {
+      mapping.isEnabled = isEnabled;
+    }
+
+    await this.jobVendorRepo.save(mapping);
+    return { success: true };
+  }
+
+  async closePosition(positionId: number) {
+    const position = await this.positionRepo.findOne({
+      where: { id: positionId },
+    });
+
+    if (!position)
+      throw new NotFoundException('Position not found');
+
+    position.status = JobPositionStatus.CLOSED;
+    await this.positionRepo.save(position);
+    return { success: true };
   }
 
   async closeJob(jobId: number) {
@@ -154,7 +304,6 @@ export class JobsService {
       isActive: false,
       status: JobStatus.CLOSED,
     });
-
     return { success: true };
   }
 
@@ -162,7 +311,6 @@ export class JobsService {
     await this.jobRepo.update(jobId, {
       status: JobStatus.APPROVED,
     });
-
     return { success: true };
   }
 
@@ -170,20 +318,12 @@ export class JobsService {
     await this.jobRepo.update(jobId, {
       status: JobStatus.REJECTED,
     });
-
     return { success: true };
   }
 
-  async attachJD(
-    jobId: number,
-    file: Express.Multer.File,
-  ) {
-    const job = await this.jobRepo.findOne({
-      where: { id: jobId },
-    });
-
-    if (!job)
-      throw new NotFoundException('Job not found');
+  async attachJD(jobId: number, file: Express.Multer.File) {
+    const job = await this.jobRepo.findOne({ where: { id: jobId } });
+    if (!job) throw new NotFoundException('Job not found');
 
     job.jdPath = file.path;
     job.jdFileName = file.originalname;
@@ -193,21 +333,10 @@ export class JobsService {
   }
 
   async getJD(jobId: number) {
-    const job = await this.jobRepo.findOne({
-      where: { id: jobId },
-    });
-
+    const job = await this.jobRepo.findOne({ where: { id: jobId } });
     if (!job || !job.jdPath)
       throw new NotFoundException('JD not found');
 
     return job;
-  }
-
-  async getCandidatesForJob(jobId: number) {
-    return this.candidateRepo.find({
-      where: { job: { id: jobId } },
-      relations: ['vendor'],
-      order: { createdAt: 'DESC' },
-    });
   }
 }

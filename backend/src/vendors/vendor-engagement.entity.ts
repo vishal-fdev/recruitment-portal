@@ -4,22 +4,35 @@ import {
   Column,
   ManyToOne,
 } from 'typeorm';
+
 import { Vendor } from './vendors.entity';
 
 @Entity()
 export class VendorEngagement {
+
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ nullable: true })
+  engagementStatus: string;
+
+  @Column({ nullable: true })
   engagementType: string;
 
   @Column({ nullable: true })
-  startDate: string;
+  businessUnit: string;
 
   @Column({ nullable: true })
-  endDate: string;
+  evaluationStatus: string;
 
-  @ManyToOne(() => Vendor, (vendor) => vendor.engagements)
+  @Column({ nullable: true })
+  evaluatedBy: string;
+
+  @Column({ nullable: true })
+  extendedDate: string;
+
+  @ManyToOne(() => Vendor, (vendor) => vendor.engagements, {
+    onDelete: 'CASCADE',
+  })
   vendor: Vendor;
 }

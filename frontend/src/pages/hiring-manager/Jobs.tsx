@@ -1,21 +1,31 @@
 // src/pages/hiring-manager/Jobs.tsx
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getJobs } from '../../services/jobService';
-import type { Job } from '../../services/jobService';
+import api from '../../api/api';
+import { authService } from '../../auth/authService';
+
+interface Job {
+  id: number;
+  title: string;
+  location: string;
+  level?: string;        // ✅ Added Level
+  createdAt: string;
+  status: string;
+}
 
 const HMJobs = () => {
   const navigate = useNavigate();
+  const role = authService.getRole();
+
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadJobs = async () => {
+  const fetchJobs = async () => {
     try {
-      setLoading(true);
-      const data = await getJobs();
-      setJobs(data);
-    } catch (err) {
-      console.error(err);
+      const res = await api.get('/jobs');
+      setJobs(res.data);
+    } catch {
       alert('Failed to load jobs');
     } finally {
       setLoading(false);
@@ -23,36 +33,51 @@ const HMJobs = () => {
   };
 
   useEffect(() => {
-    loadJobs();
+    fetchJobs();
   }, []);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">
-          Job Requisitions
-        </h1>
-        <p className="text-sm text-gray-500">
-          Create and manage job openings
-        </p>
+
+      {/* HEADER */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-800">
+            Job Requisitions
+          </h1>
+          <p className="text-sm text-gray-500">
+            Create and manage job openings
+          </p>
+        </div>
+
+        {role === 'HIRING_MANAGER' && (
+          <button
+            onClick={() => navigate('/hiring-manager/jobs/create')}
+            className="bg-emerald-600 text-white px-5 py-2 rounded shadow hover:bg-emerald-700 transition"
+          >
+            + Create Job
+          </button>
+        )}
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+      {/* TABLE */}
+      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-x-auto">
+        <table className="w-full text-sm text-center">
+          <thead className="bg-gray-50 text-gray-600">
             <tr>
-              <th className="px-4 py-3 text-left">HRQ ID</th>
-              <th className="px-4 py-3 text-left">Role</th>
-              <th className="px-4 py-3 text-left">Location</th>
-              <th className="px-4 py-3 text-left">Assigned Date</th>
-              <th className="px-4 py-3 text-left">Status</th>
+              <th className="px-4 py-3">HRQ ID</th>
+              <th className="px-4 py-3">Role</th>
+              <th className="px-4 py-3">Level</th>
+              <th className="px-4 py-3">Location</th>
+              <th className="px-4 py-3">Assigned Date</th>
+              <th className="px-4 py-3">Status</th>
             </tr>
           </thead>
 
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={5} className="py-6 text-center">
+                <td colSpan={6} className="py-6 text-gray-500">
                   Loading...
                 </td>
               </tr>
@@ -62,53 +87,38 @@ const HMJobs = () => {
               jobs.map((job) => (
                 <tr
                   key={job.id}
-                  className="border-t hover:bg-gray-50"
+                  className="border-t hover:bg-gray-50 cursor-pointer transition"
+                  onClick={() =>
+                    navigate(`/hiring-manager/jobs/${job.id}`)
+                  }
                 >
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() =>
-                        navigate(
-                          `/hiring-manager/jobs/${job.id}`,
-                        )
-                      }
-                      className="text-emerald-600 font-medium hover:underline"
-                    >
-                      HRQ{job.id}
-                    </button>
+                  <td className="px-4 py-3 font-medium text-emerald-600">
+                    HRQ{job.id}
                   </td>
 
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-gray-700">
                     {job.title}
                   </td>
 
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-gray-700">
+                    {job.level || '—'}
+                  </td>
+
+                  <td className="px-4 py-3 text-gray-700">
                     {job.location}
                   </td>
 
-                  <td className="px-4 py-3">
-                    {new Date(
-                      job.createdAt,
-                    ).toLocaleDateString('en-IN')}
+                  <td className="px-4 py-3 text-gray-700">
+                    {new Date(job.createdAt).toLocaleDateString('en-IN')}
                   </td>
 
                   <td className="px-4 py-3">
-                    <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700 font-medium">
-                      Open-WIP
-                    </span>
+                    <div className="flex justify-center">
+                      <StatusBadge status={job.status} />
+                    </div>
                   </td>
                 </tr>
               ))}
-
-            {!loading && jobs.length === 0 && (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="py-6 text-center text-gray-500"
-                >
-                  No jobs found
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
@@ -117,3 +127,33 @@ const HMJobs = () => {
 };
 
 export default HMJobs;
+
+
+/* ================= STATUS BADGE ================= */
+
+const StatusBadge = ({ status }: { status: string }) => {
+  let styles = '';
+
+  switch (status) {
+    case 'PENDING_APPROVAL':
+      styles = 'bg-yellow-100 text-yellow-700';
+      break;
+    case 'APPROVED':
+      styles = 'bg-green-100 text-green-700';
+      break;
+    case 'REJECTED':
+      styles = 'bg-red-100 text-red-700';
+      break;
+    case 'CLOSED':
+      styles = 'bg-gray-200 text-gray-600';
+      break;
+    default:
+      styles = 'bg-indigo-100 text-indigo-700';
+  }
+
+  return (
+    <span className={`px-3 py-1 rounded-full text-xs font-medium ${styles}`}>
+      {status.replace('_', ' ')}
+    </span>
+  );
+};

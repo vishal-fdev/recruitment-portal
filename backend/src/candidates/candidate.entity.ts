@@ -1,14 +1,19 @@
 // src/candidates/candidate.entity.ts
+
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
   CreateDateColumn,
 } from 'typeorm';
+
 import { Vendor } from '../vendors/vendors.entity';
 import { Job } from '../jobs/job.entity';
+import { JobPosition } from '../jobs/job-position.entity';
 import { CandidateStatus } from './candidate-status.enum';
+import { CandidateInterview } from './candidate-interview.entity';
 
 @Entity()
 export class Candidate {
@@ -51,11 +56,6 @@ export class Candidate {
   @Column()
   resumePath: string;
 
-  /**
-   * ✅ IMPORTANT:
-   * SQLite does NOT support enum
-   * Use TEXT + app-level enum validation
-   */
   @Column({
     type: 'text',
     default: CandidateStatus.NEW,
@@ -70,4 +70,18 @@ export class Candidate {
 
   @ManyToOne(() => Job, { eager: true, nullable: true })
   job: Job | null;
+
+  // 🔥 NEW
+  @ManyToOne(() => JobPosition, {
+    eager: true,
+    nullable: true,
+  })
+  position: JobPosition | null;
+
+  @OneToMany(
+    () => CandidateInterview,
+    (interview) => interview.candidate,
+    { cascade: true, eager: true },
+  )
+  interviews: CandidateInterview[];
 }

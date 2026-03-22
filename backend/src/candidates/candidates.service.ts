@@ -1,3 +1,5 @@
+// src/candidates/candidates.service.ts
+
 import {
   Injectable,
   NotFoundException,
@@ -11,6 +13,12 @@ import { Vendor } from '../vendors/vendors.entity';
 import { Job } from '../jobs/job.entity';
 import { JobVendor } from '../jobs/job-vendor.entity';
 import { CandidateStatus } from './candidate-status.enum';
+import { CandidateInterview } from './candidate-interview.entity';
+import { InterviewRound } from '../jobs/interview-round.entity';
+import {
+  JobPosition,
+  JobPositionStatus,
+} from '../jobs/job-position.entity';
 
 @Injectable()
 export class CandidatesService {
@@ -26,11 +34,21 @@ export class CandidatesService {
 
     @InjectRepository(JobVendor)
     private readonly jobVendorRepo: Repository<JobVendor>,
+
+    @InjectRepository(CandidateInterview)
+    private readonly interviewRepo: Repository<CandidateInterview>,
+
+    @InjectRepository(InterviewRound)
+    private readonly roundRepo: Repository<InterviewRound>,
+
+    @InjectRepository(JobPosition)
+    private readonly positionRepo: Repository<JobPosition>,
   ) {}
 
-  // =========================
-  // CREATE CANDIDATE (Vendor)
-  // =========================
+  /* =====================================================
+     CREATE CANDIDATE
+  ===================================================== */
+
   async createCandidate(
     data: any,
     resumePath: string,
@@ -44,126 +62,260 @@ export class CandidatesService {
       throw new NotFoundException('Vendor not found');
     }
 
+    let job: Job | null = null;
+    let position: JobPosition | null = null;
+
+    if (data.jobId) {
+      job = await this.jobRepo.findOne({
+        where: { id: Number(data.jobId) },
+        relations: ['positions'],
+      });
+
+      if (!job) {
+        throw new NotFoundException('Job not found');
+      }
+
+      const mapping =
+        await this.jobVendorRepo.findOne({
+          where: {
+            job: { id: job.id },
+            vendor: { id: vendorId },
+            isEnabled: true,
+          },
+        });
+
+      if (!mapping) {
+        throw new BadRequestException(
+          'Vendor not assigned to this job',
+        );
+      }
+
+      if (data.positionId) {
+        position = await this.positionRepo.findOne({
+          where: { id: Number(data.positionId) },
+          relations: ['job'],
+        });
+
+        if (!position) {
+          throw new NotFoundException(
+            'Position not found',
+          );
+        }
+
+        if (position.job.id !== job.id) {
+          throw new BadRequestException(
+            'Invalid position for this job',
+          );
+        }
+
+        if (position.status === JobPositionStatus.CLOSED) {
+          throw new BadRequestException(
+            'This position is closed',
+          );
+        }
+      }
+    }
+
     const candidate = this.candidateRepo.create({
       ...data,
       experience: Number(data.experience),
       noticePeriod: Number(data.noticePeriod || 0),
       resumePath,
-      status: CandidateStatus.NEW,
+      status: CandidateStatus.SCREENING,
       vendor,
+      job: job || null,
+      position: position || null,
     });
 
     return this.candidateRepo.save(candidate);
   }
 
-  // =========================
-  // ROLE-AWARE FETCH
-  // =========================
+  /* =====================================================
+     MANUAL STATUS UPDATE (REQUIRED BY CONTROLLER)
+  ===================================================== */
+
+  async updateStage(
+    candidateId: number,
+    nextStatus: CandidateStatus,
+  ) {
+    const candidate = await this.candidateRepo.findOne({
+      where: { id: candidateId },
+    });
+
+    if (!candidate) {
+      throw new NotFoundException(
+        'Candidate not found',
+      );
+    }
+
+    candidate.status = nextStatus;
+
+    return this.candidateRepo.save(candidate);
+  }
+
+  /* =====================================================
+     ROLE-AWARE FETCH
+  ===================================================== */
+
   async getCandidatesForUser(user: any) {
     if (user.role === 'VENDOR') {
       return this.candidateRepo.find({
-        where: { vendor: { id: user.vendorId } },
-        relations: ['job'],
+        where: {
+          vendor: { id: user.vendorId },
+        },
+        relations: ['job', 'position'],
         order: { createdAt: 'DESC' },
       });
     }
 
     return this.candidateRepo.find({
-      relations: ['vendor', 'job'],
+      relations: ['vendor', 'job', 'position'],
       order: { createdAt: 'DESC' },
     });
   }
 
-  // =========================
-  // SUBMIT → JOB (Vendor)
-  // =========================
-  async submitCandidateToJob(
-    candidateId: number,
-    jobId: number,
-    vendorId: string,
-  ) {
+  /* =====================================================
+     GET SINGLE CANDIDATE
+  ===================================================== */
+
+  async getCandidateById(id: number, user: any) {
     const candidate = await this.candidateRepo.findOne({
-      where: { id: candidateId },
-      relations: ['vendor'],
+      where: { id },
+      relations: [
+        'vendor',
+        'job',
+        'job.interviewRounds',
+        'job.interviewRounds.panels',
+        'position',
+        'interviews',
+        'interviews.round',
+      ],
     });
 
     if (!candidate) {
-      throw new NotFoundException('Candidate not found');
-    }
-
-    if (candidate.vendor.id !== vendorId) {
-      throw new BadRequestException('Access denied');
-    }
-
-    const jobVendor = await this.jobVendorRepo.findOne({
-      where: {
-        job: { id: jobId },
-        vendor: { id: vendorId },
-        isEnabled: true,
-      },
-      relations: ['job'],
-    });
-
-    if (!jobVendor) {
-      throw new BadRequestException('Job not assigned');
-    }
-
-    candidate.job = jobVendor.job;
-    candidate.status = CandidateStatus.SUBMITTED;
-
-    return this.candidateRepo.save(candidate);
-  }
-
-  // =========================
-  // UPDATE STAGE (Hiring Manager)
-  // =========================
-  async updateStage(
-    candidateId: number,
-    nextStatus: CandidateStatus,
-  ) {
-    // ✅ ENUM SAFETY (important for SQLite)
-    if (!Object.values(CandidateStatus).includes(nextStatus)) {
-      throw new BadRequestException(
-        `Invalid candidate status: ${nextStatus}`,
+      throw new NotFoundException(
+        'Candidate not found',
       );
     }
-
-    const candidate = await this.candidateRepo.findOne({
-      where: { id: candidateId },
-    });
-
-    if (!candidate) {
-      throw new NotFoundException('Candidate not found');
-    }
-
-    /**
-     * ✅ Relaxed rules for Hiring Manager UI
-     * HM can directly decide after submission
-     */
-    const allowedFromSubmitted = [
-      CandidateStatus.SCREENING,
-      CandidateStatus.TECH_SELECTED,
-      CandidateStatus.TECH_REJECTED,
-      CandidateStatus.OPS_SELECTED,
-      CandidateStatus.OPS_REJECTED,
-    ];
 
     if (
-      candidate.status === CandidateStatus.SUBMITTED &&
-      !allowedFromSubmitted.includes(nextStatus)
+      user.role === 'VENDOR' &&
+      candidate.vendor.id !== user.vendorId
     ) {
       throw new BadRequestException(
-        `Invalid transition from ${candidate.status} to ${nextStatus}`,
+        'Unauthorized',
       );
     }
 
-    candidate.status = nextStatus;
-    return this.candidateRepo.save(candidate);
+    return candidate;
   }
 
-  // =========================
-  // RESUME ACCESS (SECURE)
-  // =========================
+  /* =====================================================
+     SUBMIT INTERVIEW FEEDBACK
+  ===================================================== */
+
+  async submitInterviewFeedback(
+    candidateId: number,
+    roundId: number,
+    feedback: string,
+    decision: 'SELECT' | 'REJECT',
+  ) {
+    const candidate = await this.candidateRepo.findOne({
+      where: { id: candidateId },
+      relations: [
+        'job',
+        'job.interviewRounds',
+        'interviews',
+        'interviews.round',
+      ],
+    });
+
+    if (!candidate) {
+      throw new NotFoundException(
+        'Candidate not found',
+      );
+    }
+
+    if (!candidate.job) {
+      throw new BadRequestException(
+        'Candidate has no associated job',
+      );
+    }
+
+    if (
+      candidate.status === CandidateStatus.REJECTED ||
+      candidate.status === CandidateStatus.SELECTED
+    ) {
+      throw new BadRequestException(
+        'Candidate decision already finalized',
+      );
+    }
+
+    const round = await this.roundRepo.findOne({
+      where: { id: roundId },
+      relations: ['panels'],
+    });
+
+    if (!round) {
+      throw new NotFoundException(
+        'Round not found',
+      );
+    }
+
+    const alreadySubmitted = candidate.interviews.find(
+      (i) => i.round.id === roundId,
+    );
+
+    if (alreadySubmitted) {
+      throw new BadRequestException(
+        'Feedback already submitted for this round',
+      );
+    }
+
+    const interviewsCount = candidate.interviews.length;
+    const expectedRound =
+      candidate.job.interviewRounds[interviewsCount];
+
+    if (!expectedRound || expectedRound.id !== roundId) {
+      throw new BadRequestException(
+        'Invalid round sequence',
+      );
+    }
+
+    const interview = this.interviewRepo.create({
+      candidate,
+      round,
+      panelMembers: round.panels
+        .map((p) => p.name)
+        .join(', '),
+      feedback,
+      decision,
+    });
+
+    await this.interviewRepo.save(interview);
+
+    if (decision === 'REJECT') {
+      candidate.status = CandidateStatus.REJECTED;
+    } else {
+      const totalRounds =
+        candidate.job.interviewRounds.length;
+
+      if (interviewsCount === totalRounds - 1) {
+        candidate.status = CandidateStatus.SELECTED;
+      } else {
+        candidate.status = CandidateStatus.SCREENING;
+      }
+    }
+
+    await this.candidateRepo.save(candidate);
+
+    return { success: true };
+  }
+
+  /* =====================================================
+     RESUME ACCESS
+  ===================================================== */
+
   async getResumePathForUser(
     candidateId: number,
     user: any,
@@ -174,14 +326,18 @@ export class CandidatesService {
     });
 
     if (!candidate) {
-      throw new NotFoundException('Candidate not found');
+      throw new NotFoundException(
+        'Candidate not found',
+      );
     }
 
     if (
       user.role === 'VENDOR' &&
       candidate.vendor.id !== user.vendorId
     ) {
-      throw new BadRequestException('Unauthorized');
+      throw new BadRequestException(
+        'Unauthorized',
+      );
     }
 
     return candidate.resumePath;

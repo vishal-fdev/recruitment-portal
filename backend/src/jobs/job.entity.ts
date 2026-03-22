@@ -12,6 +12,7 @@ import { JobVendor } from './job-vendor.entity';
 import { Candidate } from '../candidates/candidate.entity';
 import { InterviewRound } from './interview-round.entity';
 import { JobStatus } from './job-status.enum';
+import { JobPosition } from './job-position.entity';
 
 @Entity()
 export class Job {
@@ -32,6 +33,21 @@ export class Job {
   @Column({ nullable: true })
   department: string;
 
+  @Column({ nullable: true })
+  jobCategory: string;
+
+  @Column({ nullable: true })
+  workType: string;
+
+  @Column({ nullable: true })
+  region: string;
+
+  @Column({ nullable: true })
+  dealName: string;
+
+  @Column({ type: 'text', nullable: true })
+  justification: string;
+
   /* ================= CONTRACT ================= */
 
   @Column({ nullable: true })
@@ -45,6 +61,23 @@ export class Job {
 
   @Column({ nullable: true })
   endDate: string;
+
+  /* ================= POSITION ================= */
+
+  @Column({ nullable: true })
+  level: string;
+
+  @Column({ type: 'int', nullable: true })
+  numberOfPositions: number;
+
+  @Column({ nullable: true })
+  requestType: string;
+
+  @Column({ nullable: true })
+  backfillEmployeeId: string;
+
+  @Column({ nullable: true })
+  backfillEmployeeName: string;
 
   /* ================= DESCRIPTION ================= */
 
@@ -86,12 +119,14 @@ export class Job {
   @OneToMany(() => Candidate, (c) => c.job)
   candidates: Candidate[];
 
-  @OneToMany(
-    () => InterviewRound,
-    (round) => round.job,
-    {
-      cascade: true,
-    },
-  )
+  @OneToMany(() => JobPosition, (pos) => pos.job, {
+    cascade: true,
+    eager: true,
+  })
+  positions: JobPosition[];
+
+  @OneToMany(() => InterviewRound, (round) => round.job, {
+    cascade: true,
+  })
   interviewRounds: InterviewRound[];
 }

@@ -1,4 +1,5 @@
 // src/services/jobService.ts
+
 import api from '../api/api';
 
 /* ===================== STATUS ===================== */
@@ -11,10 +12,30 @@ export type JobStatus =
 
 /* ===================== INTERVIEW TYPES ===================== */
 
+// ✅ UPDATED (support name + email)
+export interface InterviewPanelPayload {
+  name: string;
+  email?: string;
+}
+
 export interface InterviewRoundPayload {
   roundName: string;
   mode?: string;
-  panels: string[];
+  panels: InterviewPanelPayload[]; // ✅ FIXED
+}
+
+/* ===================== POSITION TYPE ===================== */
+
+export interface JobPosition {
+  id: number;
+  level: string;
+  openings: number;
+  status?: string;
+
+  // ✅ NEW
+  requestType?: 'NEW' | 'BACKFILL';
+  backfillEmployeeId?: string;
+  backfillEmployeeName?: string;
 }
 
 /* ===================== JOB RESPONSE TYPE ===================== */
@@ -24,16 +45,41 @@ export interface Job {
   title: string;
   location: string;
   experience: string;
+
   department?: string;
   employmentType?: string;
   budget?: string;
+
   startDate?: string;
   endDate?: string;
+
   description?: string;
   status: JobStatus;
   isActive: boolean;
   createdAt: string;
+
   jdFileName?: string;
+
+  /* ===================== NEW UI FIELDS ===================== */
+
+  jobCategory?: string;
+  workType?: string;
+  region?: string;
+  dealName?: string;
+  justification?: string;
+
+  level?: string;
+  numberOfPositions?: number;
+  requestType?: 'NEW' | 'BACKFILL';
+
+  backfillEmployeeId?: string;
+  backfillEmployeeName?: string;
+
+  /* ===================== POSITIONS ===================== */
+
+  positions?: JobPosition[];
+
+  /* ===================== INTERVIEW ROUNDS ===================== */
 
   interviewRounds?: {
     id: number;
@@ -42,8 +88,13 @@ export interface Job {
     panels: {
       id: number;
       name: string;
+      email?: string; // ✅ ADDED
     }[];
   }[];
+
+  /* ===================== CALIBRATION ===================== */
+
+  calibrationNotes?: string;
 }
 
 /* ===================== CREATE PAYLOAD ===================== */
@@ -52,13 +103,24 @@ export interface CreateJobPayload {
   title: string;
   location: string;
   experience: string;
+
   department?: string;
   employmentType?: string;
   budget?: string;
+
   startDate?: string;
   endDate?: string;
+
   description?: string;
+
   interviewRounds?: InterviewRoundPayload[];
+
+  // ✅ OPTIONAL EXTENSIONS (safe)
+  positions?: Partial<JobPosition>[];
+
+  requestType?: 'NEW' | 'BACKFILL';
+  backfillEmployeeId?: string;
+  backfillEmployeeName?: string;
 }
 
 /* ===================== JOB LIST ===================== */
@@ -124,3 +186,12 @@ export const viewJD = (jobId: number) =>
 
 export const downloadJD = (jobId: number) =>
   `${import.meta.env.VITE_API_URL}/jobs/${jobId}/jd/download`;
+
+/* ===================== JOB TEMPLATE ===================== */
+
+export const getJobTemplate = async (title: string) => {
+  const res = await api.get(
+    `/jobs/template/${encodeURIComponent(title)}`
+  );
+  return res.data;
+};

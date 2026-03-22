@@ -4,18 +4,17 @@ import {
   Column,
   ManyToOne,
 } from 'typeorm';
+
 import { Vendor } from './vendors.entity';
 
 @Entity()
 export class VendorSOW {
+
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  sowNumber: string;
-
   @Column({ nullable: true })
-  description: string;
+  sowNumber: string;
 
   @Column({ nullable: true })
   startDate: string;
@@ -23,6 +22,17 @@ export class VendorSOW {
   @Column({ nullable: true })
   endDate: string;
 
-  @ManyToOne(() => Vendor, (vendor) => vendor.sows)
+  @Column({ nullable: true })
+  tcValue: string;
+
+  @Column({ nullable: true })
+  approvalStatus: string;
+
+  @Column({ nullable: true })
+  status: string;
+
+  @ManyToOne(() => Vendor, (vendor) => vendor.sows, {
+    onDelete: 'CASCADE',
+  })
   vendor: Vendor;
 }

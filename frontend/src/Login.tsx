@@ -1,9 +1,12 @@
 // src/Login.tsx
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from './api/api';
 import { authService } from './auth/authService';
 import type { UserRole } from './auth/authService';
+
+import loginBg from './assets/login-bg.jpg';
 
 const normalizeRole = (role: string): UserRole => {
   switch (role) {
@@ -18,90 +21,173 @@ const normalizeRole = (role: string): UserRole => {
 };
 
 const Login = () => {
+
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<UserRole>('VENDOR');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !role) {
-      alert('Email and role are required');
+
+    if (!email) {
+      alert('Email is required');
       return;
     }
 
     try {
+
       setLoading(true);
 
       const res = await api.post('/auth/login', {
         email,
-        role,
       });
 
       const token: string = res.data.access_token;
+
       const normalizedRole = normalizeRole(res.data.user.role);
 
       authService.login(token, normalizedRole);
 
-      // ✅ ROLE-BASED REDIRECT
       if (normalizedRole === 'VENDOR') {
         navigate('/vendor', { replace: true });
-      } else if (normalizedRole === 'VENDOR_MANAGER') {
+      }
+
+      if (normalizedRole === 'VENDOR_MANAGER') {
         navigate('/vendor-manager', { replace: true });
-      } else if (normalizedRole === 'VENDOR_MANAGER_HEAD') {
+      }
+
+      if (normalizedRole === 'VENDOR_MANAGER_HEAD') {
         navigate('/vendor-manager-head', { replace: true });
-      } else if (normalizedRole === 'HIRING_MANAGER') {
+      }
+
+      if (normalizedRole === 'HIRING_MANAGER') {
         navigate('/hiring-manager', { replace: true });
       }
+
     } catch (err) {
+
       console.error(err);
-      alert('Login failed');
+      alert('Invalid email or access not allowed');
+
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleLogin();
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm">
-        <h1 className="text-lg font-semibold mb-4">Login</h1>
 
-        <div className="flex flex-col gap-4">
-          <div>
-            <label className="text-sm font-medium">Email</label>
-            <input
-              className="w-full h-10 border rounded-md px-3 mt-1"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
+    <div
+      className="min-h-screen flex items-center justify-center bg-cover bg-center relative overflow-hidden"
+      style={{ backgroundImage: `url(${loginBg})` }}
+    >
 
-          <div>
-            <label className="text-sm font-medium">Role</label>
-            <select
-              className="w-full h-10 border rounded-md px-3 mt-1"
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-            >
-              <option value="VENDOR">Vendor</option>
-              <option value="VENDOR_MANAGER">Vendor Manager</option>
-              <option value="VENDOR_MANAGER_HEAD">
-                Vendor Manager Head
-              </option>
-              <option value="HIRING_MANAGER">Hiring Manager</option>
-            </select>
-          </div>
+      {/* GLOBAL DARK OVERLAY */}
 
-          <button
-            onClick={handleLogin}
-            disabled={loading}
-            className="bg-blue-600 text-white rounded-md h-10 font-medium disabled:opacity-60"
-          >
-            {loading ? 'Logging in…' : 'Login'}
-          </button>
-        </div>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+
+
+      {/* ANIMATED GREEN LINES */}
+
+      <div className="absolute inset-0 pointer-events-none">
+
+        <div className="absolute w-[120%] h-[2px] bg-emerald-400/40 animate-pulse top-1/4 blur-sm"></div>
+        <div className="absolute w-[120%] h-[2px] bg-emerald-400/40 animate-pulse top-2/4 blur-sm"></div>
+        <div className="absolute w-[120%] h-[2px] bg-emerald-400/40 animate-pulse top-3/4 blur-sm"></div>
+
       </div>
+
+
+      {/* MAIN CONTAINER */}
+
+      <div className="relative z-10 w-[1150px] flex items-center justify-between px-10">
+
+
+        {/* LEFT SIDE BRANDING */}
+
+        <div className="max-w-xl p-10 text-white">
+
+          <h2 className="text-sm text-gray-200 mb-2 tracking-wide">
+            Welcome to
+          </h2>
+
+          <h1 className="text-5xl font-bold mb-6 leading-tight drop-shadow-lg">
+            Hewlett Packard
+            <br />
+            Enterprise
+          </h1>
+
+          <p className="text-base text-gray-200 leading-relaxed">
+            Manage hiring workflows, vendor collaboration, and recruitment
+            operations securely across the enterprise platform.
+          </p>
+
+          <div className="mt-10 text-sm text-gray-300">
+            © 2026 Hewlett Packard Enterprise
+          </div>
+
+        </div>
+
+
+        {/* LOGIN CARD */}
+
+        <div className="flex justify-end">
+
+          <div className="w-[380px] bg-black/30 backdrop-blur-xl rounded-2xl p-10 shadow-2xl border border-white/20">
+
+            <h3 className="text-2xl font-semibold text-white mb-8 text-center">
+              Sign In
+            </h3>
+
+            {/* FORM ADDED HERE */}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+
+              {/* EMAIL */}
+
+              <div>
+
+                <label className="block text-sm text-gray-200 mb-2">
+                  Email
+                </label>
+
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  className="w-full border border-gray-300 rounded-md px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+
+              </div>
+
+
+              {/* LOGIN BUTTON */}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-emerald-600 text-white py-2 rounded-md font-medium hover:bg-emerald-700 transition disabled:opacity-60"
+              >
+
+                {loading ? 'Signing in…' : 'Sign In'}
+
+              </button>
+
+            </form>
+
+          </div>
+
+        </div>
+
+      </div>
+
     </div>
+
   );
 };
 

@@ -1,4 +1,5 @@
 // src/jobs/interview-panel.entity.ts
+
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -14,6 +15,10 @@ export class InterviewPanel {
 
   @Column()
   name: string;
+
+  // ✅ NEW
+  @Column()
+  email: string;
 
   @ManyToOne(
     () => InterviewRound,

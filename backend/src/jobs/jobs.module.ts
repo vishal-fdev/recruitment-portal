@@ -8,6 +8,7 @@ import { Vendor } from '../vendors/vendors.entity';
 import { Candidate } from '../candidates/candidate.entity';
 import { InterviewRound } from './interview-round.entity';
 import { InterviewPanel } from './interview-panel.entity';
+import { JobPosition } from './job-position.entity';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { InterviewPanel } from './interview-panel.entity';
       Candidate,
       InterviewPanel,
       InterviewRound,
+      JobPosition,
     ]),
   ],
   controllers: [JobsController],

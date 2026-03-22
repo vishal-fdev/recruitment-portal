@@ -1,4 +1,5 @@
 // src/jobs/jobs.controller.ts
+
 import {
   Controller,
   Get,
@@ -29,17 +30,31 @@ import { UserRole } from '../users/user.entity';
 export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
 
+  /* ======================================================
+     GET JOBS
+  ====================================================== */
+
   @Get()
   getJobs(@Req() req: any) {
     return this.jobsService.getJobsForUser(req.user);
   }
 
+  // ADD THIS ABOVE @Get(':id')
+
+@Get('template/:title')
+@Roles(UserRole.HIRING_MANAGER)
+getTemplate(@Param('title') title: string) {
+  return this.jobsService.getTemplateByTitle(title);
+}
+
   @Get(':id')
-  getJob(
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  getJob(@Param('id', ParseIntPipe) id: number) {
     return this.jobsService.getJobById(id);
   }
+
+  /* ======================================================
+     CREATE JOB
+  ====================================================== */
 
   @Post()
   @Roles(UserRole.HIRING_MANAGER)
@@ -47,29 +62,65 @@ export class JobsController {
     return this.jobsService.createJob(body);
   }
 
+  /* ======================================================
+     CLOSE PARENT JOB
+  ====================================================== */
+
   @Patch(':id/close')
   @Roles(UserRole.HIRING_MANAGER)
-  closeJob(
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  closeJob(@Param('id', ParseIntPipe) id: number) {
     return this.jobsService.closeJob(id);
   }
 
-  @Patch(':id/approve')
-  @Roles(UserRole.VENDOR_MANAGER_HEAD)
-  approve(
+  /* ======================================================
+     🔥 CLOSE CHILD POSITION (NEW)
+  ====================================================== */
+
+  @Patch('positions/:id/close')
+  @Roles(UserRole.HIRING_MANAGER)
+  closePosition(
     @Param('id', ParseIntPipe) id: number,
   ) {
+    return this.jobsService.closePosition(id);
+  }
+
+  /* ======================================================
+     APPROVAL FLOW
+  ====================================================== */
+
+  @Patch(':id/approve')
+  @Roles(UserRole.VENDOR_MANAGER_HEAD)
+  approve(@Param('id', ParseIntPipe) id: number) {
     return this.jobsService.approveJob(id);
   }
 
   @Patch(':id/reject')
   @Roles(UserRole.VENDOR_MANAGER_HEAD)
-  reject(
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  reject(@Param('id', ParseIntPipe) id: number) {
     return this.jobsService.rejectJob(id);
   }
+
+  /* ======================================================
+     VENDOR ASSIGNMENT
+  ====================================================== */
+
+  @Patch(':id/vendors/:vendorId')
+  @Roles(UserRole.VENDOR_MANAGER)
+  toggleVendor(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('vendorId') vendorId: string,
+    @Body() body: { isEnabled: boolean },
+  ) {
+    return this.jobsService.toggleVendor(
+      id,
+      vendorId,
+      body.isEnabled,
+    );
+  }
+
+  /* ======================================================
+     JD HANDLING
+  ====================================================== */
 
   @Post(':id/jd')
   @Roles(UserRole.HIRING_MANAGER)

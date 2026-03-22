@@ -26,7 +26,9 @@ const ManageJobModal = ({ jobId, onClose, onUpdated }: Props) => {
   useEffect(() => {
     api
       .get(`/jobs/${jobId}`)
-      .then((res) => setJob(res.data))
+      .then((res) => {
+        setJob(res.data);
+      })
       .catch(console.error);
   }, [jobId]);
 
@@ -44,7 +46,9 @@ const ManageJobModal = ({ jobId, onClose, onUpdated }: Props) => {
     setJob({
       ...job,
       vendors: job.vendors.map((v) =>
-        v.id === vendorId ? { ...v, isEnabled } : v,
+        v.id === vendorId
+          ? { ...v, isEnabled }
+          : v,
       ),
     });
 
@@ -65,33 +69,34 @@ const ManageJobModal = ({ jobId, onClose, onUpdated }: Props) => {
           Assign Vendors – {job.title}
         </h2>
 
-        <div>
-          <h3 className="font-medium mb-2">
-            Vendor Access
-          </h3>
-
-          {job.vendors.length === 0 && (
-            <p className="text-sm text-gray-500">
-              No vendors assigned
-            </p>
-          )}
-
-          {job.vendors.map((v) => (
-            <div
-              key={v.id}
-              className="flex items-center justify-between py-2 border-b"
-            >
-              <span className="text-sm">{v.email}</span>
-              <input
-                type="checkbox"
-                checked={v.isEnabled}
-                onChange={(e) =>
-                  toggleVendor(v.id, e.target.checked)
-                }
-              />
-            </div>
-          ))}
-        </div>
+        {job.vendors.length === 0 ? (
+          <p className="text-sm text-gray-500">
+            No vendors available
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {job.vendors.map((v) => (
+              <div
+                key={v.id}
+                className="flex items-center justify-between py-2 border-b"
+              >
+                <span className="text-sm">
+                  {v.email}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={v.isEnabled}
+                  onChange={(e) =>
+                    toggleVendor(
+                      v.id,
+                      e.target.checked,
+                    )
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="text-right mt-6">
           <button
