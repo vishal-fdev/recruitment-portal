@@ -12,11 +12,16 @@ import { DashboardModule } from './dashboard/dashboard.module';
 @Module({
   imports: [
     TypeOrmModule.forRoot({
-      type: 'better-sqlite3',
-      database: 'recruitment-demo.db',
-      autoLoadEntities: true,
-      synchronize: true,
-    }),
+  type: 'postgres',
+  url: process.env.DATABASE_URL,
+
+  entities: [__dirname + '/**/*.entity{.ts,.js}'],
+
+  synchronize: true, // OK for now (dev/demo)
+  ssl: {
+    rejectUnauthorized: false,
+  },
+}),
     AuthModule,
     UsersModule,
     VendorsModule,
