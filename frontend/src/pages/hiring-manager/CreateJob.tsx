@@ -828,28 +828,6 @@ Remove
 </div>
 {/* JD */}
 
-<Section title="Upload Job Description (JD)">
-
-<div className="flex flex-col items-center">
-
-<input
-type="file"
-onChange={handleFileChange}
-/>
-
-{jdFile && (
-<p className="text-sm text-emerald-600 mt-2 text-center">
-{jdFile.name}
-</p>
-)}
-
-</div>
-
-</Section>
-
-
-
-
 
 
 {/* SKILLS */}
