@@ -30,7 +30,8 @@ const CreateJob = () => {
 const navigate = useNavigate();
 
 const [loading,setLoading] = useState(false);
-const [jdFile,setJdFile] = useState<File|null>(null);
+const [jdFile, setJdFile] = useState<File | null>(null);
+const [isDragging, setIsDragging] = useState(false);
 
 const [showBackfillModal,setShowBackfillModal] = useState(false);
 
@@ -178,6 +179,44 @@ if(e.target.files && e.target.files[0]){
 setJdFile(e.target.files[0]);
 }
 
+};
+
+const validateFile = (file: File) => {
+  const allowedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ];
+
+  if (!allowedTypes.includes(file.type)) {
+    alert('Only PDF, DOC, DOCX files are allowed');
+    return false;
+  }
+
+  return true;
+};
+
+const handleDrop = (e: React.DragEvent) => {
+  e.preventDefault();
+  setIsDragging(false);
+
+  const file = e.dataTransfer.files?.[0];
+  if (file && validateFile(file)) {
+    setJdFile(file);
+  }
+};
+
+const handleDragOver = (e: React.DragEvent) => {
+  e.preventDefault();
+  setIsDragging(true);
+};
+
+const handleDragLeave = () => {
+  setIsDragging(false);
+};
+
+const removeFile = () => {
+  setJdFile(null);
 };
 
 
@@ -564,6 +603,68 @@ value={form.dealName}
 onChange={handleChange}
 className="input"
 />
+</Field>
+
+<Field label="Upload Job Description (JD)">
+
+<div
+  onDrop={handleDrop}
+  onDragOver={handleDragOver}
+  onDragLeave={handleDragLeave}
+  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition 
+  ${isDragging ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300 bg-gray-50'}`}
+>
+
+  {!jdFile ? (
+    <>
+      <p className="text-gray-600">
+        Drag & drop JD here or click to upload
+      </p>
+
+      <input
+        type="file"
+        accept=".pdf,.doc,.docx"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file && validateFile(file)) {
+            setJdFile(file);
+          }
+        }}
+        className="hidden"
+        id="jdUpload"
+      />
+
+      <label
+        htmlFor="jdUpload"
+        className="mt-3 inline-block px-4 py-2 bg-emerald-600 text-white rounded cursor-pointer hover:bg-emerald-700"
+      >
+        Choose File
+      </label>
+    </>
+  ) : (
+    <div className="flex items-center justify-between bg-white p-3 rounded shadow">
+
+      <div className="text-sm text-emerald-700 truncate">
+        📄 {jdFile.name}
+      </div>
+
+      <button
+        type="button"
+        onClick={removeFile}
+        className="text-red-500 hover:text-red-700 text-sm"
+      >
+        Remove
+      </button>
+
+    </div>
+  )}
+
+</div>
+
+<p className="text-xs text-gray-400 mt-1">
+Only PDF, DOC, DOCX allowed
+</p>
+
 </Field>
 
 </Grid>
