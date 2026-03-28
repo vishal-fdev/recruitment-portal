@@ -158,4 +158,105 @@ getTemplate(@Param('title') title: string) {
     const job = await this.jobsService.getJD(id);
     return res.download(job.jdPath, job.jdFileName);
   }
+
+  /* ======================================================
+   PSQ HANDLING (ADD BELOW JD)
+====================================================== */
+
+@Post(':id/psq')
+@Roles(UserRole.HIRING_MANAGER)
+@UseInterceptors(
+  FileInterceptor('psq', {
+    storage: diskStorage({
+      destination: './uploads/psq',
+      filename: (_, file, cb) => {
+        cb(null, `PSQ-${Date.now()}${extname(file.originalname)}`);
+      },
+    }),
+  }),
+)
+uploadPSQ(
+  @Param('id', ParseIntPipe) id: number,
+  @UploadedFile() file: Express.Multer.File,
+) {
+  return this.jobsService.attachPSQ(id, file);
+}
+
+@Get(':id/psq/view')
+async viewPSQ(
+  @Param('id', ParseIntPipe) id: number,
+  @Res() res: Response,
+) {
+  const job = await this.jobsService.getPSQ(id);
+  return res.sendFile(job.psqPath, { root: '.' });
+}
+
+@Get(':id/psq/download')
+async downloadPSQ(
+  @Param('id', ParseIntPipe) id: number,
+  @Res() res: Response,
+) {
+  const job = await this.jobsService.getPSQ(id);
+  return res.download(job.psqPath, job.psqFileName);
+}
+
+/* ======================================================
+   POSITION FILE UPLOAD (NEW)
+====================================================== */
+
+@Post('positions/:id/jd')
+@Roles(UserRole.HIRING_MANAGER)
+@UseInterceptors(
+  FileInterceptor('jd', {
+    storage: diskStorage({
+      destination: './uploads/jds',
+      filename: (_, file, cb) => {
+        cb(null, `POS-JD-${Date.now()}${extname(file.originalname)}`);
+      },
+    }),
+  }),
+)
+uploadPositionJD(
+  @Param('id', ParseIntPipe) id: number,
+  @UploadedFile() file: Express.Multer.File,
+) {
+  return this.jobsService.attachPositionJD(id, file);
+}
+
+@Post('positions/:id/psq')
+@Roles(UserRole.HIRING_MANAGER)
+@UseInterceptors(
+  FileInterceptor('psq', {
+    storage: diskStorage({
+      destination: './uploads/psq',
+      filename: (_, file, cb) => {
+        cb(null, `POS-PSQ-${Date.now()}${extname(file.originalname)}`);
+      },
+    }),
+  }),
+)
+uploadPositionPSQ(
+  @Param('id', ParseIntPipe) id: number,
+  @UploadedFile() file: Express.Multer.File,
+) {
+  return this.jobsService.attachPositionPSQ(id, file);
+}
+
+@Get('positions/:id/jd/download')
+async downloadPositionJD(
+  @Param('id', ParseIntPipe) id: number,
+  @Res() res: Response,
+) {
+  const pos = await this.jobsService.getPositionJD(id);
+  return res.download(pos.jdPath, pos.jdFileName);
+}
+
+@Get('positions/:id/psq/download')
+async downloadPositionPSQ(
+  @Param('id', ParseIntPipe) id: number,
+  @Res() res: Response,
+) {
+  const pos = await this.jobsService.getPositionPSQ(id);
+  return res.download(pos.psqPath, pos.psqFileName);
+}
 }

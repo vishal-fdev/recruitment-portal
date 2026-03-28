@@ -42,6 +42,28 @@ export class JobPosition {
   @Column({ nullable: true })
   backfillEmployeeName: string;
 
+/* ================= JD ================= */
+
+@Column({ nullable: true })
+jdPath: string;
+
+@Column({ nullable: true })
+jdFileName: string;
+
+@Column({ nullable: true })
+jdMimeType: string;
+
+/* ================= PSQ ================= */
+
+@Column({ nullable: true })
+psqPath: string;
+
+@Column({ nullable: true })
+psqFileName: string;
+
+@Column({ nullable: true })
+psqMimeType: string;
+
   @ManyToOne(() => Job, (job) => job.positions, {
     onDelete: 'CASCADE',
   })

@@ -106,6 +106,17 @@ export class Job {
   @Column({ nullable: true })
   jdMimeType: string;
 
+  /* ================= PSQ ================= */
+
+@Column({ nullable: true })
+psqPath: string;
+
+@Column({ nullable: true })
+psqFileName: string;
+
+@Column({ nullable: true })
+psqMimeType: string;
+
   /* ================= TIMESTAMP ================= */
 
   @CreateDateColumn()

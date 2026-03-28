@@ -17,6 +17,7 @@ interface ChildPosition {
   level: string;
   openings: number;
   jdFile?: File | null;
+  psqFile?: File | null;
 
   requestType?: 'NEW' | 'BACKFILL';
   backfillEmployeeId?: string;
@@ -31,6 +32,8 @@ const navigate = useNavigate();
 
 const [loading,setLoading] = useState(false);
 const [jdFile, setJdFile] = useState<File | null>(null);
+const [psqFile, setPsqFile] = useState<File | null>(null);
+const [isDraggingPSQ, setIsDraggingPSQ] = useState(false);
 const [isDragging, setIsDragging] = useState(false);
 
 const [showBackfillModal,setShowBackfillModal] = useState(false);
@@ -77,6 +80,7 @@ const [newChild,setNewChild] = useState<ChildPosition>({
   level:'',
   openings:1,
   jdFile:null,
+  psqFile:null,
   requestType:'NEW',
   backfillEmployeeId:'',
   backfillEmployeeName:''
@@ -204,6 +208,31 @@ const handleDrop = (e: React.DragEvent) => {
   if (file && validateFile(file)) {
     setJdFile(file);
   }
+};
+
+// ✅ PSQ HANDLERS (ADD HERE)
+
+const handlePSQDrop = (e: React.DragEvent) => {
+  e.preventDefault();
+  setIsDraggingPSQ(false);
+
+  const file = e.dataTransfer.files?.[0];
+  if (file && validateFile(file)) {
+    setPsqFile(file);
+  }
+};
+
+const handlePSQDragOver = (e: React.DragEvent) => {
+  e.preventDefault();
+  setIsDraggingPSQ(true);
+};
+
+const handlePSQDragLeave = () => {
+  setIsDraggingPSQ(false);
+};
+
+const removePSQ = () => {
+  setPsqFile(null);
 };
 
 const handleDragOver = (e: React.DragEvent) => {
@@ -394,12 +423,45 @@ fd.append('jd',jdFile);
 await api.post(`/jobs/${jobId}/jd`,fd,{headers:{'Content-Type':'multipart/form-data'}});
 }
 
-for(const pos of childPositions){
-if(pos.jdFile){
-const fd=new FormData();
-fd.append('jd',pos.jdFile);
-await api.post(`/jobs/${jobId}/jd`,fd,{headers:{'Content-Type':'multipart/form-data'}});
+// ✅ PSQ UPLOAD (ADD THIS BLOCK)
+if(psqFile){
+  const fd = new FormData();
+  fd.append('psq', psqFile);
+
+  await api.post(`/jobs/${jobId}/psq`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
 }
+
+const fullJob = await api.get(`/jobs/${jobId}`);
+const positionsFromDB = fullJob.data.positions;
+
+for (let i = 0; i < childPositions.length; i++) {
+
+  const pos = childPositions[i];
+  const dbPos = positionsFromDB[i];
+
+  // ✅ JD upload per position
+  if (pos.jdFile) {
+    const fd = new FormData();
+    fd.append('jd', pos.jdFile);
+
+    await api.post(`/jobs/positions/${dbPos.id}/jd`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
+
+  // ✅ PSQ upload per position
+  if (pos.psqFile) {
+    const fd = new FormData();
+    fd.append('psq', pos.psqFile);
+
+    await api.post(`/jobs/positions/${dbPos.id}/psq`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  
+  }
+
 }
 
 navigate('/hiring-manager/jobs');
@@ -667,6 +729,68 @@ Only PDF, DOC, DOCX allowed
 
 </Field>
 
+<Field label="Upload PSQ (Screening Questions)">
+
+<div
+  onDrop={handlePSQDrop}
+  onDragOver={handlePSQDragOver}
+  onDragLeave={handlePSQDragLeave}
+  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition 
+  ${isDraggingPSQ ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'}`}
+>
+
+  {!psqFile ? (
+    <>
+      <p className="text-gray-600">
+        Drag & drop PSQ here or click to upload
+      </p>
+
+      <input
+        type="file"
+        accept=".pdf,.doc,.docx"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file && validateFile(file)) {
+            setPsqFile(file);
+          }
+        }}
+        className="hidden"
+        id="psqUpload"
+      />
+
+      <label
+        htmlFor="psqUpload"
+        className="mt-3 inline-block px-4 py-2 bg-blue-600 text-white rounded cursor-pointer hover:bg-blue-700"
+      >
+        Choose File
+      </label>
+    </>
+  ) : (
+    <div className="flex items-center justify-between bg-white p-3 rounded shadow">
+
+      <div className="text-sm text-blue-700 truncate">
+        📄 {psqFile.name}
+      </div>
+
+      <button
+        type="button"
+        onClick={removePSQ}
+        className="text-red-500 hover:text-red-700 text-sm"
+      >
+        Remove
+      </button>
+
+    </div>
+  )}
+
+</div>
+
+<p className="text-xs text-gray-400 mt-1">
+Only PDF, DOC, DOCX allowed
+</p>
+
+</Field>
+
 </Grid>
 </Section>
 
@@ -699,7 +823,7 @@ Additional Positions (If more than one position is required)
 </h3>
 
 {/* ADD NEW CHILD */}
-<div className="grid grid-cols-5 gap-3">
+<div className="grid grid-cols-6 gap-3">
 
 <select
 value={newChild.level}
@@ -736,11 +860,92 @@ className="input"
 <option value="BACKFILL">Backfill</option>
 </select>
 
-<input
-type="file"
-onChange={(e)=>setNewChild({...newChild,jdFile:e.target.files?.[0]||null})}
-className="input"
-/>
+{/* JD Upload */}
+<div 
+  onDragOver={(e)=>e.preventDefault()}
+  onDrop={(e)=>{
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if(file && validateFile(file)){
+      setNewChild({...newChild,jdFile:file});
+    }
+  }}
+  className="border-2 border-dashed rounded-lg p-3 text-center cursor-pointer bg-gray-50 hover:border-emerald-400"
+>
+  {!newChild.jdFile ? (
+    <>
+      <p className="text-xs text-gray-500">📄 Upload JD</p>
+
+      <input
+        type="file"
+        accept=".pdf,.doc,.docx"
+        onChange={(e)=>{
+          const file = e.target.files?.[0];
+          if(file && validateFile(file)){
+            setNewChild({...newChild,jdFile:file});
+          }
+        }}
+        className="hidden"
+        id="childJDUpload"
+      />
+
+      <label
+        htmlFor="childJDUpload"
+        className="text-xs text-emerald-600 cursor-pointer"
+      >
+        Choose File
+      </label>
+    </>
+  ) : (
+    <div className="text-xs text-emerald-700 truncate">
+      📄 {newChild.jdFile.name}
+    </div>
+  )}
+</div>
+
+
+{/* PSQ Upload */}
+<div
+  onDragOver={(e)=>e.preventDefault()}
+  onDrop={(e)=>{
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if(file && validateFile(file)){
+      setNewChild({...newChild,psqFile:file});
+    }
+  }}
+  className="border-2 border-dashed rounded-lg p-3 text-center cursor-pointer bg-gray-50 hover:border-blue-400"
+>
+  {!newChild.psqFile ? (
+    <>
+      <p className="text-xs text-gray-500">📝 Upload PSQ</p>
+
+      <input
+        type="file"
+        accept=".pdf,.doc,.docx"
+        onChange={(e)=>{
+          const file = e.target.files?.[0];
+          if(file && validateFile(file)){
+            setNewChild({...newChild,psqFile:file});
+          }
+        }}
+        className="hidden"
+        id="childPSQUpload"
+      />
+
+      <label
+        htmlFor="childPSQUpload"
+        className="text-xs text-blue-600 cursor-pointer"
+      >
+        Choose File
+      </label>
+    </>
+  ) : (
+    <div className="text-xs text-blue-700 truncate">
+      📝 {newChild.psqFile.name}
+    </div>
+  )}
+</div>
 
 <button
 onClick={()=>{
@@ -756,11 +961,12 @@ onClick={()=>{
 
   // reset
   setNewChild({
-    level:'',
-    openings:1,
-    jdFile:null,
-    requestType:'NEW'
-  });
+  level:'',
+  openings:1,
+  jdFile:null,
+  psqFile:null,
+  requestType:'NEW'
+});
 
   setBackfill({employeeId:'',employeeName:''});
 }}
@@ -805,9 +1011,30 @@ Name: {pos.backfillEmployeeName}
 <br/>
 
 {pos.jdFile && (
-<span className="text-emerald-600">
-{pos.jdFile.name}
-</span>
+<>
+  <br/>
+  <span className="text-emerald-600">
+    📄 JD: {pos.jdFile.name}
+  </span>
+</>
+)}
+
+{pos.psqFile && (
+<>
+  <br/>
+  <span className="text-blue-600">
+    📄 PSQ: {pos.psqFile.name}
+  </span>
+</>
+)}
+
+{pos.psqFile && (
+  <>
+    <br/>
+    <span className="text-blue-600">
+      {pos.psqFile.name}
+    </span>
+  </>
 )}
 
 </div>
@@ -867,14 +1094,6 @@ className="input"
 
 </Grid>
 
-
-<textarea
-name="description"
-value={form.description}
-onChange={handleChange}
-rows={5}
-className="w-full border rounded px-3 py-2 mt-4"
-/>
 
 </Section>
 

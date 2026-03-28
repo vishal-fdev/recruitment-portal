@@ -1,13 +1,19 @@
 // src/api/api.ts
+
 import axios from 'axios';
 import { authService } from '../auth/authService';
 
-const API_URL = import.meta.env.VITE_API_URL;
+/**
+ * ✅ Smart API URL handling
+ * - Uses VITE_API_URL if defined
+ * - Falls back to localhost for dev
+ */
+const API_URL =
+  (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000';
 
-if (!API_URL) {
-  throw new Error('VITE_API_URL is not defined');
-}
-
+/**
+ * ✅ Axios instance
+ */
 const api = axios.create({
   baseURL: API_URL,
 });
@@ -26,6 +32,17 @@ api.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error),
+);
+
+/**
+ * ✅ Optional: Response interceptor for better debugging
+ */
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('API Error:', error?.response || error.message);
+    return Promise.reject(error);
+  }
 );
 
 export default api;

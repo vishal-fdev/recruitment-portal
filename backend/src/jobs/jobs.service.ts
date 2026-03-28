@@ -339,4 +339,69 @@ export class JobsService {
 
     return job;
   }
+
+  /* ======================================================
+   PSQ HANDLING (ADD BELOW getJD)
+====================================================== */
+
+async attachPSQ(jobId: number, file: Express.Multer.File) {
+  const job = await this.jobRepo.findOne({ where: { id: jobId } });
+  if (!job) throw new NotFoundException('Job not found');
+
+  job.psqPath = file.path;
+  job.psqFileName = file.originalname;
+  job.psqMimeType = file.mimetype;
+
+  return this.jobRepo.save(job);
+}
+
+async getPSQ(jobId: number) {
+  const job = await this.jobRepo.findOne({ where: { id: jobId } });
+  if (!job || !job.psqPath)
+    throw new NotFoundException('PSQ not found');
+
+  return job;
+}
+
+/* ======================================================
+   POSITION FILE HANDLING (NEW)
+====================================================== */
+
+async attachPositionJD(positionId: number, file: Express.Multer.File) {
+  const pos = await this.positionRepo.findOne({ where: { id: positionId } });
+  if (!pos) throw new NotFoundException('Position not found');
+
+  pos.jdPath = file.path;
+  pos.jdFileName = file.originalname;
+  pos.jdMimeType = file.mimetype;
+
+  return this.positionRepo.save(pos);
+}
+
+async attachPositionPSQ(positionId: number, file: Express.Multer.File) {
+  const pos = await this.positionRepo.findOne({ where: { id: positionId } });
+  if (!pos) throw new NotFoundException('Position not found');
+
+  pos.psqPath = file.path;
+  pos.psqFileName = file.originalname;
+  pos.psqMimeType = file.mimetype;
+
+  return this.positionRepo.save(pos);
+}
+
+async getPositionJD(positionId: number) {
+  const pos = await this.positionRepo.findOne({ where: { id: positionId } });
+  if (!pos || !pos.jdPath)
+    throw new NotFoundException('JD not found');
+
+  return pos;
+}
+
+async getPositionPSQ(positionId: number) {
+  const pos = await this.positionRepo.findOne({ where: { id: positionId } });
+  if (!pos || !pos.psqPath)
+    throw new NotFoundException('PSQ not found');
+
+  return pos;
+}
 }
