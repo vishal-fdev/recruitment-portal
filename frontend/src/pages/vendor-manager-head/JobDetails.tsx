@@ -1,5 +1,3 @@
-// src/pages/vendor-manager-head/JobDetails.tsx
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -20,13 +18,6 @@ const JobDetails = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('DETAILS');
 
-  const role = localStorage.getItem('role');
-
-  const canAddCalibration =
-    role === 'HIRING_MANAGER' ||
-    role === 'VENDOR_MANAGER' ||
-    role === 'VENDOR_MANAGER_HEAD';
-
   const [calibrationNotes, setCalibrationNotes] = useState('');
   const [isEditingCalibration, setIsEditingCalibration] = useState(false);
 
@@ -38,9 +29,13 @@ const JobDetails = () => {
     try {
       const data = await getJobDetails(jobId);
 
+      // ✅ SORT INTERVIEW ROUNDS
+      const order = ['SCREENING', 'TECH', 'OPS'];
+
       if (data.interviewRounds) {
         data.interviewRounds = [...data.interviewRounds].sort(
-          (a, b) => a.id - b.id
+          (a, b) =>
+            order.indexOf(a.roundName) - order.indexOf(b.roundName)
         );
       }
 
@@ -69,64 +64,53 @@ const JobDetails = () => {
   };
 
   const handleSaveCalibration = () => {
-    console.log('Calibration saved:', calibrationNotes);
     setIsEditingCalibration(false);
-  };
-
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'APPROVED':
-        return 'bg-gray-300 text-black';
-      case 'REJECTED':
-        return 'bg-gray-400 text-black';
-      case 'PENDING_APPROVAL':
-        return 'bg-gray-200 text-black';
-      default:
-        return 'bg-gray-200 text-black';
-    }
   };
 
   if (loading) return <div>Loading...</div>;
   if (!job) return <div>Job not found.</div>;
 
+  const API = import.meta.env.VITE_API_URL;
+
+  // ✅ Hiring Manager fallback
+  let hiringManagerName = job.hiringManager;
+  if (!hiringManagerName) {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        hiringManagerName = payload.name || payload.email;
+      }
+    } catch {}
+  }
+
+  // ✅ Skills formatter (handles array/string)
+  const formatSkills = (skills: any) => {
+    if (!skills) return '-';
+    if (Array.isArray(skills)) return skills.join(', ');
+    return skills;
+  };
+
   return (
     <div className="space-y-6">
 
-      {/* BACK BUTTON */}
       <button
         onClick={() => navigate('/vendor-manager-head/jobs')}
-        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
+        className="px-4 py-2 bg-green-600 text-white rounded-md"
       >
         ← Back
       </button>
 
-      {/* HEADER */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">
-          HRQ{job.id}
-        </h1>
-
-        <span className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusStyle(job.status)}`}>
-          {job.status}
-        </span>
+        <h1 className="text-2xl font-semibold">HRQ{job.id}</h1>
       </div>
 
-      {/* APPROVAL */}
       {job.status === 'PENDING_APPROVAL' && (
         <div className="flex gap-4">
-          <button
-            onClick={handleApprove}
-            disabled={actionLoading}
-            className="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800"
-          >
+          <button onClick={handleApprove} className="px-6 py-2 bg-black text-white rounded">
             Approve
           </button>
-
-          <button
-            onClick={handleReject}
-            disabled={actionLoading}
-            className="px-6 py-2 border border-black text-black rounded-md hover:bg-gray-100"
-          >
+          <button onClick={handleReject} className="px-6 py-2 border rounded">
             Reject
           </button>
         </div>
@@ -145,118 +129,83 @@ const JobDetails = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            {/* Hiring Info */}
-            <div className="bg-white rounded-xl shadow border border-gray-200">
-              <div className="px-6 py-4 border-b font-medium text-gray-700">
-                Hiring Information
-              </div>
+            <Card title="Hiring Information">
+              <Row label="HRQ ID" value={`HRQ${job.id}`} />
+              <Row label="Role" value={job.title} />
+              <Row label="Hiring Manager" value={hiringManagerName} />
+              <Row label="Business" value={job.department} />
+              <Row label="Created Date" value={job.createdAt?.split('T')[0]} />
+            </Card>
 
-              <div className="p-6 space-y-4 text-sm">
-                <InfoRow label="HRQ ID" value={`HRQ${job.id}`} />
-                <InfoRow label="Role Hired For" value={job.title} />
-                <InfoRow label="Business" value={job.department || '-'} />
-                <InfoRow label="Created Date" value={job.createdAt?.split('T')[0] || '-'} />
-              </div>
-            </div>
-
-            {/* Job Info */}
-            <div className="bg-white rounded-xl shadow border border-gray-200">
-              <div className="px-6 py-4 border-b font-medium text-gray-700">
-                Job Information
-              </div>
-
-              <div className="p-6 space-y-4 text-sm">
-                <InfoRow label="Location" value={job.location} />
-                <InfoRow label="Experience" value={job.experience} />
-                <InfoRow label="Employment Type" value={job.employmentType || '-'} />
-                <InfoRow label="Work Type" value={job.workType || '-'} />
-                <InfoRow label="Job Category" value={job.jobCategory || '-'} />
-                <InfoRow label="Region" value={job.region || '-'} />
-                <InfoRow label="Deal Name" value={job.dealName || '-'} />
-                <InfoRow label="Start Date" value={job.startDate || '-'} />
-                <InfoRow label="End Date" value={job.endDate || '-'} />
-              </div>
-            </div>
+            <Card title="Job Information">
+              <Row label="Location" value={job.location} />
+              <Row label="Employment Type" value={job.employmentType} />
+              <Row label="Work Type" value={job.workType} />
+              <Row label="Category" value={job.jobCategory} />
+              <Row label="Region" value={job.region} />
+              <Row label="Deal" value={job.dealName} />
+              <Row label="Start Date" value={job.startDate} />
+              <Row label="End Date" value={job.endDate} />
+              <Row label="Primary Skills" value={formatSkills(job.primarySkills)} />
+              <Row label="Secondary Skills" value={formatSkills(job.secondarySkills)} />
+            </Card>
 
           </div>
 
-          {/* POSITION DETAILS */}
-<div className="bg-white rounded-xl shadow border border-gray-200">
-  <div className="px-6 py-4 border-b font-medium text-gray-700">
-    Position Details
-  </div>
+          <Card title="Position Details">
 
-  <div className="p-6 space-y-6 text-sm">
+            {/* MAIN */}
+            <div className="mb-4">
+              <h3 className="font-semibold mb-2">Main Position</h3>
 
-    {/* MAIN POSITION */}
-    <div className="border rounded p-4 bg-gray-50">
-      <div className="font-semibold mb-2">Main Position</div>
+              <Row label="Request Type" value={job.requestType} />
+              <Row label="No. Positions" value={job.numberOfPositions} />
+              <Row label="Level" value={job.level} />
 
-      <InfoRow label="Request Type" value={job.requestType || '-'} />
-      <InfoRow label="No. of Positions" value={String(job.numberOfPositions || '-')} />
-      <InfoRow label="Level" value={job.level || '-'} />
+              {job.requestType === 'BACKFILL' && (
+                <>
+                  <Row label="Employee ID" value={job.backfillEmployeeId} />
+                  <Row label="Employee Name" value={job.backfillEmployeeName} />
+                </>
+              )}
 
-      {job.requestType === 'BACKFILL' && (
-        <>
-          <InfoRow label="Employee ID" value={job.backfillEmployeeId || '-'} />
-          <InfoRow label="Employee Name" value={job.backfillEmployeeName || '-'} />
-        </>
-      )}
-    </div>
-
-    {/* CHILD POSITIONS */}
-    {job.positions && job.positions.length > 0 && (
-      <div>
-        <div className="font-semibold mb-3">Additional Positions</div>
-
-        {job.positions.map((pos, index) => (
-          <div key={pos.id} className="border rounded p-4 mb-3">
-
-            <div className="font-medium mb-2">
-              Position {index + 1}
+              {/* ✅ ONLY DOWNLOAD BUTTONS */}
+              <div className="flex gap-3 mt-3">
+                <Btn link={`${API}/jobs/${job.id}/jd/download`} label="Download JD" />
+                <Btn link={`${API}/jobs/${job.id}/psq/download`} label="Download PSQ" />
+              </div>
             </div>
 
-            <InfoRow label="Level" value={pos.level} />
-            <InfoRow label="Openings" value={String(pos.openings)} />
-            <InfoRow label="Request Type" value={pos.requestType || 'NEW'} />
+            {/* CHILD POSITIONS */}
+            {job.positions?.map((pos, i) => (
+              <div key={pos.id} className="mb-4 border-t pt-4">
 
-            {pos.requestType === 'BACKFILL' && (
-              <>
-                <InfoRow label="Employee ID" value={pos.backfillEmployeeId || '-'} />
-                <InfoRow label="Employee Name" value={pos.backfillEmployeeName || '-'} />
-              </>
-            )}
+                <h4 className="font-medium mb-2">Position {i + 1}</h4>
 
-          </div>
-        ))}
+                <Row label="Level" value={pos.level} />
+                <Row label="Openings" value={pos.openings} />
+                <Row label="Request Type" value={pos.requestType} />
 
-      </div>
-    )}
+                {pos.requestType === 'BACKFILL' && (
+                  <>
+                    <Row label="Employee ID" value={pos.backfillEmployeeId} />
+                    <Row label="Employee Name" value={pos.backfillEmployeeName} />
+                  </>
+                )}
 
-  </div>
-</div>
+                <div className="flex gap-3 mt-3">
+                  <Btn link={`${API}/jobs/positions/${pos.id}/jd/download`} label="Download JD" />
+                  <Btn link={`${API}/jobs/positions/${pos.id}/psq/download`} label="Download PSQ" />
+                </div>
 
-          {/* JUSTIFICATION */}
-          <div className="bg-white rounded-xl shadow border border-gray-200">
-            <div className="px-6 py-4 border-b font-medium text-gray-700">
-              Justification
-            </div>
+              </div>
+            ))}
 
-            <div className="p-6 text-sm text-gray-700 whitespace-pre-line">
-              {job.justification || 'No justification provided.'}
-            </div>
-          </div>
+          </Card>
 
-          {/* DESCRIPTION */}
-          <div className="bg-white rounded-xl shadow border border-gray-200">
-            <div className="px-6 py-4 border-b font-medium text-gray-700">
-              Job Description
-            </div>
-
-            <div className="p-6 text-sm text-gray-700 whitespace-pre-line">
-              {job.description || 'No description provided.'}
-            </div>
-          </div>
+          <Card title="Justification">
+            <p className="text-sm">{job.justification}</p>
+          </Card>
 
         </div>
       )}
@@ -264,82 +213,73 @@ const JobDetails = () => {
       {/* ================= INTERVIEW ================= */}
       {activeTab === 'INTERVIEWS' && (
         <div className="space-y-4">
-          {job.interviewRounds?.length ? (
-            job.interviewRounds.map((round, index) => (
-              <div key={round.id} className="bg-white rounded-xl shadow border p-6">
+          {job.interviewRounds?.map((round, index) => (
+            <div key={round.id} className="bg-white rounded-xl shadow border p-6">
 
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-sm font-semibold">
-                    {index + 1}
-                  </div>
-
-                  <div>
-                    <div className="font-medium">{round.roundName}</div>
-                    <div className="text-xs text-gray-500">{round.mode || 'N/A'}</div>
-                  </div>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-sm font-semibold">
+                  {index + 1}
                 </div>
 
-                <div className="text-sm text-gray-600 mb-2">Panel Members</div>
-
-                <div className="flex flex-wrap gap-2">
-                  {round.panels.map((panel) => (
-                    <span key={panel.id} className="px-3 py-1 bg-gray-200 rounded-full text-xs">
-                      {panel.name} ({panel.email})
-                    </span>
-                  ))}
+                <div>
+                  <div className="font-medium">{round.roundName}</div>
+                  <div className="text-xs text-gray-500">{round.mode}</div>
                 </div>
-
               </div>
-            ))
-          ) : (
-            <div className="bg-white rounded-xl shadow border p-10 text-center text-gray-500">
-              No interview rounds configured.
+
+              <div className="text-sm text-gray-600 mb-2">Panel Members</div>
+
+              <div className="flex flex-wrap gap-2">
+                {round.panels.map((p) => (
+                  <span key={p.id} className="px-3 py-1 bg-gray-200 rounded-full text-xs">
+                    {p.name} ({p.email})
+                  </span>
+                ))}
+              </div>
+
             </div>
-          )}
+          ))}
         </div>
       )}
 
       {/* ================= CALIBRATION ================= */}
       {activeTab === 'CALIBRATION' && (
-        <div className="bg-white rounded-xl shadow border p-8">
+        <div className="bg-white rounded-xl shadow border p-8 text-center">
 
-          {!calibrationNotes && !isEditingCalibration && (
-            <div className="text-center text-gray-500 space-y-4">
-              <div className="text-lg font-medium">No Calibration Information</div>
-              <div className="text-sm">
+          {!isEditingCalibration ? (
+            <>
+              <h2 className="text-lg font-medium mb-2">
+                No Calibration Information
+              </h2>
+
+              <p className="text-sm text-gray-500 mb-4">
                 No calibration sessions have been scheduled yet.
-              </div>
+              </p>
 
-              {canAddCalibration && (
-                <button
-                  onClick={() => setIsEditingCalibration(true)}
-                  className="px-5 py-2 bg-black text-white rounded-md"
-                >
-                  Add Calibration Pointers
-                </button>
-              )}
-            </div>
-          )}
-
-          {isEditingCalibration && (
-            <div className="space-y-4">
+              <button
+                onClick={() => setIsEditingCalibration(true)}
+                className="px-5 py-2 bg-black text-white rounded"
+              >
+                Add Calibration Pointers
+              </button>
+            </>
+          ) : (
+            <>
               <textarea
                 value={calibrationNotes}
                 onChange={(e) => setCalibrationNotes(e.target.value)}
-                rows={5}
-                className="w-full border rounded-md p-3 text-sm"
+                className="w-full border rounded p-3 mb-4"
               />
 
-              <div className="flex gap-3">
-                <button onClick={handleSaveCalibration} className="px-5 py-2 bg-black text-white rounded-md">
+              <div className="flex justify-center gap-3">
+                <button onClick={handleSaveCalibration} className="px-5 py-2 bg-black text-white rounded">
                   Save
                 </button>
-
-                <button onClick={() => setIsEditingCalibration(false)} className="px-5 py-2 border rounded-md">
+                <button onClick={() => setIsEditingCalibration(false)} className="px-5 py-2 border rounded">
                   Cancel
                 </button>
               </div>
-            </div>
+            </>
           )}
 
         </div>
@@ -351,20 +291,37 @@ const JobDetails = () => {
 
 export default JobDetails;
 
-/* TAB BUTTON */
+/* COMPONENTS */
+
+const Card = ({ title, children }: any) => (
+  <div className="bg-white rounded-xl shadow border border-gray-200">
+    <div className="px-6 py-4 border-b font-medium">{title}</div>
+    <div className="p-4">{children}</div>
+  </div>
+);
+
+const Row = ({ label, value }: any) => (
+  <div className="flex justify-between px-4 py-2 odd:bg-gray-200 even:bg-white rounded">
+    <span className="text-gray-700">{label}</span>
+    <span className="font-medium">{value || '-'}</span>
+  </div>
+);
+
+const Btn = ({ link, label }: any) => (
+  <a
+    href={link}
+    target="_blank"
+    className="px-3 py-1 bg-gray-800 text-white rounded text-sm hover:bg-black"
+  >
+    {label}
+  </a>
+);
+
 const TabButton = ({ label, active, onClick }: any) => (
   <button
     onClick={onClick}
-    className={`flex-1 py-3 ${active ? 'bg-white text-black' : 'text-gray-600 hover:bg-gray-300'}`}
+    className={`flex-1 py-3 ${active ? 'bg-white font-semibold' : 'text-gray-600'}`}
   >
     {label}
   </button>
-);
-
-/* INFO ROW */
-const InfoRow = ({ label, value }: any) => (
-  <div className="flex justify-between">
-    <span className="text-gray-600">{label}</span>
-    <span className="font-medium">{value}</span>
-  </div>
 );

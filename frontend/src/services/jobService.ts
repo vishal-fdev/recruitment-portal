@@ -60,6 +60,9 @@ export interface Job {
 
   jdFileName?: string;
 
+  // ✅ ADD THIS (PSQ support)
+  psqFileName?: string;
+
   /* ===================== NEW UI FIELDS ===================== */
 
   jobCategory?: string;
@@ -75,6 +78,11 @@ export interface Job {
   backfillEmployeeId?: string;
   backfillEmployeeName?: string;
 
+  // ✅ ✅ IMPORTANT FIX (YOUR ERROR)
+  primarySkills?: string;
+  secondarySkills?: string;
+  hiringManager?: string;
+
   /* ===================== POSITIONS ===================== */
 
   positions?: JobPosition[];
@@ -88,7 +96,7 @@ export interface Job {
     panels: {
       id: number;
       name: string;
-      email?: string; // ✅ ADDED
+      email?: string;
     }[];
   }[];
 
@@ -121,6 +129,10 @@ export interface CreateJobPayload {
   requestType?: 'NEW' | 'BACKFILL';
   backfillEmployeeId?: string;
   backfillEmployeeName?: string;
+
+  // ✅ OPTIONAL ADD (future safe)
+  primarySkills?: string;
+  secondarySkills?: string;
 }
 
 /* ===================== JOB LIST ===================== */
@@ -186,6 +198,14 @@ export const viewJD = (jobId: number) =>
 
 export const downloadJD = (jobId: number) =>
   `${import.meta.env.VITE_API_URL}/jobs/${jobId}/jd/download`;
+
+/* ===================== PSQ FILE HANDLING (NEW) ===================== */
+
+export const viewPSQ = (jobId: number) =>
+  `${import.meta.env.VITE_API_URL}/jobs/${jobId}/psq/view`;
+
+export const downloadPSQ = (jobId: number) =>
+  `${import.meta.env.VITE_API_URL}/jobs/${jobId}/psq/download`;
 
 /* ===================== JOB TEMPLATE ===================== */
 
