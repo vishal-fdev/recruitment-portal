@@ -180,7 +180,7 @@ const JobDetails = () => {
             {job.positions?.map((pos, i) => (
               <div key={pos.id} className="mb-4 border-t pt-4">
 
-                <h4 className="font-medium mb-2">Position {i + 1}</h4>
+                <h4 className="font-medium mb-2">Additional Position {i + 1}</h4>
 
                 <Row label="Level" value={pos.level} />
                 <Row label="Openings" value={pos.openings} />

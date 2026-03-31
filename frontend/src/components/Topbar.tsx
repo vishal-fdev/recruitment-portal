@@ -8,6 +8,28 @@ interface TopbarProps {
 
 const Topbar = ({ role, onLogout }: TopbarProps) => {
 
+  /* ================= GET NAME FROM TOKEN ================= */
+
+  const getUserName = () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return "User";
+
+      const payload = JSON.parse(atob(token.split(".")[1]));
+
+      if (!payload?.email) return "User";
+
+      const email = payload.email.split("@")[0]; // shanu.saha
+      const firstName = email.split(".")[0]; // shanu
+
+      return firstName.charAt(0).toUpperCase() + firstName.slice(1);
+    } catch {
+      return "User";
+    }
+  };
+
+  const userName = getUserName();
+
   return (
     <header
       className="
@@ -22,9 +44,7 @@ const Topbar = ({ role, onLogout }: TopbarProps) => {
     >
 
       {/* LEFT LOGO */}
-
       <div className="flex items-center">
-
         <img
           src={hpeLogo}
           alt="HPE"
@@ -36,13 +56,14 @@ const Topbar = ({ role, onLogout }: TopbarProps) => {
             hover:scale-105
           "
         />
-
       </div>
 
       {/* RIGHT */}
-
       <div className="flex items-center gap-6">
 
+       
+
+        {/* ✅ BADGE NOW SHOWS NAME INSTEAD OF ROLE */}
         <span
           className="
           text-xs
@@ -54,9 +75,10 @@ const Topbar = ({ role, onLogout }: TopbarProps) => {
           tracking-wide
         "
         >
-          {role.replaceAll("_", " ")}
+          {userName}
         </span>
 
+        {/* LOGOUT */}
         <button
           onClick={onLogout}
           className="

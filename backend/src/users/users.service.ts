@@ -11,24 +11,14 @@ export class UsersService implements OnModuleInit {
     private readonly userRepo: Repository<User>,
   ) {}
 
-  /**
-   * ✅ Runs once when application boots
-   */
   async onModuleInit() {
     await this.seedSystemUsers();
   }
-
-  // ======================
-  // BASIC QUERIES
-  // ======================
 
   async findAll(): Promise<User[]> {
     return this.userRepo.find();
   }
 
-  /**
-   * ✅ FIXED: Normalize email before querying
-   */
   async findByEmail(email: string): Promise<User | null> {
     const normalizedEmail = email.trim().toLowerCase();
 
@@ -37,9 +27,9 @@ export class UsersService implements OnModuleInit {
     });
   }
 
-  // ======================
-  // 🔒 SYSTEM USER SEEDING
-  // ======================
+  /* ====================== */
+  /* 🔒 SYSTEM USER SEEDING */
+  /* ====================== */
 
   private async seedSystemUsers(): Promise<void> {
     const usersToSeed: {
@@ -51,11 +41,11 @@ export class UsersService implements OnModuleInit {
         role: UserRole.VENDOR_MANAGER,
       },
       {
-        email: 'hiringmanager@test.com',
+        email: 'shanu.saha@test.com', // ✅ UPDATED
         role: UserRole.HIRING_MANAGER,
       },
       {
-        email: 'vmh@test.com',
+        email: 'rishikesh.kumar@test.com', // ✅ UPDATED
         role: UserRole.VENDOR_MANAGER_HEAD,
       },
     ];
@@ -63,19 +53,23 @@ export class UsersService implements OnModuleInit {
     for (const u of usersToSeed) {
       const normalizedEmail = u.email.trim().toLowerCase();
 
-      const exists = await this.userRepo.findOne({
+      let user = await this.userRepo.findOne({
         where: { email: normalizedEmail },
       });
 
-      if (!exists) {
-        const user = this.userRepo.create({
-          email: normalizedEmail, // ✅ ALWAYS SAVE NORMALIZED
+      if (!user) {
+        user = this.userRepo.create({
+          email: normalizedEmail,
           role: u.role,
           isActive: true,
         });
 
         await this.userRepo.save(user);
         console.log(`✅ Seeded user: ${normalizedEmail}`);
+      } else {
+        // ✅ ensure role is correct if already exists
+        user.role = u.role;
+        await this.userRepo.save(user);
       }
     }
   }
