@@ -1,6 +1,7 @@
 // src/app.module.ts
 
 import { Module } from '@nestjs/common';
+import { MailService } from './common/mail.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 
@@ -13,26 +14,18 @@ import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
-    /* ✅ LOAD ENV VARIABLES */
     ConfigModule.forRoot({
       isGlobal: true,
     }),
 
-    /* ✅ DATABASE CONNECTION */
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.DATABASE_URL,
-
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-
-      synchronize: true, // OK for dev (⚠️ turn OFF in prod)
-
-      ssl: {
-        rejectUnauthorized: false,
-      },
+      synchronize: true,
+      ssl: { rejectUnauthorized: false },
     }),
 
-    /* MODULES */
     AuthModule,
     UsersModule,
     VendorsModule,
@@ -40,5 +33,9 @@ import { DashboardModule } from './dashboard/dashboard.module';
     JobsModule,
     DashboardModule,
   ],
+  providers: [MailService], // ✅ ADD THIS
+  exports: [MailService],   // ✅ ADD THIS
 })
 export class AppModule {}
+
+ 

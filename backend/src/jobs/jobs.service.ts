@@ -18,6 +18,7 @@ import {
   JobPosition,
   JobPositionStatus,
 } from './job-position.entity';
+import { MailService } from '../common/mail.service';
 
 @Injectable()
 export class JobsService {
@@ -42,6 +43,8 @@ export class JobsService {
 
     @InjectRepository(JobPosition)
     private readonly positionRepo: Repository<JobPosition>,
+
+    private readonly mailService: MailService, // ✅ ADD THIS
   ) {}
 
   /* ======================================================
@@ -111,6 +114,7 @@ export class JobsService {
     jobEntity.isActive = true;
 
     const savedJob = await this.jobRepo.save(jobEntity);
+    await this.mailService.sendApprovalEmail(savedJob);
 
   
 
@@ -192,6 +196,7 @@ async updateJob(jobId: number, data: any): Promise<Job> {
   job.status = JobStatus.PENDING_APPROVAL;
 
   await this.jobRepo.save(job);
+  await this.mailService.sendApprovalEmail(job);
 
   /* ================= RESET POSITIONS ================= */
 
