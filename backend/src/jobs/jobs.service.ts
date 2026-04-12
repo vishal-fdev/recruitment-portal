@@ -112,6 +112,8 @@ export class JobsService {
 
     const savedJob = await this.jobRepo.save(jobEntity);
 
+  
+
     /* ================= POSITIONS ================= */
 
     if (Array.isArray(positions) && positions.length) {
@@ -163,7 +165,84 @@ export class JobsService {
     }
 
     return this.getJobById(savedJob.id);
+
+    
   }
+
+  /* ======================================================
+   UPDATE JOB (EDIT & RESUBMIT)
+====================================================== */
+
+async updateJob(jobId: number, data: any): Promise<Job> {
+  const job = await this.jobRepo.findOne({
+    where: { id: jobId },
+    relations: ['positions', 'interviewRounds', 'interviewRounds.panels'],
+  });
+
+  if (!job) {
+    throw new NotFoundException('Job not found');
+  }
+
+  const { interviewRounds, positions, ...jobData } = data;
+
+  // ✅ UPDATE MAIN JOB FIELDS
+  Object.assign(job, jobData);
+
+  // 🔥 CRITICAL: RESET STATUS FOR APPROVAL
+  job.status = JobStatus.PENDING_APPROVAL;
+
+  await this.jobRepo.save(job);
+
+  /* ================= RESET POSITIONS ================= */
+
+  await this.positionRepo.delete({ job: { id: jobId } });
+
+  if (Array.isArray(positions)) {
+    for (const pos of positions) {
+      const newPos = this.positionRepo.create({
+        level: pos.level,
+        openings: Number(pos.openings || 0),
+        status: JobPositionStatus.OPEN,
+        requestType: pos.requestType || 'NEW',
+        backfillEmployeeId: pos.backfillEmployeeId || null,
+        backfillEmployeeName: pos.backfillEmployeeName || null,
+        job,
+      });
+
+      await this.positionRepo.save(newPos);
+    }
+  }
+
+  /* ================= RESET INTERVIEW ROUNDS ================= */
+
+  await this.roundRepo.delete({ job: { id: jobId } });
+
+  if (Array.isArray(interviewRounds)) {
+    for (const round of interviewRounds) {
+      const roundEntity = this.roundRepo.create({
+        roundName: round.roundName,
+        mode: round.mode,
+        job,
+      });
+
+      const savedRound = await this.roundRepo.save(roundEntity);
+
+      if (Array.isArray(round.panels)) {
+        for (const panel of round.panels) {
+          const panelEntity = this.panelRepo.create({
+            name: panel.name,
+            email: panel.email,
+            round: savedRound,
+          });
+
+          await this.panelRepo.save(panelEntity);
+        }
+      }
+    }
+  }
+
+  return this.getJobById(jobId);
+}
 
   /* ======================================================
      TEMPLATE FETCH (UPDATED)

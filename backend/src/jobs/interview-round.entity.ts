@@ -1,4 +1,5 @@
 // src/jobs/interview-round.entity.ts
+
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -6,29 +7,30 @@ import {
   ManyToOne,
   OneToMany,
 } from 'typeorm';
+
 import { Job } from './job.entity';
 import { InterviewPanel } from './interview-panel.entity';
 
 @Entity()
 export class InterviewRound {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column()
-  roundName: string; // Screening, Technical, HR etc
+  roundName!: string;
 
   @Column({ nullable: true })
-  mode: string; // Virtual / F2F
+  mode!: string;
 
   @ManyToOne(() => Job, (job) => job.interviewRounds, {
     onDelete: 'CASCADE',
   })
-  job: Job;
+  job!: Job;
 
   @OneToMany(
     () => InterviewPanel,
     (panel) => panel.round,
     { cascade: true, eager: true },
   )
-  panels: InterviewPanel[];
+  panels!: InterviewPanel[];
 }

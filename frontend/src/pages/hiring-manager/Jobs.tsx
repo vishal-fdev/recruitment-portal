@@ -9,7 +9,7 @@ interface Job {
   id: number;
   title: string;
   location: string;
-  level?: string;        // ✅ Added Level
+  level?: string;
   createdAt: string;
   status: string;
 }
@@ -71,13 +71,16 @@ const HMJobs = () => {
               <th className="px-4 py-3">Location</th>
               <th className="px-4 py-3">Assigned Date</th>
               <th className="px-4 py-3">Status</th>
+
+              {/* ✅ NEW COLUMN */}
+              <th className="px-4 py-3">Action</th>
             </tr>
           </thead>
 
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={6} className="py-6 text-gray-500">
+                <td colSpan={7} className="py-6 text-gray-500">
                   Loading...
                 </td>
               </tr>
@@ -117,6 +120,22 @@ const HMJobs = () => {
                       <StatusBadge status={job.status} />
                     </div>
                   </td>
+
+                  {/* ✅ EDIT BUTTON */}
+                  <td className="px-4 py-3">
+                    {(job.status === 'APPROVED' || job.status === 'REJECTED') && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation(); // 🔥 IMPORTANT (prevents row click)
+                          navigate(`/hiring-manager/edit-job/${job.id}`);
+                        }}
+                        className="text-blue-600 hover:text-blue-800 font-semibold"
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </td>
+
                 </tr>
               ))}
           </tbody>

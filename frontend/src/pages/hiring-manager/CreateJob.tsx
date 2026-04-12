@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/api';
 import { useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 interface Panel {
   name: string;
@@ -30,13 +31,17 @@ const CreateJob = () => {
 
 const navigate = useNavigate();
 
+
+
+const { id } = useParams(); // jobId for edit
+const isEditMode = !!id;
+
 const [loading,setLoading] = useState(false);
 const [jdFile, setJdFile] = useState<File | null>(null);
 const [psqFile, setPsqFile] = useState<File | null>(null);
 const [isDraggingPSQ, setIsDraggingPSQ] = useState(false);
 const [isDragging, setIsDragging] = useState(false);
 
-const [showBackfillModal,setShowBackfillModal] = useState(false);
 
 const [form,setForm] = useState({
 
@@ -93,7 +98,17 @@ const [newRoundMode,setNewRoundMode] = useState('Virtual');
 
 const [panelName,setPanelName] = useState('');
 const [panelEmail,setPanelEmail] = useState('');
+const [editingPanel, setEditingPanel] = useState<{
+  roundIndex: number;
+  panelIndex: number;
+} | null>(null);
 const [panels,setPanels] = useState<Panel[]>([]);
+const [showAdditionalPositions, setShowAdditionalPositions] = useState(false);
+
+// 🔥 MULTI BACKFILL SUPPORT
+const [backfillList, setBackfillList] = useState<
+  { employeeId: string; employeeName: string }[]
+>([]);
 
 
 /* AUTO SET HM */
@@ -115,6 +130,53 @@ setForm(prev=>({...prev,hiringManager:email}));
 }catch{}
 
 },[]);
+
+useEffect(() => {
+  if (!isEditMode) return;
+
+  const fetchJob = async () => {
+    try {
+      const res = await api.get(`/jobs/${id}`);
+      const job = res.data;
+
+      setForm({
+        jobTitle: job.title || '',
+        jobCategory: job.jobCategory || '',
+        businessUnit: 'MS',
+        hiringManager: job.hiringManager || '',
+
+        workLocation: job.location || '',
+        workType: job.workType || 'Onsite',
+
+        requestType: job.requestType || 'NEW',
+
+        startDate: job.startDate?.split('T')[0] || '',
+        endDate: job.endDate?.split('T')[0] || '',
+
+        level: job.level || '',
+        numberOfPositions: job.numberOfPositions || 1,
+
+        region: job.region || '',
+        dealName: job.dealName || '',
+
+        justification: job.justification || '',
+
+        description: job.description || '',
+        primarySkills: job.primarySkills || '',
+        secondarySkills: job.secondarySkills || '',
+        experience: job.experience || ''
+      });
+
+      setChildPositions(job.positions || []);
+      setRounds(job.interviewRounds || []);
+
+    } catch {
+      alert('Failed to load job');
+    }
+  };
+
+  fetchJob();
+}, [id]);
 
 
 
@@ -259,9 +321,11 @@ if(!newChild.level) return;
 setChildPositions([...childPositions,newChild]);
 
 setNewChild({
-level:'',
-openings:1,
-jdFile:null
+  level:'',
+  openings:1,
+  jdFile:null,
+  psqFile:null,
+  requestType:'NEW'
 });
 
 };
@@ -339,35 +403,68 @@ const saveBackfill = () => {
 
 /* PANELS */
 
-const addPanel=()=>{
+const addPanel = () => {
+  if (!panelName || !panelEmail || !newRoundName) return;
 
-if(!panelName || !panelEmail) return;
+  const newPanel = {
+    name: panelName,
+    email: panelEmail,
+  };
 
-setPanels([...panels,{name:panelName,email:panelEmail}]);
+  setRounds((prevRounds) => {
+    let updated = [...prevRounds];
 
-setPanelName('');
-setPanelEmail('');
+    // ✅ EDIT MODE
+    if (editingPanel) {
+      updated[editingPanel.roundIndex].panels[editingPanel.panelIndex] = newPanel;
+      return updated;
+    }
 
+    const existingRoundIndex = prevRounds.findIndex(
+      (r) => r.roundName === newRoundName
+    );
+
+    // ✅ ADD MODE
+    if (existingRoundIndex !== -1) {
+      updated[existingRoundIndex].panels.push(newPanel);
+      return updated;
+    }
+
+    // ✅ CREATE NEW ROUND
+    return [
+      ...prevRounds,
+      {
+        roundName: newRoundName,
+        mode: newRoundMode,
+        panels: [newPanel],
+      },
+    ];
+  });
+
+  // reset
+  setPanelName('');
+  setPanelEmail('');
+  setEditingPanel(null);
 };
 
-
-
-const addRound=()=>{
-
-if(!newRoundName) return;
-
-const round:InterviewRound = {
-roundName:newRoundName,
-mode:newRoundMode,
-panels
+const removePanel = (roundIndex: number, panelIndex: number) => {
+  setRounds((prev) => {
+    const updated = [...prev];
+    updated[roundIndex].panels.splice(panelIndex, 1);
+    return updated;
+  });
 };
 
-setRounds([...rounds,round]);
+const editPanel = (roundIndex: number, panelIndex: number) => {
+  const panel = rounds[roundIndex].panels[panelIndex];
 
-setPanels([]);
-setNewRoundName('');
-setNewRoundMode('Virtual');
+  setPanelName(panel.name);
+  setPanelEmail(panel.email);
 
+  setNewRoundName(rounds[roundIndex].roundName);
+  setNewRoundMode(rounds[roundIndex].mode);
+
+  setEditingPanel({ roundIndex, panelIndex });
 };
 
 
@@ -380,40 +477,37 @@ try{
 
 setLoading(true);
 
-const jobRes = await api.post('/jobs',{
+const jobRes = isEditMode
+  ? await api.patch(`/jobs/${id}`, {
+      ...form,
+      status: 'PENDING_APPROVAL', // 🔥 resend for approval
+      positions: childPositions,
+      interviewRounds: rounds
+    })
+  : await api.post('/jobs', {
+      title: form.jobTitle,
+      location: form.workLocation,
+      experience: form.experience,
+      department: 'MS',
+      employmentType: 'Contingent',
+      startDate: form.startDate,
+      endDate: form.endDate,
+      description: form.description,
+      jobCategory: form.jobCategory,
+      workType: form.workType,
+      region: form.region,
+      dealName: form.dealName,
+      justification: form.justification,
+      level: form.level,
+      numberOfPositions: form.numberOfPositions,
+      requestType: form.requestType,
+      backfillEmployeeId: (form as any).backfillEmployeeId,
+      backfillEmployeeName: (form as any).backfillEmployeeName,
+      interviewRounds: rounds,
+      positions: childPositions
+    });
 
-title:form.jobTitle,
-location:form.workLocation,
-experience:form.experience,
-
-department:'MS',
-employmentType:'Contingent',
-
-startDate:form.startDate,
-endDate:form.endDate,
-
-description:form.description,
-
-// ✅ ADD THESE (CRITICAL FIX)
-jobCategory: form.jobCategory,
-workType: form.workType,
-region: form.region,
-dealName: form.dealName,
-justification: form.justification,
-
-level: form.level,
-numberOfPositions: form.numberOfPositions,
-requestType: form.requestType,
-
-backfillEmployeeId: (form as any).backfillEmployeeId,
-backfillEmployeeName: (form as any).backfillEmployeeName,
-
-interviewRounds:rounds,
-positions:childPositions
-
-});
-
-const jobId = jobRes.data.id;
+const jobId = isEditMode ? id : jobRes.data.id;
 
 /* JD upload same as before */
 
@@ -488,7 +582,7 @@ return(
 <div className="bg-white shadow rounded p-6">
 
 <h1 className="text-2xl font-semibold">
-Job Posting
+{isEditMode ? 'Edit Job' : 'Job Posting'}
 </h1>
 
 <p className="text-sm text-gray-500 mt-1">
@@ -590,15 +684,31 @@ className="input"
 
 </Field>
 
+<Field label="Deal Name">
+<input
+name="dealName"
+value={form.dealName}
+onChange={handleChange}
+className="input"
+/>
+</Field>
+
 
 <Field label="No. of Positions">
 <input
 type="number"
-name="numberOfPositions"
-value={form.numberOfPositions}
-onChange={handleChange}
-className="input"
+value={1}
+disabled
+className="input bg-gray-100"
 />
+
+<button
+type="button"
+onClick={() => setShowAdditionalPositions(true)}
+className="text-sm text-emerald-600 mt-2 font-semibold"
+>
++ Add more positions (Click here to add more positions)
+</button>
 </Field>
 
 <Field label="Job Level">
@@ -658,14 +768,6 @@ className="input"
 </Field>
 
 
-<Field label="Deal Name">
-<input
-name="dealName"
-value={form.dealName}
-onChange={handleChange}
-className="input"
-/>
-</Field>
 
 <Field label="Upload Job Description (JD)">
 
@@ -816,13 +918,14 @@ className="w-full border rounded px-3 py-2"
 
 {/* CHILD POSITIONS */}
 
-<div className="mt-6">
+{showAdditionalPositions && (
+  <div className="mt-6">
 
-<h3 className="font-medium mb-3">
-Additional Positions (If more than one position is required)
-</h3>
+    <h3 className="font-medium mb-3">
+      Additional Positions (If more than one position is required)
+    </h3>
 
-{/* ADD NEW CHILD */}
+    {/* ADD NEW CHILD */}
 <div className="grid grid-cols-6 gap-3">
 
 <select
@@ -838,7 +941,20 @@ className="input"
 type="number"
 placeholder="Openings"
 value={newChild.openings}
-onChange={(e)=>setNewChild({...newChild,openings:Number(e.target.value)})}
+onChange={(e)=>{
+  const value = Number(e.target.value);
+
+  setNewChild({...newChild,openings:value});
+
+  if(newChild.requestType === 'BACKFILL'){
+    setBackfillList(
+      Array.from({ length: value || 1 }, () => ({
+        employeeId:'',
+        employeeName:''
+      }))
+    );
+  }
+}}
 className="input"
 />
 
@@ -850,9 +966,17 @@ onChange={(e)=>{
   setNewChild({...newChild,requestType:value});
 
   if(value === 'BACKFILL'){
-    setBackfill({employeeId:'',employeeName:''});
-    setActiveBackfillIndex(-1); // special flag for newChild
-  }
+  const count = newChild.openings || 1;
+
+  setBackfillList(
+    Array.from({ length: count }, () => ({
+      employeeId: '',
+      employeeName: ''
+    }))
+  );
+
+  setActiveBackfillIndex(-1);
+}
 }}
 className="input"
 >
@@ -904,6 +1028,7 @@ className="input"
 </div>
 
 
+
 {/* PSQ Upload */}
 <div
   onDragOver={(e)=>e.preventDefault()}
@@ -947,15 +1072,15 @@ className="input"
   )}
 </div>
 
+
 <button
 onClick={()=>{
   let updatedChild = {...newChild};
 
   // attach backfill data if exists
   if(newChild.requestType === 'BACKFILL'){
-    updatedChild.backfillEmployeeId = backfill.employeeId;
-    updatedChild.backfillEmployeeName = backfill.employeeName;
-  }
+  updatedChild.backfillEmployeeId = JSON.stringify(backfillList);
+}
 
   setChildPositions([...childPositions,updatedChild]);
 
@@ -996,17 +1121,16 @@ className="mt-3 border p-3 rounded"
 Request Type: <strong>{pos.requestType || 'NEW'}</strong>
 
 {pos.requestType === 'BACKFILL' && pos.backfillEmployeeId && (
-<>
-<br/>
-<span className="text-emerald-600">
-Employee ID: {pos.backfillEmployeeId}
-</span>
-<br/>
-<span className="text-emerald-600">
-Name: {pos.backfillEmployeeName}
-</span>
-</>
+  <>
+    <br/>
+    {JSON.parse(pos.backfillEmployeeId).map((emp:any, i:number) => (
+      <div key={i} className="text-emerald-600">
+        Employee {i+1}: {emp.employeeId} — {emp.employeeName}
+      </div>
+    ))}
+  </>
 )}
+
 
 <br/>
 
@@ -1028,15 +1152,6 @@ Name: {pos.backfillEmployeeName}
 </>
 )}
 
-{pos.psqFile && (
-  <>
-    <br/>
-    <span className="text-blue-600">
-      {pos.psqFile.name}
-    </span>
-  </>
-)}
-
 </div>
 
 <button
@@ -1053,6 +1168,8 @@ Remove
 ))}
 
 </div>
+)}
+
 {/* JD */}
 
 
@@ -1168,12 +1285,6 @@ Add Panel
 ))}
 
 
-<button
-onClick={addRound}
-className="mt-4 bg-gray-700 text-white px-4 py-2 rounded"
->
-Add Round
-</button>
 
 {/* ✅ ADDED ROUNDS DISPLAY */}
 
@@ -1191,10 +1302,33 @@ Add Round
 {round.panels.length > 0 ? (
 <ul className="text-sm space-y-1">
 {round.panels.map((panel, i) => (
-<li key={i}>
-• {panel.name} — {panel.email}
-</li>
+  <li key={i} className="flex justify-between items-center">
+
+    <span>
+      • {panel.name} — {panel.email}
+    </span>
+
+    <div className="space-x-2">
+
+      <button
+        onClick={() => editPanel(index, i)}
+        className="text-blue-600 text-xs"
+      >
+        Edit
+      </button>
+
+      <button
+        onClick={() => removePanel(index, i)}
+        className="text-red-500 text-xs"
+      >
+        Remove
+      </button>
+
+    </div>
+
+  </li>
 ))}
+
 </ul>
 ) : (
 <p className="text-sm text-gray-400">No panels added</p>
@@ -1227,7 +1361,7 @@ onClick={submit}
 disabled={loading}
 className="bg-emerald-600 text-white px-6 py-2 rounded"
 >
-{loading ? 'Submitting...' : 'Submit Request'}
+{loading ? 'Saving...' : isEditMode ? 'Update & Resubmit' : 'Submit Request'}
 </button>
 
 </div>
@@ -1238,37 +1372,73 @@ className="bg-emerald-600 text-white px-6 py-2 rounded"
 
 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
 
-<div className="bg-white p-6 rounded shadow w-[420px]">
+<div className="bg-white p-6 rounded shadow w-[500px] max-h-[80vh] overflow-y-auto relative">
 
-<h3 className="text-lg font-semibold mb-4">
-Enter Backfill Details
-</h3>
+<div className="flex justify-between items-center mb-4">
+
+  <h3 className="text-lg font-semibold">
+    Enter Backfill Details
+  </h3>
+
+  <button
+    onClick={() => setActiveBackfillIndex(null)}
+    className="text-gray-500 hover:text-red-500 text-xl font-bold"
+  >
+    ×
+  </button>
+
+</div>
+
+{/* 🔥 MULTIPLE EMPLOYEES */}
+{backfillList.map((emp, index) => (
+
+<div key={index} className="mb-4 border-b pb-3">
+
+<p className="text-sm font-medium mb-2">
+Employee {index + 1}
+</p>
 
 <input
 placeholder="Employee ID"
-value={backfill.employeeId}
-onChange={(e)=>setBackfill({...backfill,employeeId:e.target.value})}
-className="input mb-3 w-full"
+value={emp.employeeId}
+onChange={(e) => {
+  const updated = [...backfillList];
+  updated[index].employeeId = e.target.value;
+  setBackfillList(updated);
+}}
+className="input mb-2 w-full"
 />
 
 <input
 placeholder="Employee Name"
-value={backfill.employeeName}
-onChange={(e)=>setBackfill({...backfill,employeeName:e.target.value})}
+value={emp.employeeName}
+onChange={(e) => {
+  const updated = [...backfillList];
+  updated[index].employeeName = e.target.value;
+  setBackfillList(updated);
+}}
 className="input w-full"
 />
+
+</div>
+
+))}
 
 <div className="flex justify-end space-x-3 mt-4">
 
 <button
-onClick={()=>setActiveBackfillIndex(null)}
-className="px-4 py-2 border rounded"
->
-Cancel
-</button>
+onClick={() => {
 
-<button
-onClick={saveBackfill}
+  if(activeBackfillIndex === -1){
+    setNewChild(prev => ({
+      ...prev,
+      backfillEmployeeId: JSON.stringify(backfillList || [])
+    }));
+  }
+
+  setActiveBackfillIndex(null);
+
+}}
 className="bg-emerald-600 text-white px-4 py-2 rounded"
 >
 Save
@@ -1281,6 +1451,8 @@ Save
 </div>
 
 )}
+
+
 
 </div>
 

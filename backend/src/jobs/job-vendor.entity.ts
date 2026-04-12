@@ -10,19 +10,19 @@ import { Vendor } from '../vendors/vendors.entity';
 @Entity()
 export class JobVendor {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @ManyToOne(() => Job, (job) => job.jobVendors, {
     onDelete: 'CASCADE',
   })
-  job: Job;
+  job!: Job;
 
   @ManyToOne(() => Vendor, {
     eager: true,
     onDelete: 'CASCADE',
   })
-  vendor: Vendor;
+  vendor!: Vendor;
 
   @Column({ default: true })
-  isEnabled: boolean;
+  isEnabled!: boolean;
 }

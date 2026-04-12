@@ -62,6 +62,19 @@ getTemplate(@Param('title') title: string) {
     return this.jobsService.createJob(body);
   }
 
+/* ======================================================
+   UPDATE JOB (EDIT & RESUBMIT)
+====================================================== */
+
+@Patch(':id')
+@Roles(UserRole.HIRING_MANAGER)
+updateJob(
+  @Param('id', ParseIntPipe) id: number,
+  @Body() body: any,
+) {
+  return this.jobsService.updateJob(id, body);
+}
+
   /* ======================================================
      CLOSE PARENT JOB
   ====================================================== */

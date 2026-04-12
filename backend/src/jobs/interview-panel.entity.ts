@@ -6,24 +6,24 @@ import {
   Column,
   ManyToOne,
 } from 'typeorm';
+
 import { InterviewRound } from './interview-round.entity';
 
 @Entity()
 export class InterviewPanel {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column()
-  name: string;
+  name!: string;
 
-  // ✅ NEW
   @Column()
-  email: string;
+  email!: string;
 
   @ManyToOne(
     () => InterviewRound,
     (round) => round.panels,
     { onDelete: 'CASCADE' },
   )
-  round: InterviewRound;
+  round!: InterviewRound;
 }

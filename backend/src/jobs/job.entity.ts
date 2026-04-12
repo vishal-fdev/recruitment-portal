@@ -17,72 +17,72 @@ import { JobPosition } from './job-position.entity';
 @Entity()
 export class Job {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   /* ================= BASIC ================= */
 
   @Column()
-  title: string;
+  title!: string;
 
   @Column()
-  location: string;
+  location!: string;
 
   @Column()
-  experience: string;
+  experience!: string;
 
   @Column({ nullable: true })
-  department: string;
+  department!: string;
 
   @Column({ nullable: true })
-  jobCategory: string;
+  jobCategory!: string;
 
   @Column({ nullable: true })
-  workType: string;
+  workType!: string;
 
   @Column({ nullable: true })
-  region: string;
+  region!: string;
 
   @Column({ nullable: true })
-  dealName: string;
+  dealName!: string;
 
   @Column({ type: 'text', nullable: true })
-  justification: string;
+  justification!: string;
 
   /* ================= CONTRACT ================= */
 
   @Column({ nullable: true })
-  employmentType: string;
+  employmentType!: string;
 
   @Column({ nullable: true })
-  budget: string;
+  budget!: string;
 
   @Column({ nullable: true })
-  startDate: string;
+  startDate!: string;
 
   @Column({ nullable: true })
-  endDate: string;
+  endDate!: string;
 
   /* ================= POSITION ================= */
 
   @Column({ nullable: true })
-  level: string;
+  level!: string;
 
   @Column({ type: 'int', nullable: true })
-  numberOfPositions: number;
+  numberOfPositions!: number;
 
   @Column({ nullable: true })
-  requestType: string;
+  requestType!: string;
 
   @Column({ nullable: true })
-  backfillEmployeeId: string;
+  backfillEmployeeId!: string;
 
   @Column({ nullable: true })
-  backfillEmployeeName: string;
+  backfillEmployeeName!: string;
 
   /* ================= DESCRIPTION ================= */
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description!: string;
 
   /* ================= APPROVAL ================= */
 
@@ -90,54 +90,54 @@ export class Job {
     type: 'text',
     default: JobStatus.PENDING_APPROVAL,
   })
-  status: JobStatus;
+  status!: JobStatus;
 
   @Column({ default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   /* ================= JD ================= */
 
   @Column({ nullable: true })
-  jdPath: string;
+  jdPath!: string;
 
   @Column({ nullable: true })
-  jdFileName: string;
+  jdFileName!: string;
 
   @Column({ nullable: true })
-  jdMimeType: string;
+  jdMimeType!: string;
 
   /* ================= PSQ ================= */
 
-@Column({ nullable: true })
-psqPath: string;
+  @Column({ nullable: true })
+  psqPath!: string;
 
-@Column({ nullable: true })
-psqFileName: string;
+  @Column({ nullable: true })
+  psqFileName!: string;
 
-@Column({ nullable: true })
-psqMimeType: string;
+  @Column({ nullable: true })
+  psqMimeType!: string;
 
   /* ================= TIMESTAMP ================= */
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   /* ================= RELATIONS ================= */
 
   @OneToMany(() => JobVendor, (jv) => jv.job)
-  jobVendors: JobVendor[];
+  jobVendors!: JobVendor[];
 
   @OneToMany(() => Candidate, (c) => c.job)
-  candidates: Candidate[];
+  candidates!: Candidate[];
 
   @OneToMany(() => JobPosition, (pos) => pos.job, {
     cascade: true,
     eager: true,
   })
-  positions: JobPosition[];
+  positions!: JobPosition[];
 
   @OneToMany(() => InterviewRound, (round) => round.job, {
     cascade: true,
   })
-  interviewRounds: InterviewRound[];
+  interviewRounds!: InterviewRound[];
 }
