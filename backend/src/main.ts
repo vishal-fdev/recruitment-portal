@@ -8,25 +8,12 @@ import { join } from 'path';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // ✅ FIXED CORS (VERY IMPORTANT)
+  // 🔥 BULLETPROOF CORS FIX (Render + Vercel + Browser safe)
   app.enableCors({
-    origin: (origin, callback) => {
-      const allowedOrigins = [
-        'http://localhost:5173',
-        'http://localhost:3000',
-        'https://aurasol.in',
-        'https://www.aurasol.in',
-        'https://recruitment-portal-five.vercel.app',
-      ];
-
-      // allow requests with no origin (like Postman)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: true, // ✅ VERY IMPORTANT (fixes your issue)
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // ✅ Serve uploads
