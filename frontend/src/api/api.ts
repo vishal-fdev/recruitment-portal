@@ -3,24 +3,17 @@
 import axios from 'axios';
 import { authService } from '../auth/authService';
 
-/**
- * ✅ Smart API URL handling
- * - Uses VITE_API_URL if defined
- * - Falls back to localhost for dev
- */
+// ✅ FORCE correct API URL
 const API_URL =
-  (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000';
+  (import.meta as any).env?.VITE_API_URL ||
+  'https://recruitment-portal-vpxy.onrender.com'; // ✅ YOUR BACKEND
 
-/**
- * ✅ Axios instance
- */
 const api = axios.create({
   baseURL: API_URL,
+  withCredentials: true, // ✅ important for CORS
 });
 
-/**
- * ✅ Attach JWT token automatically
- */
+// ✅ Attach JWT token
 api.interceptors.request.use(
   (config) => {
     const token = authService.getToken();
@@ -34,13 +27,14 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-/**
- * ✅ Optional: Response interceptor for better debugging
- */
+// ✅ Better error logging
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('API Error:', error?.response || error.message);
+    console.error(
+      'API Error:',
+      error?.response?.data || error.message
+    );
     return Promise.reject(error);
   }
 );
