@@ -1,30 +1,48 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
-export class MailService {
-  private transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // ✅ IMPORTANT
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
-    },
-  });
+export class MailService implements OnModuleInit {
+  private transporter: nodemailer.Transporter;
 
-  constructor() {
-    // ✅ Verify connection on startup
-    this.transporter.verify((error, success) => {
-      if (error) {
-        console.error('❌ SMTP ERROR:', error);
-      } else {
-        console.log('✅ SMTP SERVER READY');
-      }
+  onModuleInit() {
+    console.log('🚀 Initializing MailService...');
+
+    console.log('MAIL_USER:', process.env.MAIL_USER);
+    console.log('MAIL_PASS exists:', !!process.env.MAIL_PASS);
+    console.log('VENDOR_HEAD_EMAIL:', process.env.VENDOR_HEAD_EMAIL);
+
+    if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
+      console.error('❌ MAIL ENV VARIABLES MISSING');
+      return;
+    }
+
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail', // ✅ more reliable for Gmail
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+      },
     });
+
+    // ✅ Verify connection
+    this.transporter.verify()
+      .then(() => {
+        console.log('✅ SMTP SERVER READY');
+      })
+      .catch((error) => {
+        console.error('❌ SMTP CONNECTION ERROR:', error);
+      });
   }
 
   async sendApprovalEmail(job: any) {
+    console.log('📧 EMAIL FUNCTION CALLED');
+
+    if (!this.transporter) {
+      console.error('❌ Transporter not initialized');
+      return;
+    }
+
     try {
       console.log('📧 Sending email for job:', job.id);
 
