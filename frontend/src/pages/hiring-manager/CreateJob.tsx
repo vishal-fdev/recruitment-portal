@@ -527,13 +527,20 @@ if(psqFile){
   });
 }
 
-const fullJob = await api.get(`/jobs/${jobId}`);
-const positionsFromDB = fullJob.data.positions;
+let positionsFromDB: any[] = [];
+
+try {
+  const fullJob = await api.get(`/jobs/${jobId}`);
+  positionsFromDB = fullJob.data.positions || [];
+} catch (err) {
+  console.warn('Job fetch skipped (non-blocking)', err);
+}
 
 for (let i = 0; i < childPositions.length; i++) {
 
   const pos = childPositions[i];
-  const dbPos = positionsFromDB[i];
+ const dbPos = positionsFromDB[i];
+if (!dbPos) continue;
 
   // ✅ JD upload per position
   if (pos.jdFile) {
