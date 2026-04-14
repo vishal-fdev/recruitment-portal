@@ -4,15 +4,30 @@ import * as nodemailer from 'nodemailer';
 @Injectable()
 export class MailService {
   private transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // ✅ IMPORTANT
     auth: {
       user: process.env.MAIL_USER,
       pass: process.env.MAIL_PASS,
     },
   });
 
+  constructor() {
+    // ✅ Verify connection on startup
+    this.transporter.verify((error, success) => {
+      if (error) {
+        console.error('❌ SMTP ERROR:', error);
+      } else {
+        console.log('✅ SMTP SERVER READY');
+      }
+    });
+  }
+
   async sendApprovalEmail(job: any) {
     try {
+      console.log('📧 Sending email for job:', job.id);
+
       const approveUrl = `${process.env.BACKEND_URL}/job-approvals/approve/${job.id}`;
       const rejectUrl = `${process.env.BACKEND_URL}/job-approvals/reject/${job.id}`;
       const viewUrl = `${process.env.FRONTEND_URL}/vendor-manager/jobs/${job.id}`;
@@ -39,10 +54,10 @@ export class MailService {
         html,
       });
 
-      console.log('✅ Email sent:', info.response);
+      console.log('✅ Email sent successfully:', info.messageId);
 
     } catch (error) {
-      console.error('❌ EMAIL ERROR:', error);
+      console.error('❌ EMAIL ERROR FULL:', error);
     }
   }
 }
