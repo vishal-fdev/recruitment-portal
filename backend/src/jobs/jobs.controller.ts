@@ -30,22 +30,16 @@ import { UserRole } from '../users/user.entity';
 export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
 
-  /* ======================================================
-     GET JOBS
-  ====================================================== */
-
   @Get()
   getJobs(@Req() req: any) {
     return this.jobsService.getJobsForUser(req.user);
   }
 
-  // ADD THIS ABOVE @Get(':id')
-
-@Get('template/:title')
-@Roles(UserRole.HIRING_MANAGER)
-getTemplate(@Param('title') title: string) {
-  return this.jobsService.getTemplateByTitle(title);
-}
+  @Get('template/:title')
+  @Roles(UserRole.HIRING_MANAGER)
+  getTemplate(@Param('title') title: string) {
+    return this.jobsService.getTemplateByTitle(title);
+  }
 
   @Get(':id')
   getJob(@Param('id', ParseIntPipe) id: number) {
@@ -53,31 +47,31 @@ getTemplate(@Param('title') title: string) {
   }
 
   /* ======================================================
-     CREATE JOB
+     🔥 FIXED CREATE JOB (IMPORTANT)
   ====================================================== */
 
   @Post()
   @Roles(UserRole.HIRING_MANAGER)
-  createJob(@Body() body: any) {
-    return this.jobsService.createJob(body);
+  async createJob(@Body() body: any) {
+    console.log('🔥 CONTROLLER HIT: CREATE JOB');
+
+    const result = await this.jobsService.createJob(body);
+
+    console.log('🔥 CONTROLLER DONE');
+
+    return result;
   }
 
-/* ======================================================
-   UPDATE JOB (EDIT & RESUBMIT)
-====================================================== */
+  @Patch(':id')
+  @Roles(UserRole.HIRING_MANAGER)
+  async updateJob(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+  ) {
+    console.log('🔥 CONTROLLER HIT: UPDATE JOB');
 
-@Patch(':id')
-@Roles(UserRole.HIRING_MANAGER)
-updateJob(
-  @Param('id', ParseIntPipe) id: number,
-  @Body() body: any,
-) {
-  return this.jobsService.updateJob(id, body);
-}
-
-  /* ======================================================
-     CLOSE PARENT JOB
-  ====================================================== */
+    return this.jobsService.updateJob(id, body);
+  }
 
   @Patch(':id/close')
   @Roles(UserRole.HIRING_MANAGER)
@@ -85,21 +79,23 @@ updateJob(
     return this.jobsService.closeJob(id);
   }
 
-  /* ======================================================
-     🔥 CLOSE CHILD POSITION (NEW)
-  ====================================================== */
+  @Patch(':id/hold')
+@Roles(UserRole.VENDOR_MANAGER)
+holdJob(@Param('id', ParseIntPipe) id: number) {
+  return this.jobsService.holdJob(id);
+}
+
+@Patch(':id/reopen')
+@Roles(UserRole.VENDOR_MANAGER)
+reopenJob(@Param('id', ParseIntPipe) id: number) {
+  return this.jobsService.reopenJob(id);
+}
 
   @Patch('positions/:id/close')
   @Roles(UserRole.HIRING_MANAGER)
-  closePosition(
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  closePosition(@Param('id', ParseIntPipe) id: number) {
     return this.jobsService.closePosition(id);
   }
-
-  /* ======================================================
-     APPROVAL FLOW
-  ====================================================== */
 
   @Patch(':id/approve')
   @Roles(UserRole.VENDOR_MANAGER_HEAD)
@@ -112,10 +108,6 @@ updateJob(
   reject(@Param('id', ParseIntPipe) id: number) {
     return this.jobsService.rejectJob(id);
   }
-
-  /* ======================================================
-     VENDOR ASSIGNMENT
-  ====================================================== */
 
   @Patch(':id/vendors/:vendorId')
   @Roles(UserRole.VENDOR_MANAGER)
@@ -131,9 +123,21 @@ updateJob(
     );
   }
 
-  /* ======================================================
-     JD HANDLING
-  ====================================================== */
+  @Patch(':id/vendors/:vendorId/status')
+@Roles(UserRole.VENDOR_MANAGER)
+updateVendorJobStatus(
+  @Param('id', ParseIntPipe) id: number,
+  @Param('vendorId') vendorId: string,
+  @Body() body: { status: 'ACTIVE' | 'ON_HOLD' | 'CLOSED' },
+) {
+  return this.jobsService.updateVendorJobStatus(
+    id,
+    vendorId,
+    body.status,
+  );
+}
+
+  /* ===== FILE HANDLING (UNCHANGED) ===== */
 
   @Post(':id/jd')
   @Roles(UserRole.HIRING_MANAGER)
@@ -155,121 +159,14 @@ updateJob(
   }
 
   @Get(':id/jd/view')
-  async viewJD(
-    @Param('id', ParseIntPipe) id: number,
-    @Res() res: Response,
-  ) {
+  async viewJD(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
     const job = await this.jobsService.getJD(id);
     return res.sendFile(job.jdPath, { root: '.' });
   }
 
   @Get(':id/jd/download')
-  async downloadJD(
-    @Param('id', ParseIntPipe) id: number,
-    @Res() res: Response,
-  ) {
+  async downloadJD(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
     const job = await this.jobsService.getJD(id);
     return res.download(job.jdPath, job.jdFileName);
   }
-
-  /* ======================================================
-   PSQ HANDLING (ADD BELOW JD)
-====================================================== */
-
-@Post(':id/psq')
-@Roles(UserRole.HIRING_MANAGER)
-@UseInterceptors(
-  FileInterceptor('psq', {
-    storage: diskStorage({
-      destination: './uploads/psq',
-      filename: (_, file, cb) => {
-        cb(null, `PSQ-${Date.now()}${extname(file.originalname)}`);
-      },
-    }),
-  }),
-)
-uploadPSQ(
-  @Param('id', ParseIntPipe) id: number,
-  @UploadedFile() file: Express.Multer.File,
-) {
-  return this.jobsService.attachPSQ(id, file);
-}
-
-@Get(':id/psq/view')
-async viewPSQ(
-  @Param('id', ParseIntPipe) id: number,
-  @Res() res: Response,
-) {
-  const job = await this.jobsService.getPSQ(id);
-  return res.sendFile(job.psqPath, { root: '.' });
-}
-
-@Get(':id/psq/download')
-async downloadPSQ(
-  @Param('id', ParseIntPipe) id: number,
-  @Res() res: Response,
-) {
-  const job = await this.jobsService.getPSQ(id);
-  return res.download(job.psqPath, job.psqFileName);
-}
-
-/* ======================================================
-   POSITION FILE UPLOAD (NEW)
-====================================================== */
-
-@Post('positions/:id/jd')
-@Roles(UserRole.HIRING_MANAGER)
-@UseInterceptors(
-  FileInterceptor('jd', {
-    storage: diskStorage({
-      destination: './uploads/jds',
-      filename: (_, file, cb) => {
-        cb(null, `POS-JD-${Date.now()}${extname(file.originalname)}`);
-      },
-    }),
-  }),
-)
-uploadPositionJD(
-  @Param('id', ParseIntPipe) id: number,
-  @UploadedFile() file: Express.Multer.File,
-) {
-  return this.jobsService.attachPositionJD(id, file);
-}
-
-@Post('positions/:id/psq')
-@Roles(UserRole.HIRING_MANAGER)
-@UseInterceptors(
-  FileInterceptor('psq', {
-    storage: diskStorage({
-      destination: './uploads/psq',
-      filename: (_, file, cb) => {
-        cb(null, `POS-PSQ-${Date.now()}${extname(file.originalname)}`);
-      },
-    }),
-  }),
-)
-uploadPositionPSQ(
-  @Param('id', ParseIntPipe) id: number,
-  @UploadedFile() file: Express.Multer.File,
-) {
-  return this.jobsService.attachPositionPSQ(id, file);
-}
-
-@Get('positions/:id/jd/download')
-async downloadPositionJD(
-  @Param('id', ParseIntPipe) id: number,
-  @Res() res: Response,
-) {
-  const pos = await this.jobsService.getPositionJD(id);
-  return res.download(pos.jdPath, pos.jdFileName);
-}
-
-@Get('positions/:id/psq/download')
-async downloadPositionPSQ(
-  @Param('id', ParseIntPipe) id: number,
-  @Res() res: Response,
-) {
-  const pos = await this.jobsService.getPositionPSQ(id);
-  return res.download(pos.psqPath, pos.psqFileName);
-}
 }

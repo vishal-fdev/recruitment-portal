@@ -104,6 +104,8 @@ const [editingPanel, setEditingPanel] = useState<{
 } | null>(null);
 const [panels,setPanels] = useState<Panel[]>([]);
 const [showAdditionalPositions, setShowAdditionalPositions] = useState(false);
+const [isSectionSaved, setIsSectionSaved] = useState(false);
+const [errors, setErrors] = useState<any>({});
 
 // 🔥 MULTI BACKFILL SUPPORT
 const [backfillList, setBackfillList] = useState<
@@ -226,12 +228,22 @@ setForm(prev=>({...prev,[name]:value}));
 // ✅ HANDLE MAIN BACKFILL
 if(name==='requestType'){
 
-  if(value==='BACKFILL'){
-    setBackfill({employeeId:'',employeeName:''});
-    setActiveBackfillIndex(-2); // 🔥 special flag for MAIN form
-  }else{
+  if (name === 'requestType') {
+  if (value === 'BACKFILL') {
+    const count = form.numberOfPositions || 1;
+
+    setBackfillList(
+      Array.from({ length: count }, () => ({
+        employeeId: '',
+        employeeName: ''
+      }))
+    );
+
+    setActiveBackfillIndex(-2);
+  } else {
     setActiveBackfillIndex(null);
   }
+}
 
 }
 
@@ -467,7 +479,34 @@ const editPanel = (roundIndex: number, panelIndex: number) => {
   setEditingPanel({ roundIndex, panelIndex });
 };
 
+/*Validation*/
 
+const validatePositionSection = () => {
+  const newErrors: any = {};
+
+  if (!form.level) newErrors.level = 'Required';
+  if (!form.numberOfPositions || form.numberOfPositions < 1)
+    newErrors.numberOfPositions = 'Required';
+  if (!form.requestType) newErrors.requestType = 'Required';
+  if (!form.dealName.trim()) newErrors.dealName = 'Required';
+  if (!form.workLocation.trim()) newErrors.workLocation = 'Required';
+  if (!form.region.trim()) newErrors.region = 'Required';
+
+  setErrors(newErrors);
+
+  return Object.keys(newErrors).length === 0;
+};
+
+const handleSavePositionSection = () => {
+  const isValid = validatePositionSection();
+
+  if (!isValid) {
+    alert('Please fill all mandatory fields before proceeding');
+    return;
+  }
+
+  setIsSectionSaved(true);
+};
 
 /* SUBMIT */
 
@@ -501,8 +540,13 @@ const jobRes = isEditMode
       level: form.level,
       numberOfPositions: form.numberOfPositions,
       requestType: form.requestType,
-      backfillEmployeeId: (form as any).backfillEmployeeId,
-      backfillEmployeeName: (form as any).backfillEmployeeName,
+      backfillEmployeeId: form.requestType === 'BACKFILL'
+  ? JSON.stringify(backfillList)
+  : null,
+
+backfillEmployeeName: form.requestType === 'BACKFILL'
+  ? 'MULTIPLE'
+  : null,
       interviewRounds: rounds,
       positions: childPositions
     });
@@ -678,47 +722,7 @@ className="input"
 
 <Grid>
 
-<Field label="Job Request Type">
-<select
-name="requestType"
-value={form.requestType}
-onChange={handleChange}
-className="input"
->
-<option value="NEW">New Request</option>
-<option value="BACKFILL">Backfill</option>
-</select>
-
-</Field>
-
-<Field label="Deal Name">
-<input
-name="dealName"
-value={form.dealName}
-onChange={handleChange}
-className="input"
-/>
-</Field>
-
-
-<Field label="No. of Positions">
-<input
-type="number"
-value={1}
-disabled
-className="input bg-gray-100"
-/>
-
-<button
-type="button"
-onClick={() => setShowAdditionalPositions(true)}
-className="text-sm text-emerald-600 mt-2 font-semibold"
->
-+ Add more positions (Click here to add more positions)
-</button>
-</Field>
-
-<Field label="Job Level">
+  <Field label="Job Level *">
 <select
 name="level"
 value={form.level}
@@ -730,8 +734,93 @@ className="input"
 <option key={l} value={l}>{l}</option>
 ))}
 </select>
+{errors.level && <p className="text-red-500 text-xs">{errors.level}</p>}
 </Field>
 
+<Field label="No. of Positions *">
+<input
+type="number"
+name="numberOfPositions"
+value={form.numberOfPositions}
+min={1}
+onChange={(e) => {
+  const count = Number(e.target.value);
+
+  setForm(prev => ({
+    ...prev,
+    numberOfPositions: count
+  }));
+
+  // 🔥 auto prepare backfill if needed
+  if (form.requestType === 'BACKFILL') {
+    setBackfillList(
+      Array.from({ length: count || 1 }, () => ({
+        employeeId: '',
+        employeeName: ''
+      }))
+    );
+  }
+}}
+className="input"
+/>
+{errors.numberOfPositions && <p className="text-red-500 text-xs">{errors.numberOfPositions}</p>}
+</Field>
+
+<Field label="Job Request Type *">
+<select
+name="requestType"
+value={form.requestType}
+onChange={handleChange}
+className="input"
+>
+<option value="NEW">New Request</option>
+<option value="BACKFILL">Backfill</option>
+</select>
+{errors.requestType && <p className="text-red-500 text-xs">{errors.requestType}</p>}
+</Field>
+
+<Field label="Deal Name *">
+<input
+name="dealName"
+value={form.dealName}
+onChange={handleChange}
+className="input"
+/>
+{errors.dealName && <p className="text-red-500 text-xs">{errors.dealName}</p>}
+</Field>
+
+{/* FULL WIDTH ADD POSITION BLOCK */}
+
+<div className="col-span-2 space-y-3">
+
+  <div
+    onClick={() => setShowAdditionalPositions(true)}
+    className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer bg-gradient-to-br from-gray-50 to-gray-100 hover:border-emerald-500 transition"
+  >
+    <p className="text-gray-600 text-sm">
+      + Add more positions (Click here to add more positions)
+    </p>
+
+    <button
+      type="button"
+      className="mt-3 px-5 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+    >
+      Add Positions
+    </button>
+  </div>
+
+  {/* ✅ SAVE BUTTON (RIGHT ALIGNED) */}
+  <div className="flex justify-end">
+    <button
+      type="button"
+      onClick={handleSavePositionSection}
+      className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+    >
+      Save & Continue
+    </button>
+  </div>
+
+</div>
 
 <Field label="Start Date">
 <input
@@ -755,23 +844,25 @@ className="input"
 </Field>
 
 
-<Field label="Work Location">
+<Field label="Work Location *">
 <input
 name="workLocation"
 value={form.workLocation}
 onChange={handleChange}
 className="input"
 />
+{errors.workLocation && <p className="text-red-500 text-xs">{errors.workLocation}</p>}
 </Field>
 
 
-<Field label="Region">
+<Field label="Region *">
 <input
 name="region"
 value={form.region}
 onChange={handleChange}
 className="input"
 />
+{errors.region && <p className="text-red-500 text-xs">{errors.region}</p>}
 </Field>
 
 
@@ -960,6 +1051,7 @@ onChange={(e)=>{
         employeeName:''
       }))
     );
+    setActiveBackfillIndex(-1);
   }
 }}
 className="input"
@@ -1387,13 +1479,6 @@ className="bg-emerald-600 text-white px-6 py-2 rounded"
     Enter Backfill Details
   </h3>
 
-  <button
-    onClick={() => setActiveBackfillIndex(null)}
-    className="text-gray-500 hover:text-red-500 text-xl font-bold"
-  >
-    ×
-  </button>
-
 </div>
 
 {/* 🔥 MULTIPLE EMPLOYEES */}
@@ -1436,12 +1521,20 @@ className="input w-full"
 <button
 onClick={() => {
 
-  if(activeBackfillIndex === -1){
-    setNewChild(prev => ({
-      ...prev,
-      backfillEmployeeId: JSON.stringify(backfillList || [])
-    }));
-  }
+  if (activeBackfillIndex === -2) {
+  setForm(prev => ({
+    ...prev,
+    backfillEmployeeId: JSON.stringify(backfillList),
+    backfillEmployeeName: 'MULTIPLE'
+  }));
+}
+
+if (activeBackfillIndex === -1) {
+  setNewChild(prev => ({
+    ...prev,
+    backfillEmployeeId: JSON.stringify(backfillList)
+  }));
+}
 
   setActiveBackfillIndex(null);
 

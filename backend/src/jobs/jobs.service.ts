@@ -18,7 +18,6 @@ import {
   JobPosition,
   JobPositionStatus,
 } from './job-position.entity';
-import { MailService } from '../common/mail.service';
 
 @Injectable()
 export class JobsService {
@@ -44,7 +43,6 @@ export class JobsService {
     @InjectRepository(JobPosition)
     private readonly positionRepo: Repository<JobPosition>,
 
-    private readonly mailService: MailService, // ✅ ADD THIS
   ) {}
 
   /* ======================================================
@@ -52,11 +50,13 @@ export class JobsService {
   ====================================================== */
 
   async getJobsForUser(user: any): Promise<any[]> {
-    if (user.role === 'VENDOR') {
+    if (user.role === 'VENDOR' || user.role === 'VENDOR_MANAGER') {
+      
       const mappings = await this.jobVendorRepo.find({
         where: {
           vendor: { id: user.vendor?.id || user.vendorId },
           isEnabled: true,
+          status: 'ACTIVE', 
         },
         relations: ['job'],
       });
@@ -104,75 +104,104 @@ export class JobsService {
   ====================================================== */
 
   async createJob(data: any): Promise<Job> {
-    const { interviewRounds, positions, ...jobData } = data;
+  console.log('🔥 CREATE JOB API HIT');
 
-    const jobEntity = this.jobRepo.create(
-      jobData as DeepPartial<Job>,
-    );
+  const { interviewRounds, positions, ...jobData } = data;
 
-    jobEntity.status = JobStatus.PENDING_APPROVAL;
-    jobEntity.isActive = true;
+  const jobEntity = this.jobRepo.create(
+    jobData as DeepPartial<Job>,
+  );
 
-    const savedJob = await this.jobRepo.save(jobEntity);
-    await this.mailService.sendApprovalEmail(savedJob);
+  jobEntity.status = JobStatus.PENDING_APPROVAL;
+  jobEntity.isActive = true;
 
-  
+  let savedJob: Job;
 
-    /* ================= POSITIONS ================= */
+  try {
+    savedJob = await this.jobRepo.save(jobEntity);
+    console.log('🔥 JOB SAVED:', savedJob.id);
+  } catch (error) {
+    console.error('❌ JOB SAVE ERROR:', error);
+    throw error;
+  }
 
-    if (Array.isArray(positions) && positions.length) {
-      for (const pos of positions) {
-        const positionEntity =
-          this.positionRepo.create({
-            level: pos.level,
-            openings: Number(pos.openings || 0),
-            status: JobPositionStatus.OPEN,
+  /* ================= POSITIONS ================= */
 
-            // ✅ NEW FIELDS (SAFE ADDITION)
-            requestType: pos.requestType || 'NEW',
-            backfillEmployeeId: pos.backfillEmployeeId || null,
-            backfillEmployeeName: pos.backfillEmployeeName || null,
+  if (Array.isArray(positions) && positions.length) {
+    for (const pos of positions) {
+      const positionEntity = this.positionRepo.create({
+        level: pos.level,
+        openings: Number(pos.openings || 0),
+        status: JobPositionStatus.OPEN,
+        requestType: pos.requestType || 'NEW',
+        backfillEmployeeId: pos.backfillEmployeeId || null,
+        backfillEmployeeName: pos.backfillEmployeeName || null,
+        job: savedJob,
+      });
 
-            job: savedJob,
+      await this.positionRepo.save(positionEntity);
+    }
+  }
+
+  /* ================= INTERVIEW ================= */
+
+  if (Array.isArray(interviewRounds)) {
+    for (const round of interviewRounds) {
+      const roundEntity = this.roundRepo.create({
+        roundName: round.roundName,
+        mode: round.mode,
+        job: savedJob,
+      });
+
+      const savedRound = await this.roundRepo.save(roundEntity);
+
+      if (Array.isArray(round.panels)) {
+        for (const panel of round.panels) {
+          const panelEntity = this.panelRepo.create({
+            name: panel.name,
+            email: panel.email,
+            round: savedRound,
           });
 
-        await this.positionRepo.save(positionEntity);
-      }
-    }
-
-    /* ================= INTERVIEW ================= */
-
-    if (Array.isArray(interviewRounds)) {
-      for (const round of interviewRounds) {
-        const roundEntity = this.roundRepo.create({
-          roundName: round.roundName,
-          mode: round.mode,
-          job: savedJob,
-        });
-
-        const savedRound =
-          await this.roundRepo.save(roundEntity);
-
-        if (Array.isArray(round.panels)) {
-          for (const panel of round.panels) {
-            const panelEntity =
-              this.panelRepo.create({
-                name: panel.name,   // ✅ FIXED
-                email: panel.email, // ✅ NEW
-                round: savedRound,
-              });
-
-            await this.panelRepo.save(panelEntity);
-          }
+          await this.panelRepo.save(panelEntity);
         }
       }
     }
-
-    return this.getJobById(savedJob.id);
-
-    
   }
 
+  return this.getJobById(savedJob.id);
+}
+
+
+/*hold and close*/
+
+async holdJob(jobId: number) {
+  const job = await this.jobRepo.findOne({ where: { id: jobId } });
+  if (!job) throw new NotFoundException('Job not found');
+
+  if (job.status === JobStatus.CLOSED) {
+    throw new Error('Closed job cannot be put on hold');
+  }
+
+  job.status = JobStatus.ON_HOLD;
+  await this.jobRepo.save(job);
+
+  return { success: true };
+}
+
+async reopenJob(jobId: number) {
+  const job = await this.jobRepo.findOne({ where: { id: jobId } });
+  if (!job) throw new NotFoundException('Job not found');
+
+  if (job.status === JobStatus.CLOSED) {
+    throw new Error('Closed job cannot be reopened');
+  }
+
+  job.status = JobStatus.APPROVED;
+  await this.jobRepo.save(job);
+
+  return { success: true };
+}
   /* ======================================================
    UPDATE JOB (EDIT & RESUBMIT)
 ====================================================== */
@@ -196,7 +225,7 @@ async updateJob(jobId: number, data: any): Promise<Job> {
   job.status = JobStatus.PENDING_APPROVAL;
 
   await this.jobRepo.save(job);
-  await this.mailService.sendApprovalEmail(job);
+ 
 
   /* ================= RESET POSITIONS ================= */
 
@@ -423,6 +452,34 @@ async updateJob(jobId: number, data: any): Promise<Job> {
 
     return job;
   }
+
+  /* ======================================================
+   VENDOR LEVEL CONTROL (NEW)
+====================================================== */
+
+async updateVendorJobStatus(
+  jobId: number,
+  vendorId: string,
+  status: 'ACTIVE' | 'ON_HOLD' | 'CLOSED',
+) {
+  const mapping = await this.jobVendorRepo.findOne({
+    where: {
+      job: { id: jobId },
+      vendor: { id: vendorId },
+    },
+    relations: ['job', 'vendor'],
+  });
+
+  if (!mapping) {
+    throw new NotFoundException('Vendor not assigned to this job');
+  }
+
+  mapping.status = status;
+
+  await this.jobVendorRepo.save(mapping);
+
+  return { success: true };
+}
 
   /* ======================================================
    PSQ HANDLING (ADD BELOW getJD)

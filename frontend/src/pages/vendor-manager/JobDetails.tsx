@@ -98,7 +98,7 @@ const JobDetails = () => {
 
       {/* BACK BUTTON */}
       <button
-        onClick={() => navigate('/vendor-manager-head/jobs')}
+        onClick={() => navigate('/vendor-manager/jobs')}
         className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
       >
         ← Back

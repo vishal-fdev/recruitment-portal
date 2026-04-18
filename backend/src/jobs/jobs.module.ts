@@ -13,7 +13,6 @@ import { InterviewRound } from './interview-round.entity';
 import { InterviewPanel } from './interview-panel.entity';
 import { JobPosition } from './job-position.entity';
 
-import { MailService } from '../common/mail.service'; // ✅ ADD THIS
 
 @Module({
   imports: [
@@ -30,7 +29,7 @@ import { MailService } from '../common/mail.service'; // ✅ ADD THIS
   controllers: [JobsController, JobApprovalsController],
   providers: [
     JobsService,
-    MailService, // ✅ ADD THIS
+  
   ],
   exports: [JobsService],
 })

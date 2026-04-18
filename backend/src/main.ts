@@ -8,18 +8,24 @@ import { join } from 'path';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // 🔥 BULLETPROOF CORS FIX (Render + Vercel + Browser safe)
+  // ✅ PROPER CORS CONFIG (LOCAL + VERCEL SAFE)
   app.enableCors({
-    origin: true, // ✅ VERY IMPORTANT (fixes your issue)
-    credentials: true,
+    origin: [
+      'http://localhost:5173',   // ✅ local frontend
+      'https://aurasol.in',      // ✅ your main domain
+      'https://www.aurasol.in',  // ✅ optional (if www is used)
+    ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true, // ✅ IMPORTANT for JWT
   });
 
-  // ✅ Serve uploads
+  // ✅ serve uploaded files
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
 
   await app.listen(3000);
+
+  console.log('🚀 BACKEND RUNNING ON PORT 3000');
 }
 
 bootstrap();

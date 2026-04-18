@@ -75,6 +75,19 @@ export class CandidatesService {
         throw new NotFoundException('Job not found');
       }
 
+      // 🔥 BLOCK BASED ON JOB STATUS
+if (job.status === 'ON_HOLD') {
+  throw new BadRequestException(
+    'This job is currently on hold',
+  );
+}
+
+if (job.status === 'CLOSED') {
+  throw new BadRequestException(
+    'This job is closed',
+  );
+}
+
       const mapping =
         await this.jobVendorRepo.findOne({
           where: {
@@ -85,10 +98,30 @@ export class CandidatesService {
         });
 
       if (!mapping) {
-        throw new BadRequestException(
-          'Vendor not assigned to this job',
-        );
-      }
+  throw new BadRequestException(
+    'Vendor not assigned to this job',
+  );
+}
+
+// 🔥 NEW VALIDATION
+if (mapping.status !== 'ACTIVE') {
+  throw new BadRequestException(
+    'This job is not active for your vendor',
+  );
+}
+      // 🔥 PREVENT DUPLICATE SUBMISSION (SAME JOB + SAME EMAIL)
+const existing = await this.candidateRepo.findOne({
+  where: {
+    email: data.email,
+    job: { id: job.id },
+  },
+});
+
+if (existing) {
+  throw new BadRequestException(
+    'Candidate already submitted for this job',
+  );
+}
 
       if (data.positionId) {
         position = await this.positionRepo.findOne({
@@ -113,6 +146,12 @@ export class CandidatesService {
             'This position is closed',
           );
         }
+        // 🔥 EXTRA SAFETY (prevents invalid submissions)
+if (position.openings <= 0) {
+  throw new BadRequestException(
+    'No openings available for this position',
+  );
+}
       }
     }
 
@@ -311,6 +350,8 @@ export class CandidatesService {
 
     return { success: true };
   }
+
+  
 
   /* =====================================================
      RESUME ACCESS

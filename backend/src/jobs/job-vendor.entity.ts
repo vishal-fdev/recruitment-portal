@@ -25,4 +25,11 @@ export class JobVendor {
 
   @Column({ default: true })
   isEnabled!: boolean;
+
+  // 🔥 NEW (DO NOT REMOVE ANYTHING ABOVE)
+  @Column({
+    type: 'text',
+    default: 'ACTIVE',
+  })
+  status!: 'ACTIVE' | 'ON_HOLD' | 'CLOSED';
 }

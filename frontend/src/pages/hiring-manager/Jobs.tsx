@@ -71,8 +71,6 @@ const HMJobs = () => {
               <th className="px-4 py-3">Location</th>
               <th className="px-4 py-3">Assigned Date</th>
               <th className="px-4 py-3">Status</th>
-
-              {/* ✅ NEW COLUMN */}
               <th className="px-4 py-3">Action</th>
             </tr>
           </thead>
@@ -121,12 +119,12 @@ const HMJobs = () => {
                     </div>
                   </td>
 
-                  {/* ✅ EDIT BUTTON */}
+                  {/* ✅ FIXED EDIT BUTTON LOGIC */}
                   <td className="px-4 py-3">
-                    {(job.status === 'APPROVED' || job.status === 'REJECTED') && (
+                    {(job.status === 'PENDING_APPROVAL' || job.status === 'REJECTED') && (
                       <button
                         onClick={(e) => {
-                          e.stopPropagation(); // 🔥 IMPORTANT (prevents row click)
+                          e.stopPropagation();
                           navigate(`/hiring-manager/edit-job/${job.id}`);
                         }}
                         className="text-blue-600 hover:text-blue-800 font-semibold"
@@ -146,7 +144,6 @@ const HMJobs = () => {
 };
 
 export default HMJobs;
-
 
 /* ================= STATUS BADGE ================= */
 

@@ -1,3 +1,5 @@
+// src/pages/vendor-manager/Jobs.tsx
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
@@ -30,7 +32,7 @@ const Jobs = () => {
   const fetchJobs = async () => {
     try {
       const data = await getJobs();
-      setJobs(data.filter((j: any) => j.status === 'APPROVED'));
+      setJobs(data.filter((job: Job) => job.status === 'APPROVED'));
     } finally {
       setLoading(false);
     }
@@ -39,13 +41,8 @@ const Jobs = () => {
   /* ================= FETCH VENDORS ================= */
 
   const fetchVendors = async () => {
-    try {
-      const res = await api.get('/vendors');
-      const vendorData = res.data?.data || res.data || [];
-      setVendors(vendorData);
-    } catch (error) {
-      console.error('Failed to fetch vendors', error);
-    }
+    const res = await api.get('/vendors');
+    setVendors(res.data?.data || res.data || []);
   };
 
   useEffect(() => {
@@ -53,297 +50,256 @@ const Jobs = () => {
     fetchVendors();
   }, []);
 
-  /* ================= CLOSE DROPDOWN ================= */
+  /* ================= ACTION APIs ================= */
 
-  useEffect(() => {
-    const closeMenu = () => setOpenMenu(null);
-    document.addEventListener('click', closeMenu);
-    return () => document.removeEventListener('click', closeMenu);
-  }, []);
+  const updateJobStatus = async (jobId: number, action: string) => {
+    try {
+      await api.patch(`/jobs/${jobId}/${action}`);
+      fetchJobs();
+    } catch (err) {
+      console.error(`${action} failed`, err);
+      alert(`Failed to ${action} job`);
+    }
+  };
 
   /* ================= JD DOWNLOAD ================= */
 
   const handleDownload = async (jobId: number, fileName?: string) => {
-    const response = await api.get(`/jobs/${jobId}/jd/download`, {
+    const res = await api.get(`/jobs/${jobId}/jd/download`, {
       responseType: 'blob',
     });
 
-    const blob = new Blob([response.data]);
-    const url = window.URL.createObjectURL(blob);
-
+    const url = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = url;
     link.download = fileName || `JOB-${jobId}.pdf`;
-
-    document.body.appendChild(link);
     link.click();
-    link.remove();
-
-    window.URL.revokeObjectURL(url);
   };
 
-  /* ================= OPEN ASSIGN MODAL ================= */
+  /* ================= ASSIGN ================= */
 
   const openAssignModal = async (jobId: number) => {
-    try {
-      const res = await api.get(`/jobs/${jobId}`);
-      const job = res.data;
+    const res = await api.get(`/jobs/${jobId}`);
+    const job = res.data;
 
-      const assigned =
-        job.vendors?.filter((v: any) => v.isEnabled).map((v: any) => v.id) ||
-        [];
+    const assigned =
+      job.vendors?.filter((v: any) => v.isEnabled).map((v: any) => v.id) || [];
 
-      setSelectedJob(jobId);
-      setOriginalAssigned(assigned);
-      setSelectedVendors(assigned);
-      setShowModal(true);
-      setOpenMenu(null);
-    } catch (err) {
-      console.error('Failed loading job vendors', err);
-    }
+    setSelectedJob(jobId);
+    setOriginalAssigned(assigned);
+    setSelectedVendors(assigned);
+    setShowModal(true);
+    setOpenMenu(null);
   };
 
-  /* ================= TOGGLE VENDOR ================= */
-
-  const toggleVendor = (vendorId: number) => {
-    if (selectedVendors.includes(vendorId)) {
-      setSelectedVendors(selectedVendors.filter((v) => v !== vendorId));
-    } else {
-      setSelectedVendors([...selectedVendors, vendorId]);
-    }
+  const toggleVendor = (id: number) => {
+    setSelectedVendors((prev) =>
+      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id],
+    );
   };
-
-  /* ================= ASSIGN + DEASSIGN ================= */
 
   const assignVendors = async () => {
     if (!selectedJob) return;
 
-    try {
-      const toAssign = selectedVendors.filter(
-        (v) => !originalAssigned.includes(v),
-      );
+    const toAssign = selectedVendors.filter((v) => !originalAssigned.includes(v));
+    const toRemove = originalAssigned.filter((v) => !selectedVendors.includes(v));
 
-      const toRemove = originalAssigned.filter(
-        (v) => !selectedVendors.includes(v),
-      );
-
-      for (const vendorId of toAssign) {
-        await api.patch(`/jobs/${selectedJob}/vendors/${vendorId}`, {
-          isEnabled: true,
-        });
-      }
-
-      for (const vendorId of toRemove) {
-        await api.patch(`/jobs/${selectedJob}/vendors/${vendorId}`, {
-          isEnabled: false,
-        });
-      }
-
-      setShowModal(false);
-    } catch (err) {
-      console.error('Assign vendor failed', err);
+    for (const v of toAssign) {
+      await api.patch(`/jobs/${selectedJob}/vendors/${v}`, { isEnabled: true });
     }
+
+    for (const v of toRemove) {
+      await api.patch(`/jobs/${selectedJob}/vendors/${v}`, { isEnabled: false });
+    }
+
+    setShowModal(false);
+  };
+
+  /* ================= STATUS BADGE ================= */
+
+  const StatusBadge = ({ status }: { status: string }) => {
+    const map: any = {
+      APPROVED: 'bg-green-100 text-green-700',
+      ON_HOLD: 'bg-yellow-100 text-yellow-700',
+      CLOSED: 'bg-gray-200 text-gray-600',
+    };
+
+    return (
+      <span className={`px-3 py-1 text-xs rounded-full ${map[status]}`}>
+        {status.replace('_', ' ')}
+      </span>
+    );
   };
 
   return (
     <div className="space-y-6">
 
-      {/* HEADER */}
-
-      <div className="bg-gray-50 border border-gray-200 rounded-lg px-6 py-4">
-        <h1 className="text-xl font-semibold text-gray-800">
-          Job Requisitions
-        </h1>
+      <div className="bg-gray-50 border rounded px-6 py-4">
+        <h1 className="text-xl font-semibold">Job Requisitions</h1>
       </div>
 
-      {/* TABLE */}
-
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow border overflow-visible">
 
         <table className="w-full text-sm">
-
-          <thead className="bg-gray-100 border-b text-gray-700">
-            <tr>
-              <th className="px-6 py-3 text-center">HRQID</th>
-              <th className="px-6 py-3 text-center">Role</th>
-              <th className="px-6 py-3 text-center">Location</th>
-              <th className="px-6 py-3 text-center">Experience</th>
-              <th className="px-6 py-3 text-center">Status</th>
-              <th className="px-6 py-3 text-center">JD</th>
-              <th className="px-6 py-3 text-center">Action</th>
-            </tr>
+          <thead className="bg-gray-100">
+            <tr className="text-sm font-medium text-gray-600">
+  <th className="py-3 text-center">HRQ ID</th>
+  <th className="text-center">Role</th>
+  <th className="text-center">Level</th>
+  <th className="text-center">Location</th>
+  <th className="text-center">Assigned Date</th>
+  <th className="text-center">Status</th>
+  <th className="text-center">JD</th>
+  <th className="text-center">Action</th>
+</tr>
           </thead>
 
           <tbody>
 
-            {loading && (
-              <tr>
-                <td colSpan={7} className="py-10 text-center">
-                  Loading jobs...
-                </td>
-              </tr>
-            )}
+            {jobs.map((job) => (
 
-            {!loading &&
-              jobs.map((job) => (
+              <tr
+  key={job.id}
+  className="border-t text-sm hover:bg-gray-50 cursor-pointer"
+  onClick={() => navigate(`/vendor-manager/jobs/${job.id}`)}
+>
 
-                <tr
-                  key={job.id}
-                  className="border-t hover:bg-gray-50 cursor-pointer"
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('button')) return;
-                    navigate(`/vendor-manager/jobs/${job.id}`);
-                  }}
-                >
+  {/* HRQ */}
+  <td className="text-center text-green-600 font-medium">HRQ{job.id}</td>
 
-                  <td className="px-6 py-4 text-center font-semibold text-red-600">
-                    HRQ{job.id}
-                  </td>
+  {/* ROLE */}
+  <td className="py-3 text-center text-gray-700">{job.title}</td>
 
-                  <td className="px-6 py-4 text-center">
-                    {job.title}
-                  </td>
+  {/* LEVEL */}
+  <td className="py-3 text-center text-gray-700">{job.level || '-'}</td>
 
-                  <td className="px-6 py-4 text-center">
-                    {job.location}
-                  </td>
+  {/* LOCATION */}
+  <td className="py-3 text-center text-gray-700">{job.location}</td>
 
-                  <td className="px-6 py-4 text-center">
-                    {job.experience}
-                  </td>
+  {/* ASSIGNED DATE (FIXED FORMAT) */}
+  <td className="text-center">
+    {job.createdAt
+      ? new Date(job.createdAt).toLocaleDateString('en-GB')
+      : '-'}
+  </td>
 
-                  <td className="px-6 py-4 text-center">
-                    <span className="px-3 py-1 text-xs rounded-full bg-green-100 text-green-700">
-                      Approved
-                    </span>
-                  </td>
+  {/* STATUS */}
+  <td className="text-center">
+    <StatusBadge status={job.status} />
+  </td>
 
-                  <td className="px-6 py-4 text-center">
-                    {job.jdFileName ? (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownload(job.id, job.jdFileName);
-                        }}
-                        className="text-blue-600 hover:underline"
-                      >
-                        Download JD
-                      </button>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
+  {/* JD COLUMN */}
+  <td className="text-center">
+    {job.jdFileName ? (
+      <button
+        onClick={() => handleDownload(job.id)}
+        className="text-blue-600 hover:underline"
+      >
+        Download JD
+      </button>
+    ) : (
+      '—'
+    )}
+  </td>
 
-                  <td
-                    className="px-6 py-4 text-center relative"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+  {/* ACTION */}
+  <td className="text-center relative">
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenMenu(openMenu === job.id ? null : job.id);
-                      }}
-                      className="border border-gray-300 rounded px-2 py-1 hover:bg-gray-100"
-                    >
-                      <ChevronDown size={16} />
-                    </button>
+    <button
+      onClick={(e) => {
+  e.stopPropagation();
+  setOpenMenu(openMenu === job.id ? null : job.id);
+}}
+      className="border px-2 py-1 rounded-md bg-white hover:bg-gray-50"
+    >
+      <ChevronDown size={14} />
+    </button>
 
-                    {openMenu === job.id && (
+    {openMenu === job.id && (
+      <div className="absolute right-0 mt-2 bg-white border rounded-md shadow-lg w-40 z-50">
 
-                      <div
-                        className="absolute right-6 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-md z-20"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+        {job.status === 'APPROVED' && (
+          <button
+            onClick={(e) => {
+  e.stopPropagation();
+  openAssignModal(job.id);
+}}
+            className="block w-full py-2 hover:bg-gray-100"
+          >
+            Assign
+          </button>
+        )}
 
-                        <button
-                          onClick={() => openAssignModal(job.id)}
-                          className="block w-full text-center px-4 py-2 text-sm hover:bg-gray-100"
-                        >
-                          Assign
-                        </button>
+        {job.status === 'APPROVED' && (
+          <button
+            onClick={() => updateJobStatus(job.id, 'hold')}
+            className="block w-full py-2 hover:bg-gray-100"
+          >
+            Put on Hold
+          </button>
+        )}
 
-                      </div>
+        {job.status === 'ON_HOLD' && (
+          <button
+            onClick={() => updateJobStatus(job.id, 'reopen')}
+            className="block w-full py-2 hover:bg-gray-100"
+          >
+            Reopen
+          </button>
+        )}
 
-                    )}
-
-                  </td>
-
-                </tr>
-
-              ))}
-
-          </tbody>
-
-        </table>
+        {job.status !== 'CLOSED' && (
+          <button
+            onClick={() => updateJobStatus(job.id, 'close')}
+            className="block w-full py-2 text-red-600 hover:bg-gray-100"
+          >
+            Close
+          </button>
+        )}
 
       </div>
+    )}
 
-      {/* ================= MODAL ================= */}
+  </td>
+
+</tr>
+
+            ))}
+
+          </tbody>
+        </table>
+      </div>
+
+      {/* ================= ASSIGN MODAL ================= */}
 
       {showModal && (
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
 
-        <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-          onClick={() => setShowModal(false)}
-        >
+          <div className="bg-white p-6 rounded w-[400px]">
 
-          <div
-            className="bg-white rounded-lg shadow-lg w-[420px] p-6 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
+            <h2 className="font-semibold mb-3">Assign Vendors</h2>
 
-            <h2 className="text-lg font-semibold">
-              Assign Vendors
-            </h2>
+            {vendors.map((v) => (
+              <label key={v.id} className="block">
+                <input
+                  type="checkbox"
+                  checked={selectedVendors.includes(v.id)}
+                  onChange={() => toggleVendor(v.id)}
+                />
+                {v.name}
+              </label>
+            ))}
 
-            <div className="max-h-60 overflow-y-auto space-y-2">
-
-              {vendors.map((vendor) => (
-
-                <label
-                  key={vendor.id}
-                  className="flex items-center gap-2 text-sm"
-                >
-
-                  <input
-                    type="checkbox"
-                    checked={selectedVendors.includes(vendor.id)}
-                    onChange={() => toggleVendor(vendor.id)}
-                  />
-
-                  {vendor.name}
-
-                </label>
-
-              ))}
-
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4">
-
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 border rounded text-sm"
-              >
-                Cancel
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setShowModal(false)}>Cancel</button>
+              <button onClick={assignVendors} className="bg-green-600 text-white px-3 py-1 rounded">
+                Save
               </button>
-
-              <button
-                onClick={assignVendors}
-                className="px-4 py-2 bg-emerald-600 text-white rounded text-sm"
-              >
-                Save Changes
-              </button>
-
             </div>
 
           </div>
-
         </div>
-
       )}
-
     </div>
   );
 };

@@ -1,4 +1,5 @@
 // src/users/user.entity.ts
+
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -18,23 +19,22 @@ export enum UserRole {
 @Entity()
 export class User {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ unique: true })
-  email: string;
+  email!: string;
 
   /**
-   * ✅ SQLITE-SAFE ENUM
-   * Stored as TEXT, enforced by TS + logic
+   * Stored as TEXT (Postgres safe)
    */
   @Column({ type: 'text' })
-  role: UserRole;
+  role!: UserRole;
 
   @Column({ default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   /**
-   * ✅ Vendor linkage (only for vendor users)
+   * Vendor linkage (only for vendor users)
    */
   @OneToOne(() => Vendor, (vendor) => vendor.user, {
     nullable: true,

@@ -20,12 +20,11 @@ export class UsersService implements OnModuleInit {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const normalizedEmail = email.trim().toLowerCase();
-
-    return this.userRepo.findOne({
-      where: { email: normalizedEmail },
-    });
-  }
+  return this.userRepo
+    .createQueryBuilder('user')
+    .where('LOWER(user.email) = LOWER(:email)', { email })
+    .getOne();
+}
 
   /* ====================== */
   /* 🔒 SYSTEM USER SEEDING */
@@ -67,10 +66,11 @@ export class UsersService implements OnModuleInit {
         await this.userRepo.save(user);
         console.log(`✅ Seeded user: ${normalizedEmail}`);
       } else {
-        // ✅ ensure role is correct if already exists
-        user.role = u.role;
-        await this.userRepo.save(user);
-      }
+  // 🔥 FIX: normalize existing users also
+  user.email = normalizedEmail;
+  user.role = u.role;
+  await this.userRepo.save(user);
+}
     }
   }
 }

@@ -18,70 +18,69 @@ import { CandidateInterview } from './candidate-interview.entity';
 @Entity()
 export class Candidate {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column()
-  name: string;
+  name!: string;
 
   @Column()
-  email: string;
+  email!: string;
 
   @Column()
-  phone: string;
+  phone!: string;
 
   @Column({ type: 'text', nullable: true })
-  primarySkills: string;
+  primarySkills!: string;
 
   @Column({ type: 'text', nullable: true })
-  secondarySkills: string;
+  secondarySkills!: string;
 
   @Column({ nullable: true })
-  country: string;
+  country!: string;
 
   @Column({ nullable: true })
-  state: string;
+  state!: string;
 
   @Column({ nullable: true })
-  city: string;
+  city!: string;
 
   @Column('int')
-  experience: number;
+  experience!: number;
 
   @Column('int', { default: 0 })
-  noticePeriod: number;
+  noticePeriod!: number;
 
   @Column()
-  currentOrg: string;
+  currentOrg!: string;
 
   @Column()
-  resumePath: string;
+  resumePath!: string;
 
   @Column({
     type: 'text',
     default: CandidateStatus.NEW,
   })
-  status: CandidateStatus;
+  status!: CandidateStatus;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @ManyToOne(() => Vendor, { eager: true })
-  vendor: Vendor;
+  vendor!: Vendor;
 
   @ManyToOne(() => Job, { eager: true, nullable: true })
-  job: Job | null;
+  job!: Job | null;
 
-  // 🔥 NEW
   @ManyToOne(() => JobPosition, {
     eager: true,
     nullable: true,
   })
-  position: JobPosition | null;
+  position!: JobPosition | null;
 
   @OneToMany(
     () => CandidateInterview,
     (interview) => interview.candidate,
     { cascade: true, eager: true },
   )
-  interviews: CandidateInterview[];
+  interviews!: CandidateInterview[];
 }

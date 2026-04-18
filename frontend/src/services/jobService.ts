@@ -8,7 +8,8 @@ export type JobStatus =
   | 'PENDING_APPROVAL'
   | 'APPROVED'
   | 'REJECTED'
-  | 'CLOSED';
+  | 'CLOSED'
+  | 'ON_HOLD';
 
 /* ===================== INTERVIEW TYPES ===================== */
 
