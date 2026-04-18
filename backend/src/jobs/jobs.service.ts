@@ -50,54 +50,89 @@ export class JobsService {
   ====================================================== */
 
   async getJobsForUser(user: any): Promise<any[]> {
-    if (user.role === 'VENDOR' || user.role === 'VENDOR_MANAGER') {
-      
-      const mappings = await this.jobVendorRepo.find({
-        where: {
-          vendor: { id: user.vendor?.id || user.vendorId },
-          isEnabled: true,
-          status: 'ACTIVE', 
-        },
-        relations: ['job'],
-      });
 
-      const allowedIds = mappings.map((m) => m.job.id);
-      if (!allowedIds.length) return [];
+  /* ================= VENDOR ================= */
 
-      const jobs = await this.jobRepo.find({
-        where: {
-          id: In(allowedIds),
-          status: JobStatus.APPROVED,
-          isActive: true,
-        },
-        relations: ['positions'],
-        order: { createdAt: 'DESC' },
-      });
+  if (user.role === 'VENDOR') {
 
-      return jobs
-        .map((job) => {
-          const openPositions =
-            job.positions?.filter(
-              (p) =>
-                p.status === JobPositionStatus.OPEN &&
-                p.openings > 0,
-            ) || [];
+    const mappings = await this.jobVendorRepo.find({
+      where: {
+        vendor: { id: user.vendor?.id || user.vendorId },
+        isEnabled: true,
+        status: 'ACTIVE',
+      },
+      relations: ['job'],
+    });
 
-          return {
-            ...job,
-            positions: openPositions,
-          };
-        })
-        .filter((job) => job.positions.length > 0);
-    }
+    const allowedIds = mappings.map((m) => m.job.id);
+    if (!allowedIds.length) return [];
 
     const jobs = await this.jobRepo.find({
+      where: {
+        id: In(allowedIds),
+        status: JobStatus.APPROVED,
+        isActive: true,
+      },
       relations: ['positions'],
       order: { createdAt: 'DESC' },
     });
 
-    return jobs;
+    return jobs
+      .map((job) => {
+        const openPositions =
+          job.positions?.filter(
+            (p) =>
+              p.status === JobPositionStatus.OPEN &&
+              p.openings > 0,
+          ) || [];
+
+        return {
+          ...job,
+          positions: openPositions,
+        };
+      })
+      .filter((job) => job.positions.length > 0);
   }
+
+  /* ================= VENDOR MANAGER ================= */
+
+  if (user.role === 'VENDOR_MANAGER') {
+
+    const jobs = await this.jobRepo.find({
+      where: {
+        status: JobStatus.APPROVED,
+        isActive: true,
+      },
+      relations: ['positions'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return jobs
+      .map((job) => {
+        const openPositions =
+          job.positions?.filter(
+            (p) =>
+              p.status === JobPositionStatus.OPEN &&
+              p.openings > 0,
+          ) || [];
+
+        return {
+          ...job,
+          positions: openPositions,
+        };
+      })
+      .filter((job) => job.positions.length > 0);
+  }
+
+  /* ================= OTHERS (HM, HEAD) ================= */
+
+  const jobs = await this.jobRepo.find({
+    relations: ['positions'],
+    order: { createdAt: 'DESC' },
+  });
+
+  return jobs;
+}
 
   /* ======================================================
      CREATE JOB (UPDATED)

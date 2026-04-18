@@ -995,24 +995,6 @@ Only PDF, DOC, DOCX allowed
 </Section>
 
 
-<div className="mt-4">
-
-<label className="block text-sm font-medium mb-1">
-Justification
-</label>
-
-<textarea
-name="justification"
-value={form.justification}
-onChange={handleChange}
-rows={4}
-className="w-full border rounded px-3 py-2"
-/>
-
-</div>
-
-{/* JD */}
-
 
 {/* CHILD POSITIONS */}
 
@@ -1270,6 +1252,26 @@ Remove
 )}
 
 {/* JD */}
+
+<div className="mt-4">
+
+<label className="block text-sm font-medium mb-1">
+Justification
+</label>
+
+<textarea
+name="justification"
+value={form.justification}
+onChange={handleChange}
+rows={4}
+className="w-full border rounded px-3 py-2"
+/>
+
+</div>
+
+{/* JD */}
+
+
 
 
 
