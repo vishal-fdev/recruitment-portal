@@ -30,14 +30,23 @@ const Jobs = () => {
   /* ================= FETCH JOBS ================= */
 
   const fetchJobs = async () => {
-    try {
-      const data = await getJobs();
-      setJobs(data.filter((job: Job) => job.status === 'APPROVED'));
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const data = await getJobs(); // ✅ THIS WAS MISSING
 
+    setJobs(
+      data.filter(
+        (job: Job) =>
+          job.status === 'APPROVED' ||
+          job.status === 'ON_HOLD' ||
+          job.status === 'CLOSED'
+      )
+    );
+  } catch (err) {
+    console.error('Failed to fetch jobs', err);
+  } finally {
+    setLoading(false);
+  }
+};
   /* ================= FETCH VENDORS ================= */
 
   const fetchVendors = async () => {
