@@ -169,4 +169,44 @@ updateVendorJobStatus(
     const job = await this.jobsService.getJD(id);
     return res.download(job.jdPath, job.jdFileName);
   }
+
+  /* ================= PSQ HANDLING ================= */
+
+@Post(':id/psq')
+@Roles(UserRole.HIRING_MANAGER)
+@UseInterceptors(
+  FileInterceptor('psq', {
+    storage: diskStorage({
+      destination: './uploads/psq',
+      filename: (_, file, cb) => {
+        cb(null, `PSQ-${Date.now()}${extname(file.originalname)}`);
+      },
+    }),
+  }),
+)
+uploadPSQ(
+  @Param('id', ParseIntPipe) id: number,
+  @UploadedFile() file: Express.Multer.File,
+) {
+  return this.jobsService.attachPSQ(id, file);
 }
+
+@Get(':id/psq/view')
+async viewPSQ(
+  @Param('id', ParseIntPipe) id: number,
+  @Res() res: Response,
+) {
+  const job = await this.jobsService.getPSQ(id);
+  return res.sendFile(job.psqPath, { root: '.' });
+}
+
+@Get(':id/psq/download')
+async downloadPSQ(
+  @Param('id', ParseIntPipe) id: number,
+  @Res() res: Response,
+) {
+  const job = await this.jobsService.getPSQ(id);
+  return res.download(job.psqPath, job.psqFileName);
+}
+}
+
