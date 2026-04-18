@@ -68,11 +68,13 @@ export class JobsService {
     if (!allowedIds.length) return [];
 
     const jobs = await this.jobRepo.find({
-      where: {
-        id: In(allowedIds),
-        status: JobStatus.APPROVED,
-        isActive: true,
-      },
+     where: {
+  status: In([
+    JobStatus.APPROVED,
+    JobStatus.ON_HOLD,
+    JobStatus.CLOSED,
+  ]),
+},
       relations: ['positions'],
       order: { createdAt: 'DESC' },
     });
@@ -96,33 +98,26 @@ export class JobsService {
 
   /* ================= VENDOR MANAGER ================= */
 
-  if (user.role === 'VENDOR_MANAGER') {
+ if (user.role === 'VENDOR_MANAGER') {
 
-    const jobs = await this.jobRepo.find({
-      where: {
-        status: JobStatus.APPROVED,
-        isActive: true,
-      },
-      relations: ['positions'],
-      order: { createdAt: 'DESC' },
-    });
+  const jobs = await this.jobRepo.find({
+    where: {
+      isActive: true,
+      status: In([
+        JobStatus.APPROVED,
+        JobStatus.ON_HOLD,
+        JobStatus.CLOSED,
+      ]),
+    },
+    relations: ['positions', 'jobVendors', 'jobVendors.vendor'],
+    order: { createdAt: 'DESC' },
+  });
 
-    return jobs
-      .map((job) => {
-        const openPositions =
-          job.positions?.filter(
-            (p) =>
-              p.status === JobPositionStatus.OPEN &&
-              p.openings > 0,
-          ) || [];
-
-        return {
-          ...job,
-          positions: openPositions,
-        };
-      })
-      .filter((job) => job.positions.length > 0);
-  }
+   return jobs.map((job) => ({
+    ...job,
+    positions: job.positions || [],
+  }));
+}
 
   /* ================= OTHERS (HM, HEAD) ================= */
 

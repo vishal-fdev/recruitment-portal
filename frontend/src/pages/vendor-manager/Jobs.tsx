@@ -33,14 +33,7 @@ const Jobs = () => {
   try {
     const data = await getJobs(); // ✅ THIS WAS MISSING
 
-    setJobs(
-      data.filter(
-        (job: Job) =>
-          job.status === 'APPROVED' ||
-          job.status === 'ON_HOLD' ||
-          job.status === 'CLOSED'
-      )
-    );
+    setJobs(data);
   } catch (err) {
     console.error('Failed to fetch jobs', err);
   } finally {
