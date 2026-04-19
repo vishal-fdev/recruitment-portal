@@ -1,4 +1,4 @@
-// src/jobs/jobs.service.ts
+﻿// src/jobs/jobs.service.ts
 
 import {
   Injectable,
@@ -18,7 +18,6 @@ import {
   JobPosition,
   JobPositionStatus,
 } from './job-position.entity';
-import { MailService } from '../common/mail.service';
 
 @Injectable()
 export class JobsService {
@@ -43,43 +42,12 @@ export class JobsService {
 
     @InjectRepository(JobPosition)
     private readonly positionRepo: Repository<JobPosition>,
-    private readonly mailService: MailService,
 
   ) {}
 
   /* ======================================================
      ROLE BASED JOB LIST
-   ====================================================== */
-
-  private mapAssignmentStatusToJobStatus(
-    status: 'ACTIVE' | 'ON_HOLD' | 'CLOSED',
-  ): 'APPROVED' | 'ON_HOLD' | 'CLOSED' {
-    if (status === 'ACTIVE') {
-      return 'APPROVED';
-    }
-
-    return status;
-  }
-
-  private getVendorManagerStatusSummary(
-    mappings: Array<{ isEnabled: boolean; status: 'ACTIVE' | 'ON_HOLD' | 'CLOSED' }> = [],
-  ): 'APPROVED' | 'ON_HOLD' | 'CLOSED' {
-    const enabledMappings = mappings.filter((mapping) => mapping.isEnabled);
-
-    if (!enabledMappings.length) {
-      return 'APPROVED';
-    }
-
-    if (enabledMappings.every((mapping) => mapping.status === 'CLOSED')) {
-      return 'CLOSED';
-    }
-
-    if (enabledMappings.some((mapping) => mapping.status === 'ON_HOLD')) {
-      return 'ON_HOLD';
-    }
-
-    return 'APPROVED';
-  }
+  ====================================================== */
 
   async getJobsForUser(user: any): Promise<any[]> {
 
@@ -91,72 +59,73 @@ export class JobsService {
       where: {
         vendor: { id: user.vendor?.id || user.vendorId },
         isEnabled: true,
+        status: 'ACTIVE',
       },
       relations: ['job'],
     });
-
-    const jobStatusMap = new Map(
-      mappings.map((mapping) => [mapping.job.id, mapping.status]),
-    );
 
     const allowedIds = mappings.map((m) => m.job.id);
     if (!allowedIds.length) return [];
 
     const jobs = await this.jobRepo.find({
-      where: {
-        id: In(allowedIds),
-        status: JobStatus.APPROVED,
-        isActive: true,
-      },
+     where: {
+  id: In(allowedIds),
+  status: In([
+    JobStatus.APPROVED,
+    JobStatus.ON_HOLD,
+    JobStatus.CLOSED,
+  ]),
+},
       relations: ['positions'],
       order: { createdAt: 'DESC' },
     });
 
     return jobs
       .map((job) => {
-        const vendorStatus = jobStatusMap.get(job.id) || 'ACTIVE';
+        const openPositions =
+          job.positions?.filter(
+            (p) =>
+              p.status === JobPositionStatus.OPEN &&
+              ((p as any).currentOpenings ?? p.openings) > 0,
+          ) || [];
+        const hasMainOpenings =
+          Number(
+            (job as any).currentNumberOfPositions ?? job.numberOfPositions ?? 0,
+          ) > 0;
 
         return {
           ...job,
-          positions: job.positions || [],
-          status: this.mapAssignmentStatusToJobStatus(vendorStatus),
-          vendorStatusSummary: this.mapAssignmentStatusToJobStatus(vendorStatus),
+          positions: openPositions,
+          hasMainOpenings,
         };
-      });
+      })
+      .filter(
+        (job) => job.positions.length > 0 || job.hasMainOpenings,
+      );
   }
 
   /* ================= VENDOR MANAGER ================= */
 
-  if (user.role === 'VENDOR_MANAGER') {
+ if (user.role === 'VENDOR_MANAGER') {
 
-    const jobs = await this.jobRepo.find({
-      where: {
-        status: JobStatus.APPROVED,
-        isActive: true,
-      },
-      relations: ['positions', 'jobVendors', 'jobVendors.vendor'],
-      order: { createdAt: 'DESC' },
-    });
+  const jobs = await this.jobRepo.find({
+    where: {
+      isActive: true,
+      status: In([
+        JobStatus.APPROVED,
+        JobStatus.ON_HOLD,
+        JobStatus.CLOSED,
+      ]),
+    },
+    relations: ['positions', 'jobVendors', 'jobVendors.vendor'],
+    order: { createdAt: 'DESC' },
+  });
 
-    return jobs
-      .map((job) => {
-        return {
-          ...job,
-          positions: job.positions || [],
-          vendorStatusSummary: this.getVendorManagerStatusSummary(job.jobVendors),
-          hasAssignedVendor: job.jobVendors.some((mapping) => mapping.isEnabled),
-          hasActiveVendor: job.jobVendors.some(
-            (mapping) => mapping.isEnabled && mapping.status === 'ACTIVE',
-          ),
-          hasOnHoldVendor: job.jobVendors.some(
-            (mapping) => mapping.isEnabled && mapping.status === 'ON_HOLD',
-          ),
-          hasClosableVendor: job.jobVendors.some(
-            (mapping) => mapping.isEnabled && mapping.status !== 'CLOSED',
-          ),
-        };
-      });
-  }
+   return jobs.map((job) => ({
+    ...job,
+    positions: job.positions || [],
+  }));
+}
 
   /* ================= OTHERS (HM, HEAD) ================= */
 
@@ -173,7 +142,7 @@ export class JobsService {
   ====================================================== */
 
   async createJob(data: any): Promise<Job> {
-  console.log('🔥 CREATE JOB API HIT');
+  console.log('ðŸ”¥ CREATE JOB API HIT');
 
   const { interviewRounds, positions, ...jobData } = data;
 
@@ -183,14 +152,17 @@ export class JobsService {
 
   jobEntity.status = JobStatus.PENDING_APPROVAL;
   jobEntity.isActive = true;
+  (jobEntity as any).currentNumberOfPositions = Number(
+    jobData.numberOfPositions || 0,
+  );
 
   let savedJob: Job;
 
   try {
     savedJob = await this.jobRepo.save(jobEntity);
-    console.log('🔥 JOB SAVED:', savedJob.id);
+    console.log('ðŸ”¥ JOB SAVED:', savedJob.id);
   } catch (error) {
-    console.error('❌ JOB SAVE ERROR:', error);
+    console.error('âŒ JOB SAVE ERROR:', error);
     throw error;
   }
 
@@ -198,15 +170,15 @@ export class JobsService {
 
   if (Array.isArray(positions) && positions.length) {
     for (const pos of positions) {
-      const positionEntity = this.positionRepo.create({
-        level: pos.level,
-        openings: Number(pos.openings || 0),
-        status: JobPositionStatus.OPEN,
-        requestType: pos.requestType || 'NEW',
-        backfillEmployeeId: pos.backfillEmployeeId || null,
-        backfillEmployeeName: pos.backfillEmployeeName || null,
-        job: savedJob,
-      });
+      const positionEntity = this.positionRepo.create() as JobPosition;
+      positionEntity.level = pos.level;
+      positionEntity.openings = Number(pos.openings || 0);
+      (positionEntity as any).currentOpenings = Number(pos.openings || 0);
+      positionEntity.status = JobPositionStatus.OPEN;
+      positionEntity.requestType = pos.requestType || 'NEW';
+      positionEntity.backfillEmployeeId = pos.backfillEmployeeId || null;
+      positionEntity.backfillEmployeeName = pos.backfillEmployeeName || null;
+      positionEntity.job = savedJob;
 
       await this.positionRepo.save(positionEntity);
     }
@@ -238,11 +210,7 @@ export class JobsService {
     }
   }
 
-  const createdJob = await this.getJobById(savedJob.id);
-
-  await this.mailService.sendApprovalEmail(createdJob);
-
-  return createdJob;
+  return this.getJobById(savedJob.id);
 }
 
 
@@ -291,10 +259,13 @@ async updateJob(jobId: number, data: any): Promise<Job> {
 
   const { interviewRounds, positions, ...jobData } = data;
 
-  // ✅ UPDATE MAIN JOB FIELDS
+  // âœ… UPDATE MAIN JOB FIELDS
   Object.assign(job, jobData);
+  (job as any).currentNumberOfPositions = Number(
+    jobData.numberOfPositions || 0,
+  );
 
-  // 🔥 CRITICAL: RESET STATUS FOR APPROVAL
+  // ðŸ”¥ CRITICAL: RESET STATUS FOR APPROVAL
   job.status = JobStatus.PENDING_APPROVAL;
 
   await this.jobRepo.save(job);
@@ -306,15 +277,15 @@ async updateJob(jobId: number, data: any): Promise<Job> {
 
   if (Array.isArray(positions)) {
     for (const pos of positions) {
-      const newPos = this.positionRepo.create({
-        level: pos.level,
-        openings: Number(pos.openings || 0),
-        status: JobPositionStatus.OPEN,
-        requestType: pos.requestType || 'NEW',
-        backfillEmployeeId: pos.backfillEmployeeId || null,
-        backfillEmployeeName: pos.backfillEmployeeName || null,
-        job,
-      });
+      const newPos = this.positionRepo.create() as JobPosition;
+      newPos.level = pos.level;
+      newPos.openings = Number(pos.openings || 0);
+      (newPos as any).currentOpenings = Number(pos.openings || 0);
+      newPos.status = JobPositionStatus.OPEN;
+      newPos.requestType = pos.requestType || 'NEW';
+      newPos.backfillEmployeeId = pos.backfillEmployeeId || null;
+      newPos.backfillEmployeeName = pos.backfillEmployeeName || null;
+      newPos.job = job;
 
       await this.positionRepo.save(newPos);
     }
@@ -348,11 +319,7 @@ async updateJob(jobId: number, data: any): Promise<Job> {
     }
   }
 
-  const updatedJob = await this.getJobById(jobId);
-
-  await this.mailService.sendApprovalEmail(updatedJob);
-
-  return updatedJob;
+  return this.getJobById(jobId);
 }
 
   /* ======================================================
@@ -403,7 +370,7 @@ async updateJob(jobId: number, data: any): Promise<Job> {
      GET JOB BY ID
   ====================================================== */
 
-  async getJobById(jobId: number, user?: any): Promise<any> {
+  async getJobById(jobId: number): Promise<any> {
     const job = await this.jobRepo.findOne({
       where: { id: jobId },
       relations: [
@@ -431,35 +398,14 @@ async updateJob(jobId: number, data: any): Promise<Job> {
 
       return {
         id: vendor.id,
-        name: vendor.name,
         email: vendor.email,
         isEnabled: mapping ? mapping.isEnabled : false,
-        status: mapping ? mapping.status : 'ACTIVE',
       };
     });
 
     return {
       ...job,
-      status:
-        user?.role === 'VENDOR'
-          ? this.mapAssignmentStatusToJobStatus(
-              job.jobVendors.find(
-                (mapping) => mapping.vendor.id === (user.vendor?.id || user.vendorId),
-              )?.status || 'ACTIVE',
-            )
-          : job.status,
       vendors,
-      vendorStatusSummary: this.getVendorManagerStatusSummary(job.jobVendors),
-      hasAssignedVendor: job.jobVendors.some((mapping) => mapping.isEnabled),
-      hasActiveVendor: job.jobVendors.some(
-        (mapping) => mapping.isEnabled && mapping.status === 'ACTIVE',
-      ),
-      hasOnHoldVendor: job.jobVendors.some(
-        (mapping) => mapping.isEnabled && mapping.status === 'ON_HOLD',
-      ),
-      hasClosableVendor: job.jobVendors.some(
-        (mapping) => mapping.isEnabled && mapping.status !== 'CLOSED',
-      ),
     };
   }
 
@@ -493,10 +439,6 @@ async updateJob(jobId: number, data: any): Promise<Job> {
       mapping.isEnabled = isEnabled;
     }
 
-    if (isEnabled) {
-      mapping.status = 'ACTIVE';
-    }
-
     await this.jobVendorRepo.save(mapping);
     return { success: true };
   }
@@ -509,6 +451,7 @@ async updateJob(jobId: number, data: any): Promise<Job> {
     if (!position)
       throw new NotFoundException('Position not found');
 
+    (position as any).currentOpenings = 0;
     position.status = JobPositionStatus.CLOSED;
     await this.positionRepo.save(position);
     return { success: true };
@@ -648,3 +591,5 @@ async getPositionPSQ(positionId: number) {
   return pos;
 }
 }
+
+

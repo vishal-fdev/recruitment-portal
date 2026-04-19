@@ -74,13 +74,20 @@ const JobApprovals = () => {
   /* ================= CLOSED POSITIONS ================= */
 
   const getClosedPositions = (job: Job) => {
-    return (
+    const mainClosed =
+      Number(job.numberOfPositions || 0) -
+      Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0);
+
+    const childClosed =
       job.positions?.reduce(
         (sum, p) =>
-          p.status === 'CLOSED' ? sum + (p.openings || 0) : sum,
+          sum +
+          (Number(p.openings || 0) -
+            Number(p.currentOpenings ?? p.openings ?? 0)),
         0,
-      ) || 0
-    );
+      ) || 0;
+
+    return mainClosed + childClosed;
   };
 
   /* ================= CURRENT POSITIONS ================= */

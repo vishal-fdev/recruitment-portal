@@ -42,8 +42,8 @@ export class JobsController {
   }
 
   @Get(':id')
-  getJob(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    return this.jobsService.getJobById(id, req.user);
+  getJob(@Param('id', ParseIntPipe) id: number) {
+    return this.jobsService.getJobById(id);
   }
 
   /* ======================================================
@@ -207,6 +207,62 @@ async downloadPSQ(
 ) {
   const job = await this.jobsService.getPSQ(id);
   return res.download(job.psqPath, job.psqFileName);
+}
+
+@Post('positions/:id/jd')
+@Roles(UserRole.HIRING_MANAGER)
+@UseInterceptors(
+  FileInterceptor('jd', {
+    storage: diskStorage({
+      destination: './uploads/jds',
+      filename: (_, file, cb) => {
+        cb(null, `POS-JD-${Date.now()}${extname(file.originalname)}`);
+      },
+    }),
+  }),
+)
+uploadPositionJD(
+  @Param('id', ParseIntPipe) id: number,
+  @UploadedFile() file: Express.Multer.File,
+) {
+  return this.jobsService.attachPositionJD(id, file);
+}
+
+@Post('positions/:id/psq')
+@Roles(UserRole.HIRING_MANAGER)
+@UseInterceptors(
+  FileInterceptor('psq', {
+    storage: diskStorage({
+      destination: './uploads/psq',
+      filename: (_, file, cb) => {
+        cb(null, `POS-PSQ-${Date.now()}${extname(file.originalname)}`);
+      },
+    }),
+  }),
+)
+uploadPositionPSQ(
+  @Param('id', ParseIntPipe) id: number,
+  @UploadedFile() file: Express.Multer.File,
+) {
+  return this.jobsService.attachPositionPSQ(id, file);
+}
+
+@Get('positions/:id/jd/download')
+async downloadPositionJD(
+  @Param('id', ParseIntPipe) id: number,
+  @Res() res: Response,
+) {
+  const pos = await this.jobsService.getPositionJD(id);
+  return res.download(pos.jdPath, pos.jdFileName);
+}
+
+@Get('positions/:id/psq/download')
+async downloadPositionPSQ(
+  @Param('id', ParseIntPipe) id: number,
+  @Res() res: Response,
+) {
+  const pos = await this.jobsService.getPositionPSQ(id);
+  return res.download(pos.psqPath, pos.psqFileName);
 }
 }
 

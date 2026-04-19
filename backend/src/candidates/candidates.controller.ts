@@ -90,12 +90,24 @@ export class CandidatesController {
   /* ================= MANUAL STATUS UPDATE ================= */
 
   @Patch(':id/status')
-  @Roles(UserRole.HIRING_MANAGER)
+  @Roles(UserRole.HIRING_MANAGER, UserRole.VENDOR_MANAGER)
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body('status') status: CandidateStatus,
+    @Body()
+    body: {
+      status: CandidateStatus;
+      feedback?: string;
+      dropJustification?: string;
+    },
+    @Req() req: any,
   ) {
-    return this.service.updateStage(id, status);
+    return this.service.updateStage(
+      id,
+      body.status,
+      req.user,
+      body.feedback,
+      body.dropJustification,
+    );
   }
 
   /* ================= INTERVIEW FEEDBACK ================= */

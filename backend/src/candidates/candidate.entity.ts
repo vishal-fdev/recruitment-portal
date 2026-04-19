@@ -62,6 +62,9 @@ export class Candidate {
   })
   status!: CandidateStatus;
 
+  @Column({ type: 'text', nullable: true })
+  dropJustification!: string | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 

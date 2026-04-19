@@ -26,6 +26,9 @@ export class JobPosition {
   @Column('int')
   openings: number;
 
+  @Column('int', { nullable: true })
+  currentOpenings: number;
+
   @Column({
     type: 'text',
     default: JobPositionStatus.OPEN,

@@ -9,10 +9,14 @@ export type CandidateStatus =
   | 'NEW'
   | 'SUBMITTED'
   | 'SCREENING'
+  | 'SCREEN_SELECTED'
+  | 'SCREEN_REJECTED'
   | 'TECH_SELECTED'
   | 'TECH_REJECTED'
   | 'OPS_SELECTED'
   | 'OPS_REJECTED'
+  | 'ONBOARDED'
+  | 'DROPPED'
   | 'REJECTED'
   | 'SELECTED';
 
@@ -38,10 +42,14 @@ const STATUS_LABELS: Record<CandidateStatus, string> = {
   NEW: 'New',
   SUBMITTED: 'Submitted',
   SCREENING: 'Screening',
+  SCREEN_SELECTED: 'Screen Select',
+  SCREEN_REJECTED: 'Screen Reject',
   TECH_SELECTED: 'Tech Selected',
   TECH_REJECTED: 'Tech Rejected',
   OPS_SELECTED: 'Ops Selected',
   OPS_REJECTED: 'Ops Rejected',
+  ONBOARDED: 'Onboarded',
+  DROPPED: 'Drop',
   REJECTED: 'Rejected',
   SELECTED: 'Selected',
 };
@@ -50,10 +58,14 @@ const STATUS_COLORS: Record<CandidateStatus, string> = {
   NEW: 'bg-gray-100 text-gray-700',
   SUBMITTED: 'bg-indigo-100 text-indigo-700',
   SCREENING: 'bg-blue-100 text-blue-700',
+  SCREEN_SELECTED: 'bg-blue-100 text-blue-700',
+  SCREEN_REJECTED: 'bg-red-100 text-red-700',
   TECH_SELECTED: 'bg-green-100 text-green-700',
   TECH_REJECTED: 'bg-red-100 text-red-700',
   OPS_SELECTED: 'bg-green-200 text-green-800',
   OPS_REJECTED: 'bg-red-200 text-red-800',
+  ONBOARDED: 'bg-green-100 text-green-700',
+  DROPPED: 'bg-red-100 text-red-700',
   REJECTED: 'bg-red-100 text-red-700',
   SELECTED: 'bg-green-100 text-green-700',
 };

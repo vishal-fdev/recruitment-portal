@@ -1,4 +1,4 @@
-// src/candidates/candidates.service.ts
+﻿// src/candidates/candidates.service.ts
 
 import {
   Injectable,
@@ -75,7 +75,7 @@ export class CandidatesService {
         throw new NotFoundException('Job not found');
       }
 
-      // 🔥 BLOCK BASED ON JOB STATUS
+      // ðŸ”¥ BLOCK BASED ON JOB STATUS
 if (job.status === 'ON_HOLD') {
   throw new BadRequestException(
     'This job is currently on hold',
@@ -103,13 +103,13 @@ if (job.status === 'CLOSED') {
   );
 }
 
-// 🔥 NEW VALIDATION
+// ðŸ”¥ NEW VALIDATION
 if (mapping.status !== 'ACTIVE') {
   throw new BadRequestException(
     'This job is not active for your vendor',
   );
 }
-      // 🔥 PREVENT DUPLICATE SUBMISSION (SAME JOB + SAME EMAIL)
+      // ðŸ”¥ PREVENT DUPLICATE SUBMISSION (SAME JOB + SAME EMAIL)
 const existing = await this.candidateRepo.findOne({
   where: {
     email: data.email,
@@ -146,12 +146,18 @@ if (existing) {
             'This position is closed',
           );
         }
-        // 🔥 EXTRA SAFETY (prevents invalid submissions)
-if (position.openings <= 0) {
+        // ðŸ”¥ EXTRA SAFETY (prevents invalid submissions)
+if ((position.currentOpenings ?? position.openings) <= 0) {
   throw new BadRequestException(
     'No openings available for this position',
   );
 }
+      } else if (
+        Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0) <= 0
+      ) {
+        throw new BadRequestException(
+          'No openings available for this job',
+        );
       }
     }
 
@@ -160,7 +166,7 @@ if (position.openings <= 0) {
       experience: Number(data.experience),
       noticePeriod: Number(data.noticePeriod || 0),
       resumePath,
-      status: CandidateStatus.SCREENING,
+      status: CandidateStatus.SUBMITTED,
       vendor,
       job: job || null,
       position: position || null,
@@ -176,9 +182,13 @@ if (position.openings <= 0) {
   async updateStage(
     candidateId: number,
     nextStatus: CandidateStatus,
+    user: any,
+    feedback?: string,
+    dropJustification?: string,
   ) {
     const candidate = await this.candidateRepo.findOne({
       where: { id: candidateId },
+      relations: ['job', 'position'],
     });
 
     if (!candidate) {
@@ -187,7 +197,27 @@ if (position.openings <= 0) {
       );
     }
 
+    this.assertStatusChangeAllowed(
+      candidate.status,
+      nextStatus,
+      user,
+      feedback,
+      dropJustification,
+    );
+
+    await this.syncPositionAvailability(
+      candidate,
+      candidate.status,
+      nextStatus,
+    );
+
     candidate.status = nextStatus;
+
+    if (nextStatus === CandidateStatus.DROPPED) {
+      candidate.dropJustification = dropJustification!.trim();
+    } else {
+      candidate.dropJustification = null;
+    }
 
     return this.candidateRepo.save(candidate);
   }
@@ -383,4 +413,159 @@ if (position.openings <= 0) {
 
     return candidate.resumePath;
   }
+
+  private assertStatusChangeAllowed(
+    currentStatus: CandidateStatus,
+    nextStatus: CandidateStatus,
+    user: any,
+    feedback?: string,
+    dropJustification?: string,
+  ) {
+    if (user.role === 'HIRING_MANAGER') {
+      const allowedTransitions: Partial<
+        Record<CandidateStatus, CandidateStatus[]>
+      > = {
+        [CandidateStatus.SUBMITTED]: [
+          CandidateStatus.SCREEN_SELECTED,
+          CandidateStatus.SCREEN_REJECTED,
+        ],
+        [CandidateStatus.SCREENING]: [
+          CandidateStatus.SCREEN_SELECTED,
+          CandidateStatus.SCREEN_REJECTED,
+        ],
+        [CandidateStatus.SCREEN_SELECTED]: [
+          CandidateStatus.TECH_SELECTED,
+          CandidateStatus.TECH_REJECTED,
+        ],
+        [CandidateStatus.TECH]: [
+          CandidateStatus.TECH_SELECTED,
+          CandidateStatus.TECH_REJECTED,
+        ],
+        [CandidateStatus.TECH_SELECTED]: [
+          CandidateStatus.OPS_SELECTED,
+          CandidateStatus.OPS_REJECTED,
+        ],
+        [CandidateStatus.OPS]: [
+          CandidateStatus.OPS_SELECTED,
+          CandidateStatus.OPS_REJECTED,
+        ],
+      };
+
+      if (!allowedTransitions[currentStatus]?.includes(nextStatus)) {
+        throw new BadRequestException(
+          'Invalid hiring manager status transition',
+        );
+      }
+
+      if (
+        [
+          CandidateStatus.SCREEN_REJECTED,
+          CandidateStatus.TECH_REJECTED,
+          CandidateStatus.OPS_REJECTED,
+        ].includes(nextStatus) &&
+        !feedback?.trim()
+      ) {
+        throw new BadRequestException(
+          'Rejection justification is mandatory',
+        );
+      }
+
+      return;
+    }
+
+    if (user.role === 'VENDOR_MANAGER') {
+      if (
+        ![
+          CandidateStatus.OPS_SELECTED,
+          CandidateStatus.ONBOARDED,
+          CandidateStatus.SELECTED,
+        ].includes(currentStatus)
+      ) {
+        throw new BadRequestException(
+          'Only Ops Selected, Selected, or Onboarded candidates can be finalized',
+        );
+      }
+
+      if (
+        ![CandidateStatus.ONBOARDED, CandidateStatus.DROPPED].includes(
+          nextStatus,
+        )
+      ) {
+        throw new BadRequestException(
+          'Invalid vendor manager status transition',
+        );
+      }
+
+      if (
+        nextStatus === CandidateStatus.DROPPED &&
+        !dropJustification?.trim()
+      ) {
+        throw new BadRequestException('Drop justification is mandatory');
+      }
+
+      return;
+    }
+
+    throw new BadRequestException('Unauthorized');
+  }
+
+  private async syncPositionAvailability(
+    candidate: Candidate,
+    currentStatus: CandidateStatus,
+    nextStatus: CandidateStatus,
+  ) {
+    const occupiedStatuses = new Set<CandidateStatus>([
+      CandidateStatus.OPS_SELECTED,
+      CandidateStatus.ONBOARDED,
+    ]);
+
+    const wasOccupied = occupiedStatuses.has(currentStatus);
+    const willBeOccupied = occupiedStatuses.has(nextStatus);
+
+    if (wasOccupied === willBeOccupied || !candidate.job) {
+      return;
+    }
+
+    const delta = willBeOccupied ? -1 : 1;
+
+    if (candidate.position) {
+      const position = await this.positionRepo.findOne({
+        where: { id: candidate.position.id },
+      });
+
+      if (!position) {
+        throw new NotFoundException('Position not found');
+      }
+
+      position.currentOpenings = Math.max(
+        0,
+        Number(position.currentOpenings ?? position.openings ?? 0) + delta,
+      );
+      position.status =
+        position.currentOpenings > 0
+          ? JobPositionStatus.OPEN
+          : JobPositionStatus.CLOSED;
+
+      await this.positionRepo.save(position);
+      return;
+    }
+
+    const job = await this.jobRepo.findOne({
+      where: { id: candidate.job.id },
+    });
+
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
+
+    job.currentNumberOfPositions = Math.max(
+      0,
+      Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0) +
+        delta,
+    );
+
+    await this.jobRepo.save(job);
+  }
 }
+
+

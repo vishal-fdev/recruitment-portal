@@ -34,9 +34,6 @@ export class Job {
   department!: string;
 
   @Column({ nullable: true })
-  hiringManager!: string;
-
-  @Column({ nullable: true })
   jobCategory!: string;
 
   @Column({ nullable: true })
@@ -72,6 +69,9 @@ export class Job {
 
   @Column({ type: 'int', nullable: true })
   numberOfPositions!: number;
+
+  @Column({ type: 'int', nullable: true })
+  currentNumberOfPositions!: number;
 
   @Column({ nullable: true })
   requestType!: string;

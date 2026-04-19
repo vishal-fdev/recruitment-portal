@@ -11,11 +11,6 @@ export type JobStatus =
   | 'CLOSED'
   | 'ON_HOLD';
 
-export type VendorAssignmentStatus =
-  | 'ACTIVE'
-  | 'ON_HOLD'
-  | 'CLOSED';
-
 /* ===================== INTERVIEW TYPES ===================== */
 
 // ✅ UPDATED (support name + email)
@@ -36,20 +31,13 @@ export interface JobPosition {
   id: number;
   level: string;
   openings: number;
+  currentOpenings?: number;
   status?: string;
 
   // ✅ NEW
   requestType?: 'NEW' | 'BACKFILL';
   backfillEmployeeId?: string;
   backfillEmployeeName?: string;
-}
-
-export interface JobVendorAssignment {
-  id: string;
-  name?: string;
-  email: string;
-  isEnabled: boolean;
-  status: VendorAssignmentStatus;
 }
 
 /* ===================== JOB RESPONSE TYPE ===================== */
@@ -87,6 +75,7 @@ export interface Job {
 
   level?: string;
   numberOfPositions?: number;
+  currentNumberOfPositions?: number;
   requestType?: 'NEW' | 'BACKFILL';
 
   backfillEmployeeId?: string;
@@ -117,12 +106,6 @@ export interface Job {
   /* ===================== CALIBRATION ===================== */
 
   calibrationNotes?: string;
-  vendors?: JobVendorAssignment[];
-  vendorStatusSummary?: 'APPROVED' | 'ON_HOLD' | 'CLOSED';
-  hasAssignedVendor?: boolean;
-  hasActiveVendor?: boolean;
-  hasOnHoldVendor?: boolean;
-  hasClosableVendor?: boolean;
 }
 
 /* ===================== CREATE PAYLOAD ===================== */
