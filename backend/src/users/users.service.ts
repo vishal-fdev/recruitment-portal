@@ -36,7 +36,7 @@ export class UsersService implements OnModuleInit {
       role: UserRole;
     }[] = [
       {
-        email: 'vendormanager@test.com',
+        email: 'vmemailtestt@gmail.com',
         role: UserRole.VENDOR_MANAGER,
       },
       {
@@ -44,7 +44,7 @@ export class UsersService implements OnModuleInit {
         role: UserRole.HIRING_MANAGER,
       },
       {
-        email: 'rishikesh.kumar@test.com', // ✅ UPDATED
+        email: 'thevishalrajj@gmail.com',
         role: UserRole.VENDOR_MANAGER_HEAD,
       },
     ];

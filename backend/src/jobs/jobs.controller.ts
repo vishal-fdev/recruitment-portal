@@ -42,8 +42,8 @@ export class JobsController {
   }
 
   @Get(':id')
-  getJob(@Param('id', ParseIntPipe) id: number) {
-    return this.jobsService.getJobById(id);
+  getJob(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.jobsService.getJobById(id, req.user);
   }
 
   /* ======================================================

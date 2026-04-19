@@ -11,7 +11,7 @@ export class JobApprovalsController {
     await this.jobsService.approveJob(Number(id));
 
     return res.redirect(
-      `${process.env.FRONTEND_URL}/vendor-manager/jobs/${id}`,
+      `${process.env.FRONTEND_URL}/vendor-manager-head/jobs/${id}?emailAction=approved`,
     );
   }
 
@@ -20,7 +20,7 @@ export class JobApprovalsController {
     await this.jobsService.rejectJob(Number(id));
 
     return res.redirect(
-      `${process.env.FRONTEND_URL}/vendor-manager/jobs/${id}`,
+      `${process.env.FRONTEND_URL}/vendor-manager-head/jobs/${id}?emailAction=rejected`,
     );
   }
 }

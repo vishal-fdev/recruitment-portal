@@ -3,68 +3,128 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
-import { getJobs } from '../../services/jobService';
-import type { Job } from '../../services/jobService';
+import { downloadPSQ, getJobs } from '../../services/jobService';
+import type {
+  Job,
+  JobVendorAssignment,
+  VendorAssignmentStatus,
+} from '../../services/jobService';
 import api from '../../api/api';
 
-interface Vendor {
-  id: number;
-  name: string;
+type VendorAction = 'assign' | 'hold' | 'reopen' | 'close';
+
+interface ActionModalState {
+  action: VendorAction;
+  jobId: number;
+  title: string;
+  vendors: JobVendorAssignment[];
 }
+
+interface ActionMenuState {
+  jobId: number;
+  vendors: JobVendorAssignment[];
+}
+
+const getVendorStatusValue = (
+  vendor: JobVendorAssignment,
+): VendorAssignmentStatus => vendor.status || 'ACTIVE';
+
+const getSummaryFromVendors = (
+  vendors: JobVendorAssignment[] = [],
+): 'APPROVED' | 'ON_HOLD' | 'CLOSED' => {
+  const assigned = vendors.filter((vendor) => vendor.isEnabled);
+
+  if (!assigned.length) return 'APPROVED';
+  if (assigned.every((vendor) => getVendorStatusValue(vendor) === 'CLOSED')) {
+    return 'CLOSED';
+  }
+  if (assigned.some((vendor) => getVendorStatusValue(vendor) === 'ON_HOLD')) {
+    return 'ON_HOLD';
+  }
+
+  return 'APPROVED';
+};
+
+const getFlagsFromVendors = (vendors: JobVendorAssignment[] = []) => ({
+  hasAssignedVendor: vendors.some((vendor) => vendor.isEnabled),
+  hasActiveVendor: vendors.some(
+    (vendor) => vendor.isEnabled && getVendorStatusValue(vendor) === 'ACTIVE',
+  ),
+  hasOnHoldVendor: vendors.some(
+    (vendor) => vendor.isEnabled && getVendorStatusValue(vendor) === 'ON_HOLD',
+  ),
+  hasClosableVendor: vendors.some(
+    (vendor) => vendor.isEnabled && getVendorStatusValue(vendor) !== 'CLOSED',
+  ),
+});
+
+const getVendorsForAction = (
+  action: VendorAction,
+  vendors: JobVendorAssignment[],
+) =>
+  vendors.filter((vendor) => {
+    const vendorStatus = getVendorStatusValue(vendor);
+
+    if (action === 'assign') return true;
+    if (!vendor.isEnabled) return false;
+    if (action === 'hold') return vendorStatus === 'ACTIVE';
+    if (action === 'reopen') return vendorStatus === 'ON_HOLD';
+    return vendorStatus !== 'CLOSED';
+  });
 
 const Jobs = () => {
   const navigate = useNavigate();
 
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingVendorId, setSavingVendorId] = useState<string | null>(null);
+  const [openMenu, setOpenMenu] = useState<ActionMenuState | null>(null);
+  const [modalState, setModalState] = useState<ActionModalState | null>(null);
 
-  const [openMenu, setOpenMenu] = useState<number | null>(null);
-  const [selectedJob, setSelectedJob] = useState<number | null>(null);
+  const getVendorStatus = (
+    vendor: JobVendorAssignment,
+  ): VendorAssignmentStatus => getVendorStatusValue(vendor);
 
-  const [showModal, setShowModal] = useState(false);
+  const mergeJobState = (
+    jobId: number,
+    vendors: JobVendorAssignment[],
+  ) => {
+    const vendorStatusSummary = getSummaryFromVendors(vendors);
+    const flags = getFlagsFromVendors(vendors);
 
-  const [selectedVendors, setSelectedVendors] = useState<number[]>([]);
-  const [originalAssigned, setOriginalAssigned] = useState<number[]>([]);
+    setJobs((prev) =>
+      prev.map((job) =>
+        job.id === jobId
+          ? {
+              ...job,
+              vendors,
+              vendorStatusSummary,
+              ...flags,
+            }
+          : job,
+      ),
+    );
 
-  /* ================= FETCH JOBS ================= */
+    return {
+      vendorStatusSummary,
+      ...flags,
+    };
+  };
 
   const fetchJobs = async () => {
-  try {
-    const data = await getJobs(); // ✅ THIS WAS MISSING
-
-    setJobs(data);
-  } catch (err) {
-    console.error('Failed to fetch jobs', err);
-  } finally {
-    setLoading(false);
-  }
-};
-  /* ================= FETCH VENDORS ================= */
-
-  const fetchVendors = async () => {
-    const res = await api.get('/vendors');
-    setVendors(res.data?.data || res.data || []);
+    try {
+      const data = await getJobs();
+      setJobs(data);
+    } catch (err) {
+      console.error('Failed to fetch jobs', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchJobs();
-    fetchVendors();
   }, []);
-
-  /* ================= ACTION APIs ================= */
-
-  const updateJobStatus = async (jobId: number, action: string) => {
-    try {
-      await api.patch(`/jobs/${jobId}/${action}`);
-      fetchJobs();
-    } catch (err) {
-      console.error(`${action} failed`, err);
-      alert(`Failed to ${action} job`);
-    }
-  };
-
-  /* ================= JD DOWNLOAD ================= */
 
   const handleDownload = async (jobId: number, fileName?: string) => {
     const res = await api.get(`/jobs/${jobId}/jd/download`, {
@@ -78,49 +138,20 @@ const Jobs = () => {
     link.click();
   };
 
-  /* ================= ASSIGN ================= */
+  const handlePSQDownload = async (jobId: number, fileName?: string) => {
+    const res = await api.get(downloadPSQ(jobId), {
+      responseType: 'blob',
+    });
 
-  const openAssignModal = async (jobId: number) => {
-    const res = await api.get(`/jobs/${jobId}`);
-    const job = res.data;
-
-    const assigned =
-      job.vendors?.filter((v: any) => v.isEnabled).map((v: any) => v.id) || [];
-
-    setSelectedJob(jobId);
-    setOriginalAssigned(assigned);
-    setSelectedVendors(assigned);
-    setShowModal(true);
-    setOpenMenu(null);
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName || `PSQ-${jobId}.pdf`;
+    link.click();
   };
-
-  const toggleVendor = (id: number) => {
-    setSelectedVendors((prev) =>
-      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id],
-    );
-  };
-
-  const assignVendors = async () => {
-    if (!selectedJob) return;
-
-    const toAssign = selectedVendors.filter((v) => !originalAssigned.includes(v));
-    const toRemove = originalAssigned.filter((v) => !selectedVendors.includes(v));
-
-    for (const v of toAssign) {
-      await api.patch(`/jobs/${selectedJob}/vendors/${v}`, { isEnabled: true });
-    }
-
-    for (const v of toRemove) {
-      await api.patch(`/jobs/${selectedJob}/vendors/${v}`, { isEnabled: false });
-    }
-
-    setShowModal(false);
-  };
-
-  /* ================= STATUS BADGE ================= */
 
   const StatusBadge = ({ status }: { status: string }) => {
-    const map: any = {
+    const map: Record<string, string> = {
       APPROVED: 'bg-green-100 text-green-700',
       ON_HOLD: 'bg-yellow-100 text-yellow-700',
       CLOSED: 'bg-gray-200 text-gray-600',
@@ -133,172 +164,422 @@ const Jobs = () => {
     );
   };
 
+  const getDisplayStatus = (job: Job) =>
+    job.vendorStatusSummary || job.status;
+
+  const getModalTitle = (action: VendorAction, jobTitle: string) => {
+    if (action === 'assign') return `Select Vendor To Assign - ${jobTitle}`;
+    if (action === 'hold') return `Select Vendor To Hold - ${jobTitle}`;
+    if (action === 'reopen') return `Select Vendor To Reopen - ${jobTitle}`;
+    return `Select Vendor To Close - ${jobTitle}`;
+  };
+
+  const getActionLabel = (
+    action: VendorAction,
+    vendor: JobVendorAssignment,
+  ) => {
+    if (action === 'assign') {
+      return vendor.isEnabled ? 'Unassign' : 'Assign';
+    }
+
+    if (action === 'hold') return 'Put On Hold';
+    if (action === 'reopen') return 'Reopen';
+    return 'Close';
+  };
+
+  const getKnownVendors = (jobId: number) =>
+    (openMenu?.jobId === jobId ? openMenu.vendors : undefined) ||
+    jobs.find((job) => job.id === jobId)?.vendors ||
+    [];
+
+  const loadJobDetail = async (jobId: number) => {
+    const cachedVendors = getKnownVendors(jobId);
+    if (cachedVendors.length) {
+      return {
+        job: jobs.find((entry) => entry.id === jobId) || ({ id: jobId, title: `HRQ${jobId}` } as Job),
+        vendors: cachedVendors,
+      };
+    }
+
+    const res = await api.get(`/jobs/${jobId}`);
+    const job = res.data as Job;
+    const vendors = job.vendors || [];
+
+    mergeJobState(jobId, vendors);
+
+    return {
+      job,
+      vendors,
+    };
+  };
+
+  const updateLocalVendors = (
+    jobId: number,
+    vendorId: string,
+    action: VendorAction,
+  ) => {
+    const currentVendors = getKnownVendors(jobId);
+
+    const nextVendors = currentVendors.map((vendor) => {
+      if (vendor.id !== vendorId) {
+        return vendor;
+      }
+
+      if (action === 'assign') {
+        const nextAssigned = !vendor.isEnabled;
+
+        return {
+          ...vendor,
+          isEnabled: nextAssigned,
+          status: nextAssigned ? 'ACTIVE' : vendor.status,
+        };
+      }
+
+      const nextStatus: Record<
+        Exclude<VendorAction, 'assign'>,
+        VendorAssignmentStatus
+      > = {
+        hold: 'ON_HOLD',
+        reopen: 'ACTIVE',
+        close: 'CLOSED',
+      };
+
+      return {
+        ...vendor,
+        status: nextStatus[action],
+      };
+    });
+
+    mergeJobState(jobId, nextVendors);
+    setOpenMenu({
+      jobId,
+      vendors: nextVendors,
+    });
+
+    if (modalState && modalState.jobId === jobId) {
+      setModalState({
+        ...modalState,
+        vendors: getVendorsForAction(modalState.action, nextVendors),
+      });
+    }
+  };
+
+  const toggleMenu = async (jobId: number) => {
+    if (openMenu?.jobId === jobId) {
+      setOpenMenu(null);
+      return;
+    }
+
+    try {
+      const { vendors } = await loadJobDetail(jobId);
+      setOpenMenu({
+        jobId,
+        vendors,
+      });
+    } catch (error) {
+      console.error('Failed to load action menu', error);
+      alert('Failed to load job actions');
+    }
+  };
+
+  const openVendorActionModal = async (
+    jobId: number,
+    action: VendorAction,
+  ) => {
+    try {
+      const { job, vendors } = await loadJobDetail(jobId);
+
+      setModalState({
+        action,
+        jobId,
+        title: getModalTitle(action, job.title),
+        vendors: getVendorsForAction(action, vendors),
+      });
+      setOpenMenu(null);
+    } catch (error) {
+      console.error('Failed to load vendor action modal', error);
+      alert('Failed to load vendors for this action');
+    }
+  };
+
+  const handleVendorAction = async (
+    vendor: JobVendorAssignment,
+  ) => {
+    if (!modalState) return;
+
+    try {
+      setSavingVendorId(vendor.id);
+
+      if (modalState.action === 'assign') {
+        await api.patch(
+          `/jobs/${modalState.jobId}/vendors/${vendor.id}`,
+          { isEnabled: !vendor.isEnabled },
+        );
+      } else {
+        const statusMap: Record<
+          Exclude<VendorAction, 'assign'>,
+          VendorAssignmentStatus
+        > = {
+          hold: 'ON_HOLD',
+          reopen: 'ACTIVE',
+          close: 'CLOSED',
+        };
+
+        await api.patch(
+          `/jobs/${modalState.jobId}/vendors/${vendor.id}/status`,
+          { status: statusMap[modalState.action] },
+        );
+      }
+
+      updateLocalVendors(
+        modalState.jobId,
+        vendor.id,
+        modalState.action,
+      );
+    } catch (error) {
+      console.error('Vendor action failed', error);
+      alert('Failed to update vendor action');
+    } finally {
+      setSavingVendorId(null);
+    }
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="space-y-6">
-
       <div className="bg-gray-50 border rounded px-6 py-4">
         <h1 className="text-xl font-semibold">Job Requisitions</h1>
       </div>
 
       <div className="bg-white rounded-xl shadow border overflow-visible">
-
         <table className="w-full text-sm">
           <thead className="bg-gray-100">
             <tr className="text-sm font-medium text-gray-600">
-  <th className="py-3 text-center">HRQ ID</th>
-  <th className="text-center">Role</th>
-  <th className="text-center">Level</th>
-  <th className="text-center">Location</th>
-  <th className="text-center">Assigned Date</th>
-  <th className="text-center">Status</th>
-  <th className="text-center">JD</th>
-  <th className="text-center">Action</th>
-</tr>
+              <th className="py-3 text-center">HRQ ID</th>
+              <th className="text-center">Role</th>
+              <th className="text-center">Level</th>
+              <th className="text-center">Location</th>
+              <th className="text-center">Assigned Date</th>
+              <th className="text-center">Status</th>
+              <th className="text-center">JD</th>
+              <th className="text-center">PSQ</th>
+              <th className="text-center">Action</th>
+            </tr>
           </thead>
 
           <tbody>
+            {jobs.map((job) => {
+              const menuVendors =
+                openMenu?.jobId === job.id ? openMenu.vendors : job.vendors || [];
+              const flags = getFlagsFromVendors(menuVendors);
 
-            {jobs.map((job) => (
+              return (
+                <tr
+                  key={job.id}
+                  className="border-t text-sm hover:bg-gray-50 cursor-pointer"
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement;
 
-              <tr
-  key={job.id}
-  className="border-t text-sm hover:bg-gray-50 cursor-pointer"
-  onClick={() => navigate(`/vendor-manager/jobs/${job.id}`)}
->
+                    if (target.closest('button')) {
+                      return;
+                    }
 
-  {/* HRQ */}
-  <td className="text-center text-green-600 font-medium">HRQ{job.id}</td>
+                    navigate(`/vendor-manager/jobs/${job.id}`);
+                  }}
+                >
+                  <td className="text-center text-green-600 font-medium">
+                    HRQ{job.id}
+                  </td>
 
-  {/* ROLE */}
-  <td className="py-3 text-center text-gray-700">{job.title}</td>
+                  <td className="py-3 text-center text-gray-700">{job.title}</td>
 
-  {/* LEVEL */}
-  <td className="py-3 text-center text-gray-700">{job.level || '-'}</td>
+                  <td className="py-3 text-center text-gray-700">
+                    {job.level || '-'}
+                  </td>
 
-  {/* LOCATION */}
-  <td className="py-3 text-center text-gray-700">{job.location}</td>
+                  <td className="py-3 text-center text-gray-700">
+                    {job.location}
+                  </td>
 
-  {/* ASSIGNED DATE (FIXED FORMAT) */}
-  <td className="text-center">
-    {job.createdAt
-      ? new Date(job.createdAt).toLocaleDateString('en-GB')
-      : '-'}
-  </td>
+                  <td className="text-center">
+                    {job.createdAt
+                      ? new Date(job.createdAt).toLocaleDateString('en-GB')
+                      : '-'}
+                  </td>
 
-  {/* STATUS */}
-  <td className="text-center">
-    <StatusBadge status={job.status} />
-  </td>
+                  <td className="text-center">
+                    <StatusBadge status={getDisplayStatus(job)} />
+                  </td>
 
-  {/* JD COLUMN */}
-  <td className="text-center">
-    {job.jdFileName ? (
-      <button
-        onClick={() => handleDownload(job.id)}
-        className="text-blue-600 hover:underline"
-      >
-        Download JD
-      </button>
-    ) : (
-      '—'
-    )}
-  </td>
+                  <td className="text-center">
+                    {job.jdFileName ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownload(job.id, job.jdFileName);
+                        }}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Download JD
+                      </button>
+                    ) : (
+                      'NA'
+                    )}
+                  </td>
 
-  {/* ACTION */}
-  <td className="text-center relative">
+                  <td className="text-center">
+                    {job.psqFileName ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePSQDownload(job.id, job.psqFileName);
+                        }}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Download PSQ
+                      </button>
+                    ) : (
+                      'NA'
+                    )}
+                  </td>
 
-    <button
-      onClick={(e) => {
-  e.stopPropagation();
-  setOpenMenu(openMenu === job.id ? null : job.id);
-}}
-      className="border px-2 py-1 rounded-md bg-white hover:bg-gray-50"
-    >
-      <ChevronDown size={14} />
-    </button>
+                  <td
+                    className="text-center relative"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleMenu(job.id);
+                      }}
+                      className="border px-2 py-1 rounded-md bg-white hover:bg-gray-50"
+                    >
+                      <ChevronDown size={14} />
+                    </button>
 
-    {openMenu === job.id && (
-      <div className="absolute right-0 mt-2 bg-white border rounded-md shadow-lg w-40 z-50">
+                    {openMenu?.jobId === job.id && (
+                      <div
+                        className="absolute right-0 mt-2 bg-white border rounded-md shadow-lg w-40 z-50"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openVendorActionModal(job.id, 'assign');
+                          }}
+                          className="block w-full py-2 hover:bg-gray-100"
+                        >
+                          Assign
+                        </button>
 
-        {job.status === 'APPROVED' && (
-          <button
-            onClick={(e) => {
-  e.stopPropagation();
-  openAssignModal(job.id);
-}}
-            className="block w-full py-2 hover:bg-gray-100"
-          >
-            Assign
-          </button>
-        )}
+                        {flags.hasActiveVendor && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openVendorActionModal(job.id, 'hold');
+                            }}
+                            className="block w-full py-2 hover:bg-gray-100"
+                          >
+                            Hold
+                          </button>
+                        )}
 
-        {job.status === 'APPROVED' && (
-          <button
-            onClick={() => updateJobStatus(job.id, 'hold')}
-            className="block w-full py-2 hover:bg-gray-100"
-          >
-            Put on Hold
-          </button>
-        )}
+                        {flags.hasOnHoldVendor && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openVendorActionModal(job.id, 'reopen');
+                            }}
+                            className="block w-full py-2 hover:bg-gray-100"
+                          >
+                            Reopen
+                          </button>
+                        )}
 
-        {job.status === 'ON_HOLD' && (
-          <button
-            onClick={() => updateJobStatus(job.id, 'reopen')}
-            className="block w-full py-2 hover:bg-gray-100"
-          >
-            Reopen
-          </button>
-        )}
-
-        {job.status !== 'CLOSED' && (
-          <button
-            onClick={() => updateJobStatus(job.id, 'close')}
-            className="block w-full py-2 text-red-600 hover:bg-gray-100"
-          >
-            Close
-          </button>
-        )}
-
-      </div>
-    )}
-
-  </td>
-
-</tr>
-
-            ))}
-
+                        {flags.hasClosableVendor && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openVendorActionModal(job.id, 'close');
+                            }}
+                            className="block w-full py-2 text-red-600 hover:bg-gray-100"
+                          >
+                            Close
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* ================= ASSIGN MODAL ================= */}
+      {modalState && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white w-[560px] rounded-lg p-6 relative">
+            <button
+              onClick={() => setModalState(null)}
+              className="absolute right-4 top-4 text-gray-400"
+            >
+              x
+            </button>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
+            <h2 className="text-lg font-semibold mb-4">
+              {modalState.title}
+            </h2>
 
-          <div className="bg-white p-6 rounded w-[400px]">
+            {modalState.vendors.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                No vendors available for this action
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-[420px] overflow-y-auto">
+                {modalState.vendors.map((vendor) => (
+                  <div
+                    key={vendor.id}
+                    className="flex items-center justify-between gap-4 py-3 border-b"
+                  >
+                    <div>
+                      <div className="text-sm font-medium">
+                        {vendor.name || vendor.email}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {vendor.email}
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        Assigned: {vendor.isEnabled ? 'Yes' : 'No'} | Status:{' '}
+                        {getVendorStatus(vendor) === 'ACTIVE'
+                          ? 'APPROVED'
+                          : getVendorStatus(vendor).replace('_', ' ')}
+                      </div>
+                    </div>
 
-            <h2 className="font-semibold mb-3">Assign Vendors</h2>
+                    <button
+                      onClick={() => handleVendorAction(vendor)}
+                      disabled={savingVendorId === vendor.id}
+                      className="px-3 py-1 border rounded text-sm disabled:opacity-50"
+                    >
+                      {getActionLabel(modalState.action, vendor)}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
-            {vendors.map((v) => (
-              <label key={v.id} className="block">
-                <input
-                  type="checkbox"
-                  checked={selectedVendors.includes(v.id)}
-                  onChange={() => toggleVendor(v.id)}
-                />
-                {v.name}
-              </label>
-            ))}
-
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setShowModal(false)}>Cancel</button>
-              <button onClick={assignVendors} className="bg-green-600 text-white px-3 py-1 rounded">
-                Save
+            <div className="text-right mt-6">
+              <button
+                onClick={() => setModalState(null)}
+                className="px-4 py-2 border rounded text-sm"
+              >
+                Cancel
               </button>
             </div>
-
           </div>
         </div>
       )}

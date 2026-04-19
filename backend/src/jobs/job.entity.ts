@@ -34,6 +34,9 @@ export class Job {
   department!: string;
 
   @Column({ nullable: true })
+  hiringManager!: string;
+
+  @Column({ nullable: true })
   jobCategory!: string;
 
   @Column({ nullable: true })

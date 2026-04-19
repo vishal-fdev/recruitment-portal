@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JobsController } from './jobs.controller';
 import { JobsService } from './jobs.service';
 import { JobApprovalsController } from './job-approvals.controller';
+import { MailService } from '../common/mail.service';
 
 import { Job } from './job.entity';
 import { JobVendor } from './job-vendor.entity';
@@ -29,7 +30,7 @@ import { JobPosition } from './job-position.entity';
   controllers: [JobsController, JobApprovalsController],
   providers: [
     JobsService,
-  
+    MailService,
   ],
   exports: [JobsService],
 })
