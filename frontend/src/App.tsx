@@ -17,18 +17,21 @@ import VendorDashboard from './pages/vendor/VendorDashboard';
 import CandidateManagement from './pages/vendor/CandidateManagement';
 import CreateCandidateForm from './pages/vendor/CreateCandidateForm';
 import VendorJobs from './pages/vendor/Jobs';
+import VendorPartnerSlots from './pages/vendor/PartnerSlots';
 import VendorDetails from './pages/vendor-manager/VendorDetails';
 
 /* vendor manager pages */
 import VendorManagerDashboard from './pages/vendor-manager/VendorManagerDashboard';
 import VMCandidates from './pages/vendor-manager/Candidates';
 import VMJobs from './pages/vendor-manager/Jobs';
+import VMPartnerSlots from './pages/vendor-manager/PartnerSlots';
 import VMVendors from './pages/vendor-manager/Vendors';
 
 /* vendor manager head pages */
 import VMHDashboard from './pages/vendor-manager-head/DashboardHome';
 import JobApprovals from './pages/vendor-manager-head/JobApprovals';
 import VMHJobDetails from './pages/vendor-manager-head/JobDetails';
+import VMHPartnerSlots from './pages/vendor-manager-head/PartnerSlots';
 import VMHVendors from './pages/vendor-manager-head/Vendors';   // ✅ CORRECT IMPORT
 import VMHVendorDetails from './pages/vendor-manager-head/VendorDetails'; // ✅ CORRECT IMPORT
 
@@ -63,6 +66,7 @@ const App = () => {
         <Route path="candidates" element={<CandidateManagement />} />
         <Route path="candidates/:id" element={<CandidateDetails />} />
         <Route path="candidates/create" element={<CreateCandidateForm />} />
+        <Route path="partner-slots" element={<VendorPartnerSlots />} />
         <Route path="jobs" element={<VendorJobs />} />
         <Route path="profile/:id" element={<VendorDetails />} />
         <Route path="jobs/:id" element={<VendorJobDetails />} />
@@ -80,6 +84,7 @@ const App = () => {
         <Route index element={<VendorManagerDashboard />} />
         <Route path="candidates" element={<VMCandidates />} />
         <Route path="candidates/:id" element={<CandidateDetails />} />
+        <Route path="partner-slots" element={<VMPartnerSlots />} />
         <Route path="jobs" element={<VMJobs />} />
         <Route path="vendors" element={<VMVendors />} />
         <Route path="vendors/:id" element={<VendorDetails />} />
@@ -98,6 +103,7 @@ const App = () => {
         <Route index element={<VMHDashboard />} />
         <Route path="jobs" element={<JobApprovals />} />
         <Route path="jobs/:id" element={<VMHJobDetails />} />
+        <Route path="partner-slots" element={<VMHPartnerSlots />} />
 
         {/* ✅ FIXED ROUTES */}
         <Route path="vendors" element={<VMHVendors />} />

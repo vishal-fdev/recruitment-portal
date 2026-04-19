@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import api from '../../api/api';
 import { LOCATION_DATA } from '../../constants/location';
 import './CreateCandidateForm.css';
@@ -220,7 +221,16 @@ const CreateCandidateForm = () => {
 
   return (
 
-    <div className="w-full">
+    <div className="w-full space-y-4">
+
+      <button
+        type="button"
+        onClick={() => navigate('/vendor/candidates')}
+        className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600"
+      >
+        <ArrowLeft size={16} />
+        Back
+      </button>
 
       <div className="bg-white rounded-xl shadow p-8">
 

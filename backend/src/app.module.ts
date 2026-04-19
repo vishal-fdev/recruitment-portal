@@ -11,6 +11,7 @@ import { VendorsModule } from './vendors/vendors.module';
 import { CandidatesModule } from './candidates/candidates.module';
 import { JobsModule } from './jobs/jobs.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { PartnerSlotsModule } from './partner-slots/partner-slots.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     CandidatesModule,
     JobsModule,
     DashboardModule,
+    PartnerSlotsModule,
   ],
   providers: [MailService], // ✅ ADD THIS
   exports: [MailService],   // ✅ ADD THIS

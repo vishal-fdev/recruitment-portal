@@ -5,6 +5,20 @@ import * as nodemailer from 'nodemailer';
 export class MailService implements OnModuleInit {
   private transporter: nodemailer.Transporter;
 
+  private buildVendorHeadRedirect(path: string) {
+    const frontendUrl = process.env.FRONTEND_URL;
+    const email = process.env.VENDOR_HEAD_EMAIL;
+
+    if (!frontendUrl || !email) {
+      return `${frontendUrl || ''}${path}`;
+    }
+
+    const loginUrl = new URL('/login', frontendUrl);
+    loginUrl.searchParams.set('email', email);
+    loginUrl.searchParams.set('redirect', path);
+    return loginUrl.toString();
+  }
+
   onModuleInit() {
     console.log('🚀 Initializing MailService...');
 
@@ -48,28 +62,21 @@ export class MailService implements OnModuleInit {
 
       const approveUrl = `${process.env.BACKEND_URL}/job-approvals/approve/${job.id}`;
       const rejectUrl = `${process.env.BACKEND_URL}/job-approvals/reject/${job.id}`;
-      const viewUrl = `${process.env.FRONTEND_URL}/vendor-manager-head/jobs/${job.id}`;
-      const totalPositions =
-        typeof job.numberOfPositions === 'number'
-          ? job.numberOfPositions
-          : Number(job.numberOfPositions || 0);
-      const jobLevel = job.level || '-';
-      const hiringManager = job.hiringManager || '-';
+      const viewUrl = this.buildVendorHeadRedirect(
+        `/vendor-manager-head/jobs/${job.id}`,
+      );
 
       const html = `
       <div style="font-family: Arial; padding: 20px;">
         <h2>New Job Approval Required</h2>
 
         <p><strong>Job Title:</strong> ${job.title}</p>
-        <p><strong>Hiring Manager:</strong> ${hiringManager}</p>
-        <p><strong>Job Level:</strong> ${jobLevel}</p>
-        <p><strong>No. of Positions:</strong> ${totalPositions}</p>
-        <p><strong>Location:</strong> ${job.location || '-'}</p>
+        <p><strong>Location:</strong> ${job.location}</p>
 
         <div style="margin-top: 20px;">
-          <a href="${approveUrl}" style="display:inline-block;background:#16a34a;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;margin-right:10px;">Approve Job</a>
-          <a href="${rejectUrl}" style="display:inline-block;background:#dc2626;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;margin-right:10px;">Reject Job</a>
-          <a href="${viewUrl}" style="display:inline-block;background:#2563eb;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">View Job</a>
+          <a href="${approveUrl}" style="background:#16a34a;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;margin-right:10px;">Approve</a>
+          <a href="${rejectUrl}" style="background:#dc2626;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;margin-right:10px;">Reject</a>
+          <a href="${viewUrl}" style="background:#2563eb;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">View Job</a>
         </div>
       </div>
       `;

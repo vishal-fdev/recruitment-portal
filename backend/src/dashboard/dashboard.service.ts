@@ -129,10 +129,16 @@ export class DashboardService {
       this.candidateRepo.find(),
     ]);
 
+    const interviews = candidates.reduce(
+      (total, candidate) => total + (candidate.interviews?.length || 0),
+      0,
+    );
+
     return {
       kpis: {
         openJobs: jobs.filter((j) => j.isActive).length,
         totalCandidates: candidates.length,
+        interviews,
         screening: candidates.filter(
           (c) => c.status === CandidateStatus.SCREENING,
         ).length,

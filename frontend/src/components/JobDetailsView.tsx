@@ -14,6 +14,11 @@ type JobDetailsViewProps = {
   showApprovalActions: boolean;
 };
 
+type BackfillEntry = {
+  employeeId?: string;
+  employeeName?: string;
+};
+
 const JobDetailsView = ({
   backRoute,
   showApprovalActions,
@@ -95,6 +100,69 @@ const JobDetailsView = ({
     if (!skills) return '-';
     if (Array.isArray(skills)) return skills.join(', ');
     return String(skills);
+  };
+
+  const parseBackfillEntries = (
+    employeeIdValue: unknown,
+    employeeNameValue: unknown,
+  ): BackfillEntry[] => {
+    const parseValue = (value: unknown) => {
+      if (typeof value !== 'string') return null;
+
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : null;
+      } catch {
+        return null;
+      }
+    };
+
+    const parsedIds = parseValue(employeeIdValue);
+    if (parsedIds?.length) {
+      return parsedIds.map((entry: any) => ({
+        employeeId: entry?.employeeId || '-',
+        employeeName: entry?.employeeName || '-',
+      }));
+    }
+
+    const parsedNames = parseValue(employeeNameValue);
+    if (parsedNames?.length) {
+      return parsedNames.map((entry: any) => ({
+        employeeId: entry?.employeeId || '-',
+        employeeName: entry?.employeeName || '-',
+      }));
+    }
+
+    return [
+      {
+        employeeId:
+          typeof employeeIdValue === 'string' && employeeIdValue.trim()
+            ? employeeIdValue
+            : '-',
+        employeeName:
+          typeof employeeNameValue === 'string' && employeeNameValue.trim()
+            ? employeeNameValue
+            : '-',
+      },
+    ];
+  };
+
+  const renderBackfillValue = (
+    employeeIdValue: unknown,
+    employeeNameValue: unknown,
+    field: 'employeeId' | 'employeeName',
+  ) => {
+    const entries = parseBackfillEntries(employeeIdValue, employeeNameValue);
+
+    return (
+      <div className="space-y-1 text-right">
+        {entries.map((entry, index) => (
+          <div key={`${field}-${index}`}>
+            {field === 'employeeId' ? entry.employeeId || '-' : entry.employeeName || '-'}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -185,8 +253,22 @@ const JobDetailsView = ({
 
               {job.requestType === 'BACKFILL' && (
                 <>
-                  <Row label="Employee ID" value={job.backfillEmployeeId} />
-                  <Row label="Employee Name" value={job.backfillEmployeeName} />
+                  <Row
+                    label="Employee ID"
+                    value={renderBackfillValue(
+                      job.backfillEmployeeId,
+                      job.backfillEmployeeName,
+                      'employeeId',
+                    )}
+                  />
+                  <Row
+                    label="Employee Name"
+                    value={renderBackfillValue(
+                      job.backfillEmployeeId,
+                      job.backfillEmployeeName,
+                      'employeeName',
+                    )}
+                  />
                 </>
               )}
 
@@ -214,10 +296,21 @@ const JobDetailsView = ({
 
                 {position.requestType === 'BACKFILL' && (
                   <>
-                    <Row label="Employee ID" value={position.backfillEmployeeId} />
+                    <Row
+                      label="Employee ID"
+                      value={renderBackfillValue(
+                        position.backfillEmployeeId,
+                        position.backfillEmployeeName,
+                        'employeeId',
+                      )}
+                    />
                     <Row
                       label="Employee Name"
-                      value={position.backfillEmployeeName}
+                      value={renderBackfillValue(
+                        position.backfillEmployeeId,
+                        position.backfillEmployeeName,
+                        'employeeName',
+                      )}
                     />
                   </>
                 )}
@@ -332,7 +425,7 @@ const Card = ({ title, children }: { title: string; children: ReactNode }) => (
   </div>
 );
 
-const Row = ({ label, value }: { label: string; value: unknown }) => (
+const Row = ({ label, value }: { label: string; value: ReactNode }) => (
   <div className="flex justify-between px-4 py-2 odd:bg-gray-200 even:bg-white rounded">
     <span className="text-gray-700">{label}</span>
     <span className="font-medium">{value || '-'}</span>

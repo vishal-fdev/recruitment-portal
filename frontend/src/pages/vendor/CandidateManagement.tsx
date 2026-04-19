@@ -1,9 +1,16 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Eye,
+  Filter,
+  ListChecks,
+  Plus,
+  ReceiptText,
+} from 'lucide-react';
 import api from '../../api/api';
 import ResumeModal from '../../components/ResumeModal';
 
-export type CandidateStatus =
+type CandidateStatus =
   | 'NEW'
   | 'SUBMITTED'
   | 'SCREENING'
@@ -25,19 +32,39 @@ interface Candidate {
   phone?: string;
   experience: number;
   status: CandidateStatus;
-  resumePath: string;
   createdAt: string;
-
   vendor?: {
-    id?: number;
+    id?: string | number;
     name?: string;
   };
-
   job?: {
     id?: number;
     title?: string;
   };
 }
+
+interface Job {
+  id: number;
+  title: string;
+  location: string;
+  experience: string;
+  status: string;
+  numberOfPositions?: number;
+  currentNumberOfPositions?: number;
+  jdFileName?: string;
+  psqFileName?: string;
+  positions?: {
+    id: number;
+    openings?: number;
+    currentOpenings?: number;
+  }[];
+}
+
+type VendorTab = 'CANDIDATES' | 'HRQ';
+type CandidateFilterField =
+  | 'candidateCode'
+  | 'candidateName'
+  | 'candidateContact';
 
 const STATUS_LABELS: Record<CandidateStatus, string> = {
   NEW: 'New',
@@ -45,324 +72,562 @@ const STATUS_LABELS: Record<CandidateStatus, string> = {
   SCREENING: 'Screening',
   SCREEN_SELECTED: 'Screen Select',
   SCREEN_REJECTED: 'Screen Reject',
-  TECH_SELECTED: 'Tech Selected',
-  TECH_REJECTED: 'Tech Rejected',
-  OPS_SELECTED: 'Ops Selected',
-  OPS_REJECTED: 'Ops Rejected',
+  TECH_SELECTED: 'Tech Select',
+  TECH_REJECTED: 'Tech Reject',
+  OPS_SELECTED: 'Ops Select',
+  OPS_REJECTED: 'Ops Reject',
   ONBOARDED: 'Onboarded',
   DROPPED: 'Drop',
   REJECTED: 'Rejected',
-  SELECTED: 'Selected',
+  SELECTED: 'Ops Select',
 };
 
-const STATUS_COLORS: Record<CandidateStatus, string> = {
-  NEW: 'bg-gray-100 text-gray-700',
-  SUBMITTED: 'bg-indigo-100 text-indigo-700',
-  SCREENING: 'bg-blue-100 text-blue-700',
-  SCREEN_SELECTED: 'bg-blue-100 text-blue-700',
-  SCREEN_REJECTED: 'bg-red-100 text-red-700',
-  TECH_SELECTED: 'bg-green-100 text-green-700',
-  TECH_REJECTED: 'bg-red-100 text-red-700',
-  OPS_SELECTED: 'bg-green-200 text-green-800',
-  OPS_REJECTED: 'bg-red-200 text-red-800',
-  ONBOARDED: 'bg-green-100 text-green-700',
-  DROPPED: 'bg-red-100 text-red-700',
-  REJECTED: 'bg-red-100 text-red-700',
-  SELECTED: 'bg-green-100 text-green-700',
+const STATUS_STYLES: Record<CandidateStatus, string> = {
+  NEW: 'bg-slate-100 text-slate-600',
+  SUBMITTED: 'bg-violet-100 text-violet-700',
+  SCREENING: 'bg-amber-100 text-amber-700',
+  SCREEN_SELECTED: 'bg-amber-100 text-amber-700',
+  SCREEN_REJECTED: 'bg-rose-50 text-rose-600',
+  TECH_SELECTED: 'bg-teal-100 text-teal-700',
+  TECH_REJECTED: 'bg-rose-50 text-rose-600',
+  OPS_SELECTED: 'bg-amber-100 text-amber-700',
+  OPS_REJECTED: 'bg-rose-50 text-rose-600',
+  ONBOARDED: 'bg-emerald-100 text-emerald-700',
+  DROPPED: 'bg-slate-100 text-slate-600',
+  REJECTED: 'bg-rose-50 text-rose-600',
+  SELECTED: 'bg-amber-100 text-amber-700',
 };
 
-const EyeIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className="w-5 h-5 text-gray-600 hover:text-emerald-600 transition"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={2}
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-    <path strokeLinecap="round" strokeLinejoin="round"
-      d="M2.458 12C3.732 7.943 7.523 5 12 5
-      c4.477 0 8.268 2.943 9.542 7
-      -1.274 4.057-5.065 7-9.542 7
-      -4.477 0-8.268-2.943-9.542-7z"
-    />
-  </svg>
-);
-
-const VendorCandidates = () => {
-
+const VendorCandidateManagement = () => {
   const navigate = useNavigate();
 
+  const [activeTab, setActiveTab] = useState<VendorTab>('CANDIDATES');
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const [resumeCandidateId, setResumeCandidateId] =
-    useState<number | null>(null);
-
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loadingCandidates, setLoadingCandidates] = useState(true);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [resumeCandidateId, setResumeCandidateId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
-  const [dateSort, setDateSort] = useState<'ASC' | 'DESC'>('DESC');
-  const [nameSort, setNameSort] = useState<'ASC' | 'DESC' | 'NONE'>('NONE');
+  const [candidateFilterField, setCandidateFilterField] =
+    useState<CandidateFilterField>('candidateCode');
+  const [candidateStatusFilter, setCandidateStatusFilter] = useState('ALL');
 
-  const fetchCandidates = async () => {
+  const vendorId = localStorage.getItem('vendorId');
+
+  useEffect(() => {
+    void loadCandidates();
+    void loadJobs();
+  }, []);
+
+  const loadCandidates = async () => {
     try {
-
-      setLoading(true);
-
+      setLoadingCandidates(true);
       const res = await api.get('/candidates');
-
-      const vendorId = localStorage.getItem('vendorId');
-
       const filtered = vendorId
         ? res.data.filter(
-            (c: Candidate) =>
-              String(c.vendor?.id) === String(vendorId)
+            (candidate: Candidate) =>
+              String(candidate.vendor?.id) === String(vendorId),
           )
         : res.data;
-
       setCandidates(filtered);
-
-    } catch (err) {
-      console.error(err);
-      alert('Failed to load candidates');
+    } catch (error) {
+      console.error('Failed to load candidates', error);
+      setCandidates([]);
     } finally {
-      setLoading(false);
+      setLoadingCandidates(false);
     }
   };
 
-  useEffect(() => {
-    fetchCandidates();
-  }, []);
+  const loadJobs = async () => {
+    try {
+      setLoadingJobs(true);
+      const res = await api.get('/jobs');
+      setJobs((res.data || []).sort((a: Job, b: Job) => b.id - a.id));
+    } catch (error) {
+      console.error('Failed to load jobs', error);
+      setJobs([]);
+    } finally {
+      setLoadingJobs(false);
+    }
+  };
 
   const filteredCandidates = useMemo(() => {
+    const query = search.trim().toLowerCase();
 
-    let data = [...candidates];
+    return [...candidates]
+      .filter((candidate) => {
+        if (candidateStatusFilter !== 'ALL') {
+          const normalizedStatus =
+            candidate.status === 'SELECTED' ? 'OPS_SELECTED' : candidate.status;
+          if (normalizedStatus !== candidateStatusFilter) {
+            return false;
+          }
+        }
 
-    if (search) {
+        if (!query) {
+          return true;
+        }
 
-      data = data.filter(
-        (c) =>
-          c.name.toLowerCase().includes(search.toLowerCase()) ||
-          c.job?.title?.toLowerCase().includes(search.toLowerCase())
+        const code = `CA${candidate.id}`.toLowerCase();
+        const name = candidate.name.toLowerCase();
+        const contact = (candidate.phone || '').toLowerCase();
+        const email = (candidate.email || '').toLowerCase();
+        const role = (candidate.job?.title || '').toLowerCase();
+
+        switch (candidateFilterField) {
+          case 'candidateCode':
+            return code.includes(query);
+          case 'candidateName':
+            return name.includes(query) || email.includes(query);
+          case 'candidateContact':
+            return contact.includes(query);
+          default:
+            return (
+              code.includes(query) ||
+              name.includes(query) ||
+              contact.includes(query) ||
+              email.includes(query) ||
+              role.includes(query)
+            );
+        }
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime(),
       );
+  }, [candidateFilterField, candidateStatusFilter, candidates, search]);
+
+  const filteredJobs = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return jobs;
+
+    return jobs.filter(
+      (job) =>
+        `HRQ${job.id}`.toLowerCase().includes(query) ||
+        job.title?.toLowerCase().includes(query) ||
+        job.location?.toLowerCase().includes(query),
+    );
+  }, [jobs, search]);
+
+  const handleFileDownload = async (
+    event: React.MouseEvent,
+    jobId: number,
+    fileType: 'jd' | 'psq',
+    fileName?: string,
+  ) => {
+    event.stopPropagation();
+
+    const response = await api.get(`/jobs/${jobId}/${fileType}/download`, {
+      responseType: 'blob',
+    });
+
+    const blob = new Blob([response.data]);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName || `JOB-${jobId}-${fileType.toUpperCase()}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const getVendorJobStatusLabel = (status: string) => {
+    if (status === 'APPROVED' || status === 'PENDING_APPROVAL') {
+      return 'OPEN';
     }
-
-    if (nameSort !== 'NONE') {
-
-      data.sort((a, b) => {
-        const n1 = a.name.toLowerCase();
-        const n2 = b.name.toLowerCase();
-
-        if (nameSort === 'ASC') return n1.localeCompare(n2);
-        else return n2.localeCompare(n1);
-      });
-
-    } else {
-
-      data.sort((a, b) => {
-        const d1 = new Date(a.createdAt).getTime();
-        const d2 = new Date(b.createdAt).getTime();
-
-        return dateSort === 'ASC' ? d1 - d2 : d2 - d1;
-      });
-
+    if (status === 'ON_HOLD') {
+      return 'HOLD';
     }
+    if (status === 'CLOSED') {
+      return 'CLOSED';
+    }
+    return status.replace(/_/g, ' ');
+  };
 
-    return data;
-
-  }, [candidates, search, dateSort, nameSort]);
+  const getVendorJobStatusClass = (status: string) => {
+    const label = getVendorJobStatusLabel(status);
+    if (label === 'OPEN') {
+      return 'bg-emerald-50 text-emerald-700';
+    }
+    if (label === 'HOLD') {
+      return 'bg-amber-100 text-amber-700';
+    }
+    if (label === 'CLOSED') {
+      return 'bg-slate-100 text-slate-600';
+    }
+    return 'bg-slate-100 text-slate-600';
+  };
 
   return (
-
     <div className="space-y-6">
-
-      {/* HEADER */}
-
-      <div className="flex justify-between items-center">
-
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-800">
-            Candidate Pipeline
-          </h1>
-
-          <p className="text-sm text-gray-500">
-            Manage candidates submitted by you
-          </p>
-        </div>
-
-        <button
-          onClick={() =>
-            navigate('/vendor/candidates/create')
-          }
-          className="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm hover:bg-emerald-700 transition"
-        >
-          + Create Candidate
-        </button>
-
+      <div>
+        <h1 className="text-[2rem] font-semibold text-slate-800">
+          Candidate Management
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Manage candidates, hiring requests, and review processes
+        </p>
       </div>
 
-      {/* FILTER BAR */}
-
-      <div className="bg-white border border-gray-300 rounded-lg shadow-sm px-5 py-4 flex justify-between items-center">
-
-        {/* SEARCH LEFT */}
-
-        <div className="relative w-72">
-
-          <input
-            type="text"
-            placeholder="Search candidate or job..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full border border-gray-400 rounded-md pl-4 pr-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+      <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-wrap gap-3">
+          <TabButton
+            active={activeTab === 'CANDIDATES'}
+            icon={<ListChecks size={16} />}
+            label="Candidates List"
+            onClick={() => setActiveTab('CANDIDATES')}
           />
-
+          <TabButton
+            active={activeTab === 'HRQ'}
+            icon={<ReceiptText size={16} />}
+            label="All HRQID"
+            onClick={() => setActiveTab('HRQ')}
+          />
         </div>
-
-        {/* FILTERS RIGHT */}
-
-        <div className="flex gap-3">
-
-          {/* DATE SORT */}
-
-          <select
-            value={dateSort}
-            onChange={(e) => {
-              setNameSort('NONE');
-              setDateSort(e.target.value as 'ASC' | 'DESC');
-            }}
-            className="border border-gray-400 rounded-md px-3 py-2 text-sm bg-white hover:border-gray-600"
-          >
-            <option value="DESC">Newest</option>
-            <option value="ASC">Oldest</option>
-          </select>
-
-          {/* NAME SORT */}
-
-          <select
-            value={nameSort}
-            onChange={(e) =>
-              setNameSort(e.target.value as any)
-            }
-            className="border border-gray-400 rounded-md px-3 py-2 text-sm bg-white hover:border-gray-600"
-          >
-            <option value="NONE">Name Sort</option>
-            <option value="ASC">A → Z</option>
-            <option value="DESC">Z → A</option>
-          </select>
-
-        </div>
-
       </div>
 
-      {/* TABLE */}
-
-      <div className="bg-white rounded-lg shadow border border-gray-300 overflow-x-auto">
-
-        <table className="w-full text-sm text-center">
-
-          <thead className="bg-gray-100 text-gray-700 border-b">
-
-            <tr>
-
-              <th className="px-4 py-3 font-semibold">Name</th>
-              <th className="px-4 py-3 font-semibold">Email</th>
-              <th className="px-4 py-3 font-semibold">Contact</th>
-              <th className="px-4 py-3 font-semibold">Job</th>
-              <th className="px-4 py-3 font-semibold">Experience</th>
-              <th className="px-4 py-3 font-semibold">Resume</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
-
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            {loading && (
-              <tr>
-                <td colSpan={7} className="py-10 text-gray-500">
-                  Loading...
-                </td>
-              </tr>
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            {activeTab === 'CANDIDATES' ? (
+              <select
+                value={candidateFilterField}
+                onChange={(event) =>
+                  setCandidateFilterField(
+                    event.target.value as CandidateFilterField,
+                  )
+                }
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-emerald-300"
+              >
+                <option value="candidateCode">Candidate Code</option>
+                <option value="candidateName">Candidate Name</option>
+                <option value="candidateContact">Candidate Contact</option>
+              </select>
+            ) : (
+              <div className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">
+                HRQ ID
+                <Filter size={15} className="text-emerald-500" />
+              </div>
             )}
 
-            {!loading &&
-              filteredCandidates.map((c) => (
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search records..."
+              className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-300 xl:w-[320px]"
+            />
+          </div>
 
-                <tr
-                  key={c.id}
-                  className="border-t hover:bg-gray-50 transition"
-                >
+          <div className="flex flex-wrap items-center gap-3">
+            {activeTab === 'CANDIDATES' ? (
+              <select
+                value={candidateStatusFilter}
+                onChange={(event) => setCandidateStatusFilter(event.target.value)}
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-emerald-300"
+              >
+                <option value="ALL">All Status</option>
+                <option value="SUBMITTED">Submitted</option>
+                <option value="SCREEN_SELECTED">Screen Select</option>
+                <option value="SCREEN_REJECTED">Screen Reject</option>
+                <option value="TECH_SELECTED">Tech Select</option>
+                <option value="TECH_REJECTED">Tech Reject</option>
+                <option value="OPS_SELECTED">Ops Select</option>
+                <option value="OPS_REJECTED">Ops Reject</option>
+                <option value="ONBOARDED">Onboarded</option>
+                <option value="DROPPED">Drop</option>
+              </select>
+            ) : null}
 
-                  <td
-                    className="px-4 py-3 text-emerald-600 cursor-pointer hover:underline font-medium"
-                    onClick={() =>
-                      navigate(`/vendor/candidates/${c.id}`)
-                    }
-                  >
-                    {c.name}
-                  </td>
+            <button
+              type="button"
+              onClick={() => navigate('/vendor/candidates/create')}
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-2 py-2 text-sm font-medium text-emerald-700"
+            >
+              <Plus size={15} />
+              Create
+            </button>
+          </div>
+        </div>
 
-                  <td className="px-4 py-3">{c.email || '—'}</td>
-
-                  <td className="px-4 py-3">{c.phone || '—'}</td>
-
-                  <td className="px-4 py-3">{c.job?.title || '—'}</td>
-
-                  <td className="px-4 py-3">{c.experience} yrs</td>
-
-                  <td className="px-4 py-3">
-
-                    <div className="flex justify-center">
-
-                      <button
-                        onClick={() =>
-                          setResumeCandidateId(c.id)
-                        }
-                      >
-                        <EyeIcon />
-                      </button>
-
-                    </div>
-
-                  </td>
-
-                  <td className="px-4 py-3">
-
-                    <div className="flex justify-center">
-
-                      <span
-                        className={`px-3 py-1 text-xs rounded-full font-medium ${STATUS_COLORS[c.status]}`}
-                      >
-                        {STATUS_LABELS[c.status]}
-                      </span>
-
-                    </div>
-
-                  </td>
-
+        <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200">
+          {activeTab === 'CANDIDATES' ? (
+            <table className="min-w-full text-sm">
+              <thead className="bg-[#96f7e4] text-slate-700">
+                <tr>
+                  <HeaderCell>Candidate Code</HeaderCell>
+                  <HeaderCell>Candidate Name</HeaderCell>
+                  <HeaderCell>Candidate Email</HeaderCell>
+                  <HeaderCell>Candidate Contact</HeaderCell>
+                  <HeaderCell>Created Date</HeaderCell>
+                  <HeaderCell>Role Hired For</HeaderCell>
+                  <HeaderCell>Experience</HeaderCell>
+                  <HeaderCell>Resume</HeaderCell>
+                  <HeaderCell>Partner</HeaderCell>
+                  <HeaderCell>Acknowledged</HeaderCell>
+                  <HeaderCell>Status</HeaderCell>
                 </tr>
+              </thead>
+              <tbody className="bg-white">
+                {loadingCandidates && (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-10 text-center text-slate-400">
+                      Loading candidates...
+                    </td>
+                  </tr>
+                )}
 
-              ))}
+                {!loadingCandidates &&
+                  filteredCandidates.map((candidate) => (
+                    <tr
+                      key={candidate.id}
+                      className="border-t border-gray-100 text-slate-700 hover:bg-slate-50"
+                    >
+                      <BodyLinkCell
+                        onClick={() => navigate(`/vendor/candidates/${candidate.id}`)}
+                      >
+                        {`CA${candidate.id}`}
+                      </BodyLinkCell>
+                      <BodyCell>{candidate.name}</BodyCell>
+                      <BodyCell>{candidate.email || '-'}</BodyCell>
+                      <BodyCell>{candidate.phone || '-'}</BodyCell>
+                      <BodyCell>{formatDate(candidate.createdAt)}</BodyCell>
+                      <BodyCell>{candidate.job?.title || '-'}</BodyCell>
+                      <BodyCell>{candidate.experience}</BodyCell>
+                      <BodyCell>
+                        <button
+                          type="button"
+                          onClick={() => setResumeCandidateId(candidate.id)}
+                          className="text-slate-500 hover:text-emerald-600"
+                        >
+                          <Eye size={17} />
+                        </button>
+                      </BodyCell>
+                      <BodyCell>{candidate.vendor?.name || '-'}</BodyCell>
+                      <BodyCell>No</BodyCell>
+                      <BodyCell>
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLES[candidate.status]}`}
+                        >
+                          {STATUS_LABELS[candidate.status]}
+                        </span>
+                      </BodyCell>
+                    </tr>
+                  ))}
 
-          </tbody>
+                {!loadingCandidates && filteredCandidates.length === 0 && (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-10 text-center text-slate-400">
+                      No candidates found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table className="min-w-full text-sm">
+              <thead className="bg-[#96f7e4] text-slate-700">
+                <tr>
+                  <HeaderCell>HRQ ID</HeaderCell>
+                  <HeaderCell>Role Hired For</HeaderCell>
+                  <HeaderCell>Location</HeaderCell>
+                  <HeaderCell>Experience</HeaderCell>
+                  <HeaderCell>Total Positions</HeaderCell>
+                  <HeaderCell>Current Positions</HeaderCell>
+                  <HeaderCell>Status</HeaderCell>
+                  <HeaderCell>JD</HeaderCell>
+                  <HeaderCell>PSQ</HeaderCell>
+                  <HeaderCell>Action</HeaderCell>
+                </tr>
+              </thead>
+              <tbody className="bg-white">
+                {loadingJobs && (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-10 text-center text-slate-400">
+                      Loading HRQ IDs...
+                    </td>
+                  </tr>
+                )}
 
-        </table>
+                {!loadingJobs &&
+                  filteredJobs.map((job) => {
+                    const additionalTotal =
+                      job.positions?.reduce(
+                        (sum, position) => sum + Number(position.openings || 0),
+                        0,
+                      ) || 0;
+                    const additionalCurrent =
+                      job.positions?.reduce(
+                        (sum, position) =>
+                          sum + Number(position.currentOpenings ?? position.openings ?? 0),
+                        0,
+                      ) || 0;
 
+                    return (
+                      <tr
+                        key={job.id}
+                        className="border-t border-gray-100 text-slate-700 hover:bg-slate-50"
+                      >
+                        <BodyLinkCell
+                          onClick={() => navigate(`/vendor/jobs/${job.id}`)}
+                        >
+                          {`HRQ${job.id}`}
+                        </BodyLinkCell>
+                        <BodyCell>{job.title}</BodyCell>
+                        <BodyCell>{job.location}</BodyCell>
+                        <BodyCell>{job.experience}</BodyCell>
+                        <BodyCell>
+                          {Number(job.numberOfPositions || 0) + additionalTotal}
+                        </BodyCell>
+                        <BodyCell>
+                          {Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0) +
+                            additionalCurrent}
+                        </BodyCell>
+                        <BodyCell>
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getVendorJobStatusClass(
+                              job.status,
+                            )}`}
+                          >
+                            {getVendorJobStatusLabel(job.status)}
+                          </span>
+                        </BodyCell>
+                        <BodyCell>
+                          {job.jdFileName ? (
+                            <button
+                              type="button"
+                              onClick={(event) =>
+                                void handleFileDownload(
+                                  event,
+                                  job.id,
+                                  'jd',
+                                  job.jdFileName,
+                                )
+                              }
+                              className="font-medium text-emerald-600 hover:underline"
+                            >
+                              Download JD
+                            </button>
+                          ) : (
+                            '-'
+                          )}
+                        </BodyCell>
+                        <BodyCell>
+                          {job.psqFileName ? (
+                            <button
+                              type="button"
+                              onClick={(event) =>
+                                void handleFileDownload(
+                                  event,
+                                  job.id,
+                                  'psq',
+                                  job.psqFileName,
+                                )
+                              }
+                              className="font-medium text-emerald-600 hover:underline"
+                            >
+                              Download PSQ
+                            </button>
+                          ) : (
+                            '-'
+                          )}
+                        </BodyCell>
+                        <BodyCell>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigate(`/vendor/candidates/create?jobId=${job.id}`)
+                            }
+                            className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-600"
+                          >
+                            Create
+                          </button>
+                        </BodyCell>
+                      </tr>
+                    );
+                  })}
+
+                {!loadingJobs && filteredJobs.length === 0 && (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-10 text-center text-slate-400">
+                      No HRQ IDs found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       {resumeCandidateId && (
-
         <ResumeModal
           candidateId={resumeCandidateId}
           onClose={() => setResumeCandidateId(null)}
         />
-
       )}
-
     </div>
   );
 };
 
-export default VendorCandidates;
+export default VendorCandidateManagement;
+
+const TabButton = ({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition ${
+      active
+        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+        : 'bg-violet-50 text-violet-600 hover:bg-violet-100'
+    }`}
+  >
+    {icon}
+    {label}
+  </button>
+);
+
+const HeaderCell = ({ children }: { children: ReactNode }) => (
+  <th className="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wide">
+    {children}
+  </th>
+);
+
+const BodyCell = ({ children }: { children: ReactNode }) => (
+  <td className="px-4 py-4 text-center align-middle">{children}</td>
+);
+
+const BodyLinkCell = ({
+  children,
+  onClick,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+}) => (
+  <td className="px-4 py-4 text-center align-middle">
+    <button
+      type="button"
+      onClick={onClick}
+      className="font-medium text-emerald-600 hover:underline"
+    >
+      {children}
+    </button>
+  </td>
+);
+
+const formatDate = (value?: string) => {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('en-GB');
+};

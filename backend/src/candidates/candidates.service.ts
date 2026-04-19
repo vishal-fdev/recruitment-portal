@@ -1,4 +1,4 @@
-﻿// src/candidates/candidates.service.ts
+// src/candidates/candidates.service.ts
 
 import {
   Injectable,
@@ -19,6 +19,10 @@ import {
   JobPosition,
   JobPositionStatus,
 } from '../jobs/job-position.entity';
+import {
+  PartnerSlot,
+  SlotAttendanceStatus,
+} from '../partner-slots/partner-slot.entity';
 
 @Injectable()
 export class CandidatesService {
@@ -43,6 +47,9 @@ export class CandidatesService {
 
     @InjectRepository(JobPosition)
     private readonly positionRepo: Repository<JobPosition>,
+
+    @InjectRepository(PartnerSlot)
+    private readonly slotRepo: Repository<PartnerSlot>,
   ) {}
 
   /* =====================================================
@@ -75,7 +82,7 @@ export class CandidatesService {
         throw new NotFoundException('Job not found');
       }
 
-      // ðŸ”¥ BLOCK BASED ON JOB STATUS
+      // 🔥 BLOCK BASED ON JOB STATUS
 if (job.status === 'ON_HOLD') {
   throw new BadRequestException(
     'This job is currently on hold',
@@ -103,13 +110,13 @@ if (job.status === 'CLOSED') {
   );
 }
 
-// ðŸ”¥ NEW VALIDATION
+// 🔥 NEW VALIDATION
 if (mapping.status !== 'ACTIVE') {
   throw new BadRequestException(
     'This job is not active for your vendor',
   );
 }
-      // ðŸ”¥ PREVENT DUPLICATE SUBMISSION (SAME JOB + SAME EMAIL)
+      // 🔥 PREVENT DUPLICATE SUBMISSION (SAME JOB + SAME EMAIL)
 const existing = await this.candidateRepo.findOne({
   where: {
     email: data.email,
@@ -146,7 +153,7 @@ if (existing) {
             'This position is closed',
           );
         }
-        // ðŸ”¥ EXTRA SAFETY (prevents invalid submissions)
+        // 🔥 EXTRA SAFETY (prevents invalid submissions)
 if ((position.currentOpenings ?? position.openings) <= 0) {
   throw new BadRequestException(
     'No openings available for this position',
@@ -197,7 +204,8 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
       );
     }
 
-    this.assertStatusChangeAllowed(
+    await this.assertStatusChangeAllowed(
+      candidate.id,
       candidate.status,
       nextStatus,
       user,
@@ -219,7 +227,10 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
       candidate.dropJustification = null;
     }
 
-    return this.candidateRepo.save(candidate);
+    const savedCandidate = await this.candidateRepo.save(candidate);
+    await this.syncHmFeedbackSubmission(candidate.id, user, nextStatus);
+
+    return savedCandidate;
   }
 
   /* =====================================================
@@ -414,7 +425,8 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
     return candidate.resumePath;
   }
 
-  private assertStatusChangeAllowed(
+  private async assertStatusChangeAllowed(
+    candidateId: number,
     currentStatus: CandidateStatus,
     nextStatus: CandidateStatus,
     user: any,
@@ -470,6 +482,23 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
         );
       }
 
+      if (this.stageRequiresAttendedInterview(currentStatus)) {
+        const attendedSlot = await this.slotRepo.findOne({
+          where: {
+            candidate: { id: candidateId },
+            attendanceStatus: SlotAttendanceStatus.ATTENDED,
+            hmFeedbackSubmitted: false,
+          },
+          order: { updatedAt: 'DESC' },
+        });
+
+        if (!attendedSlot) {
+          throw new BadRequestException(
+            'Hiring manager feedback can be submitted only after the vendor marks the candidate as interviewed',
+          );
+        }
+      }
+
       return;
     }
 
@@ -478,11 +507,10 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
         ![
           CandidateStatus.OPS_SELECTED,
           CandidateStatus.ONBOARDED,
-          CandidateStatus.SELECTED,
         ].includes(currentStatus)
       ) {
         throw new BadRequestException(
-          'Only Ops Selected, Selected, or Onboarded candidates can be finalized',
+          'Only Ops Selected or Onboarded candidates can be finalized',
         );
       }
 
@@ -566,6 +594,50 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
 
     await this.jobRepo.save(job);
   }
+
+  private stageRequiresAttendedInterview(currentStatus: CandidateStatus) {
+    return [
+      CandidateStatus.SCREEN_SELECTED,
+      CandidateStatus.TECH,
+      CandidateStatus.TECH_SELECTED,
+      CandidateStatus.OPS,
+    ].includes(currentStatus);
+  }
+
+  private async syncHmFeedbackSubmission(
+    candidateId: number,
+    user: any,
+    nextStatus: CandidateStatus,
+  ) {
+    if (user.role !== 'HIRING_MANAGER') {
+      return;
+    }
+
+    if (
+      ![
+        CandidateStatus.TECH_SELECTED,
+        CandidateStatus.TECH_REJECTED,
+        CandidateStatus.OPS_SELECTED,
+        CandidateStatus.OPS_REJECTED,
+      ].includes(nextStatus)
+    ) {
+      return;
+    }
+
+    const attendedSlot = await this.slotRepo.findOne({
+      where: {
+        candidate: { id: candidateId },
+        attendanceStatus: SlotAttendanceStatus.ATTENDED,
+        hmFeedbackSubmitted: false,
+      },
+      order: { updatedAt: 'DESC' },
+    });
+
+    if (!attendedSlot) {
+      return;
+    }
+
+    attendedSlot.hmFeedbackSubmitted = true;
+    await this.slotRepo.save(attendedSlot);
+  }
 }
-
-

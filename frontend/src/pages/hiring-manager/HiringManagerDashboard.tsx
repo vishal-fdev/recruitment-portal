@@ -12,6 +12,8 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
+import { getDashboardStats } from '../../services/dashboardService';
+import type { DashboardStats } from '../../services/dashboardService';
 
 const COLORS = [
   '#00a982',
@@ -23,31 +25,48 @@ const COLORS = [
 ];
 
 const HiringManagerDashboard = () => {
-  /* ===============================
-     TEMP DATA (Replace with API Later)
-  =============================== */
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const kpis = {
-    openJobs: 12,
-    totalCandidates: 87,
-    interviews: 14,
-  };
+  useEffect(() => {
+    let isMounted = true;
 
-  const pieData = [
-    { name: 'SCREENING', value: 20 },
-    { name: 'TECHNICAL', value: 30 },
-    { name: 'OPS', value: 10 },
-    { name: 'SELECTED', value: 15 },
-    { name: 'REJECTED', value: 12 },
-  ];
+    const loadStats = async () => {
+      try {
+        const data = await getDashboardStats();
+        if (isMounted) {
+          setStats(data);
+        }
+      } catch (err) {
+        console.error('Failed to load dashboard stats', err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
 
-  const barData = [
-    { label: 'Mon', count: 5 },
-    { label: 'Tue', count: 8 },
-    { label: 'Wed', count: 6 },
-    { label: 'Thu', count: 10 },
-    { label: 'Fri', count: 4 },
-  ];
+    void loadStats();
+    const interval = window.setInterval(() => {
+      void loadStats();
+    }, 30000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const kpis = stats?.kpis ?? {};
+
+  const pieData = Object.entries(stats?.stageSummary ?? {})
+    .filter(([, value]) => value > 0)
+    .map(([status, value]) => ({
+      name: status.replace(/_/g, ' '),
+      value,
+    }));
+
+  const barData = stats?.submissionsByDate ?? [];
 
   return (
     <div className="space-y-10">
@@ -64,14 +83,17 @@ const HiringManagerDashboard = () => {
 
       {/* KPI CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard title="Open Jobs" value={kpis.openJobs} />
+        <StatCard
+          title="Open Jobs"
+          value={loading ? '...' : kpis.openJobs ?? 0}
+        />
         <StatCard
           title="Candidates Received"
-          value={kpis.totalCandidates}
+          value={loading ? '...' : kpis.totalCandidates ?? 0}
         />
         <StatCard
           title="Interviews Scheduled"
-          value={kpis.interviews}
+          value={loading ? '...' : kpis.interviews ?? 0}
         />
       </div>
 
@@ -83,28 +105,33 @@ const HiringManagerDashboard = () => {
           <h2 className="text-lg font-semibold text-center mb-6">
             Candidate Status Distribution
           </h2>
-
-          <ResponsiveContainer width="100%" height={350}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                dataKey="value"
-                nameKey="name"
-                innerRadius={70}
-                outerRadius={120}
-                paddingAngle={4}
-              >
-                {pieData.map((_, index) => (
-                  <Cell
-                    key={index}
-                    fill={COLORS[index % COLORS.length]}
-                  />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend verticalAlign="bottom" />
-            </PieChart>
-          </ResponsiveContainer>
+          {pieData.length ? (
+            <ResponsiveContainer width="100%" height={350}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={70}
+                  outerRadius={120}
+                  paddingAngle={4}
+                >
+                  {pieData.map((_, index) => (
+                    <Cell
+                      key={index}
+                      fill={COLORS[index % COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend verticalAlign="bottom" />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-[350px] items-center justify-center text-sm text-gray-400">
+              No candidate status data available yet.
+            </div>
+          )}
         </div>
 
         {/* BAR CHART */}
@@ -112,20 +139,25 @@ const HiringManagerDashboard = () => {
           <h2 className="text-lg font-semibold text-center mb-6">
             Candidate Submissions Per Day
           </h2>
-
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={barData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" />
-              <YAxis />
-              <Tooltip />
-              <Bar
-                dataKey="count"
-                fill="#00a982"
-                radius={[8, 8, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          {barData.length ? (
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={barData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" />
+                <YAxis />
+                <Tooltip />
+                <Bar
+                  dataKey="count"
+                  fill="#00a982"
+                  radius={[8, 8, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-[350px] items-center justify-center text-sm text-gray-400">
+              No submission data available yet.
+            </div>
+          )}
         </div>
 
       </div>
@@ -142,7 +174,7 @@ const StatCard = ({
   value,
 }: {
   title: string;
-  value: number;
+  value: number | string;
 }) => (
   <div className="bg-white p-6 rounded-xl shadow border border-gray-200 text-center">
     <p className="text-sm text-gray-500">{title}</p>

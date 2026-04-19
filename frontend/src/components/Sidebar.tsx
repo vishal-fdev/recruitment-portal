@@ -28,12 +28,13 @@ const navConfig: Record<
   VENDOR: [
     { label: "Dashboard", path: "/vendor", icon: <LayoutDashboard size={18} /> },
     { label: "Candidate Management", path: "/vendor/candidates", icon: <Users size={18} /> },
-    { label: "Jobs", path: "/vendor/jobs", icon: <Briefcase size={18} /> },
+    { label: "Interview Management", path: "/vendor/partner-slots", icon: <Layers size={18} /> },
   ],
 
   VENDOR_MANAGER: [
     { label: "Dashboard", path: "/vendor-manager", icon: <LayoutDashboard size={18} /> },
     { label: "Candidate Management", path: "/vendor-manager/candidates", icon: <Users size={18} /> },
+    { label: "Interview Management", path: "/vendor-manager/partner-slots", icon: <Layers size={18} /> },
     { label: "Jobs", path: "/vendor-manager/jobs", icon: <Briefcase size={18} /> },
     { label: "Vendors", path: "/vendor-manager/vendors", icon: <Layers size={18} /> },
   ],
@@ -41,6 +42,7 @@ const navConfig: Record<
   VENDOR_MANAGER_HEAD: [
     { label: "Dashboard", path: "/vendor-manager-head", icon: <LayoutDashboard size={18} /> },
     { label: "Jobs", path: "/vendor-manager-head/jobs", icon: <Briefcase size={18} /> },
+    { label: "Interview Management", path: "/vendor-manager-head/partner-slots", icon: <Layers size={18} /> },
     { label: "Vendors", path: "/vendor-manager-head/vendors", icon: <Layers size={18} /> },
   ],
 

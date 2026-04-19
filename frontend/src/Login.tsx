@@ -1,7 +1,7 @@
 // src/Login.tsx
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from './api/api';
 import { authService } from './auth/authService';
 import type { UserRole } from './auth/authService';
@@ -23,13 +23,31 @@ const normalizeRole = (role: string): UserRole => {
 const Login = () => {
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const searchParams = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search],
+  );
 
-    if (!email) {
+  const redirectPath = searchParams.get('redirect');
+  const redirectEmail = searchParams.get('email');
+
+  const getDefaultRoute = (role: UserRole) => {
+    if (role === 'VENDOR') return '/vendor';
+    if (role === 'VENDOR_MANAGER') return '/vendor-manager';
+    if (role === 'VENDOR_MANAGER_HEAD') return '/vendor-manager-head';
+    return '/hiring-manager';
+  };
+
+  const handleLogin = async (emailOverride?: string) => {
+
+    const targetEmail = (emailOverride ?? email).trim();
+
+    if (!targetEmail) {
       alert('Email is required');
       return;
     }
@@ -39,7 +57,7 @@ const Login = () => {
       setLoading(true);
 
       const res = await api.post('/auth/login', {
-        email,
+        email: targetEmail,
       });
 
       const token: string = res.data.access_token;
@@ -48,21 +66,12 @@ const Login = () => {
 
       authService.login(token, normalizedRole);
 
-      if (normalizedRole === 'VENDOR') {
-        navigate('/vendor', { replace: true });
-      }
+      const destination =
+        redirectPath && redirectPath.startsWith('/')
+          ? redirectPath
+          : getDefaultRoute(normalizedRole);
 
-      if (normalizedRole === 'VENDOR_MANAGER') {
-        navigate('/vendor-manager', { replace: true });
-      }
-
-      if (normalizedRole === 'VENDOR_MANAGER_HEAD') {
-        navigate('/vendor-manager-head', { replace: true });
-      }
-
-      if (normalizedRole === 'HIRING_MANAGER') {
-        navigate('/hiring-manager', { replace: true });
-      }
+      navigate(destination, { replace: true });
 
     } catch (err) {
 
@@ -78,6 +87,14 @@ const Login = () => {
     e.preventDefault();
     handleLogin();
   };
+
+  useEffect(() => {
+    if (!redirectEmail || loading) return;
+
+    setEmail(redirectEmail);
+    void handleLogin(redirectEmail);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [redirectEmail]);
 
   return (
 

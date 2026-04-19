@@ -45,6 +45,9 @@ export class Job {
   @Column({ nullable: true })
   dealName!: string;
 
+  @Column({ nullable: true })
+  hiringManager!: string;
+
   @Column({ type: 'text', nullable: true })
   justification!: string;
 
