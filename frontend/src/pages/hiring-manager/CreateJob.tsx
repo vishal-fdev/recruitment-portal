@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { Dispatch, KeyboardEvent, SetStateAction } from 'react';
 import api from '../../api/api';
 import { useNavigate } from 'react-router-dom';
 import { useParams } from 'react-router-dom';
@@ -26,6 +27,56 @@ interface ChildPosition {
 }
 
 const LEVEL_OPTIONS = ['ENT','INT','SPE','EXP','MAS','MAS 1'];
+const SKILL_SUGGESTIONS = [
+  'JavaScript',
+  'TypeScript',
+  'React',
+  'Node.js',
+  'NestJS',
+  'Angular',
+  'Vue.js',
+  'HTML',
+  'CSS',
+  'Tailwind CSS',
+  'Java',
+  'Spring Boot',
+  'Python',
+  'Django',
+  'Flask',
+  'C#',
+  '.NET',
+  'PHP',
+  'Laravel',
+  'MySQL',
+  'PostgreSQL',
+  'MongoDB',
+  'Redis',
+  'GraphQL',
+  'REST API',
+  'AWS',
+  'Azure',
+  'GCP',
+  'Docker',
+  'Kubernetes',
+  'Jenkins',
+  'Terraform',
+  'Selenium',
+  'Playwright',
+  'Cypress',
+  'Manual Testing',
+  'Automation Testing',
+  'DevOps',
+  'Linux',
+  'Agile',
+  'Scrum',
+  'Data Analysis',
+  'Power BI',
+  'Tableau',
+  'Machine Learning',
+  'Communication',
+  'Leadership',
+  'Problem Solving',
+];
 
 const CreateJob = () => {
 
@@ -104,8 +155,10 @@ const [editingPanel, setEditingPanel] = useState<{
 } | null>(null);
 const [panels,setPanels] = useState<Panel[]>([]);
 const [showAdditionalPositions, setShowAdditionalPositions] = useState(false);
-const [isSectionSaved, setIsSectionSaved] = useState(false);
+const [isSectionSaved, setIsSectionSaved] = useState(isEditMode);
 const [errors, setErrors] = useState<any>({});
+const [primarySkillInput, setPrimarySkillInput] = useState('');
+const [secondarySkillInput, setSecondarySkillInput] = useState('');
 
 // 🔥 MULTI BACKFILL SUPPORT
 const [backfillList, setBackfillList] = useState<
@@ -171,6 +224,8 @@ useEffect(() => {
 
       setChildPositions(job.positions || []);
       setRounds(job.interviewRounds || []);
+      setShowAdditionalPositions((job.positions || []).length > 0);
+      setIsSectionSaved(true);
 
     } catch {
       alert('Failed to load job');
@@ -217,6 +272,117 @@ setRounds(template.interviewRounds);
 
 };
 
+const splitSkills = (value?: string) =>
+  (value || '')
+    .split(',')
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+
+const primarySkills = splitSkills(form.primarySkills);
+const secondarySkills = splitSkills(form.secondarySkills);
+
+const updateSkills = (
+  field: 'primarySkills' | 'secondarySkills',
+  skills: string[],
+) => {
+  const uniqueSkills = Array.from(
+    new Set(
+      skills
+        .map((skill) => skill.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  setForm((prev) => ({
+    ...prev,
+    [field]: uniqueSkills.join(','),
+  }));
+};
+
+const addSkill = (
+  field: 'primarySkills' | 'secondarySkills',
+  rawSkill: string,
+) => {
+  const skill = rawSkill.trim();
+  if (!skill) return;
+
+  const currentSkills =
+    field === 'primarySkills' ? primarySkills : secondarySkills;
+
+  if (
+    currentSkills.some(
+      (existingSkill) =>
+        existingSkill.toLowerCase() === skill.toLowerCase(),
+    )
+  ) {
+    return;
+  }
+
+  updateSkills(field, [...currentSkills, skill]);
+};
+
+const removeSkill = (
+  field: 'primarySkills' | 'secondarySkills',
+  skillToRemove: string,
+) => {
+  const currentSkills =
+    field === 'primarySkills' ? primarySkills : secondarySkills;
+
+  updateSkills(
+    field,
+    currentSkills.filter((skill) => skill !== skillToRemove),
+  );
+};
+
+const getSkillSuggestions = (
+  input: string,
+  selectedSkills: string[],
+) => {
+  const query = input.trim().toLowerCase();
+  if (!query) return [];
+
+  return SKILL_SUGGESTIONS.filter((skill) => {
+    const alreadySelected = selectedSkills.some(
+      (selectedSkill) => selectedSkill.toLowerCase() === skill.toLowerCase(),
+    );
+
+    return !alreadySelected && skill.toLowerCase().includes(query);
+  }).slice(0, 8);
+};
+
+const primarySkillSuggestions = getSkillSuggestions(
+  primarySkillInput,
+  primarySkills,
+);
+const secondarySkillSuggestions = getSkillSuggestions(
+  secondarySkillInput,
+  secondarySkills,
+);
+
+const handleSkillKeyDown = (
+  event: KeyboardEvent<HTMLInputElement>,
+  field: 'primarySkills' | 'secondarySkills',
+  inputValue: string,
+  clearInput: Dispatch<SetStateAction<string>>,
+) => {
+  if (event.key !== 'Enter') return;
+
+  event.preventDefault();
+  addSkill(field, inputValue);
+  clearInput('');
+};
+
+const sanitizeEmployeeId = (value: string) =>
+  value.replace(/\D/g, '').slice(0, 9);
+
+const isBackfillListValid =
+  backfillList.length > 0 &&
+  backfillList.every(
+    (employee) =>
+      employee.employeeId.trim().length === 9 &&
+      employee.employeeName.trim().length > 0,
+  );
+
 
 
 const handleChange=(e:any)=>{
@@ -224,6 +390,22 @@ const handleChange=(e:any)=>{
 const {name,value}=e.target;
 
 setForm(prev=>({...prev,[name]:value}));
+
+if (
+  [
+    'level',
+    'numberOfPositions',
+    'requestType',
+    'dealName',
+    'startDate',
+    'endDate',
+    'workLocation',
+    'region',
+    'justification',
+  ].includes(name)
+) {
+  setIsSectionSaved(false);
+}
 
 // ✅ HANDLE MAIN BACKFILL
 if(name==='requestType'){
@@ -328,9 +510,39 @@ const removeFile = () => {
 
 const addChildPosition=()=>{
 
-if(!newChild.level) return;
+const newErrors: any = {};
 
-setChildPositions([...childPositions,newChild]);
+if(!newChild.level) newErrors.newChildLevel = 'Required';
+if(!newChild.openings || newChild.openings < 1) {
+  newErrors.newChildOpenings = 'Required';
+}
+if(!newChild.requestType) newErrors.newChildRequestType = 'Required';
+if(!newChild.jdFile) newErrors.newChildJd = 'Required';
+if(!newChild.psqFile) newErrors.newChildPsq = 'Required';
+
+if (Object.keys(newErrors).length > 0) {
+  setErrors((prev: any) => ({ ...prev, ...newErrors }));
+  alert('Please fill all additional position details before adding');
+  return;
+}
+
+let updatedChild = { ...newChild };
+
+if (newChild.requestType === 'BACKFILL') {
+  updatedChild.backfillEmployeeId = JSON.stringify(backfillList);
+}
+
+setChildPositions([...childPositions,updatedChild]);
+setErrors((prev: any) => ({
+  ...prev,
+  additionalPositions: undefined,
+  newChildLevel: undefined,
+  newChildOpenings: undefined,
+  newChildRequestType: undefined,
+  newChildJd: undefined,
+  newChildPsq: undefined,
+}));
+setIsSectionSaved(false);
 
 setNewChild({
   level:'',
@@ -345,6 +557,7 @@ setNewChild({
 
 const removeChildPosition=(index:number)=>{
 setChildPositions(childPositions.filter((_,i)=>i!==index));
+setIsSectionSaved(false);
 };
 
 
@@ -498,7 +711,45 @@ const validatePositionSection = () => {
 };
 
 const handleSavePositionSection = () => {
-  const isValid = validatePositionSection();
+  const newErrors: any = {};
+
+  if (!form.level) newErrors.level = 'Required';
+  if (!form.numberOfPositions || form.numberOfPositions < 1) {
+    newErrors.numberOfPositions = 'Required';
+  }
+  if (!form.requestType) newErrors.requestType = 'Required';
+  if (!form.dealName.trim()) newErrors.dealName = 'Required';
+  if (!form.workLocation.trim()) newErrors.workLocation = 'Required';
+  if (!form.region.trim()) newErrors.region = 'Required';
+
+  if (showAdditionalPositions) {
+    if (!childPositions.length) {
+      newErrors.additionalPositions =
+        'Add at least one additional position before continuing';
+    }
+
+    const hasDraftChild =
+      !!newChild.level ||
+      newChild.openings !== 1 ||
+      !!newChild.jdFile ||
+      !!newChild.psqFile ||
+      newChild.requestType !== 'NEW' ||
+      !!newChild.backfillEmployeeId ||
+      !!newChild.backfillEmployeeName;
+
+    if (hasDraftChild) {
+      if (!newChild.level) newErrors.newChildLevel = 'Required';
+      if (!newChild.openings || newChild.openings < 1) {
+        newErrors.newChildOpenings = 'Required';
+      }
+      if (!newChild.requestType) newErrors.newChildRequestType = 'Required';
+      if (!newChild.jdFile) newErrors.newChildJd = 'Required';
+      if (!newChild.psqFile) newErrors.newChildPsq = 'Required';
+    }
+  }
+
+  setErrors(newErrors);
+  const isValid = Object.keys(newErrors).length === 0;
 
   if (!isValid) {
     alert('Please fill all mandatory fields before proceeding');
@@ -511,6 +762,11 @@ const handleSavePositionSection = () => {
 /* SUBMIT */
 
 const submit = async()=>{
+
+if (!isSectionSaved) {
+  alert('Please save the position details section before submitting');
+  return;
+}
 
 try{
 
@@ -794,7 +1050,10 @@ className="input"
 <div className="col-span-2 space-y-3">
 
   <div
-    onClick={() => setShowAdditionalPositions(true)}
+    onClick={() => {
+      setShowAdditionalPositions(true);
+      setIsSectionSaved(false);
+    }}
     className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer bg-gradient-to-br from-gray-50 to-gray-100 hover:border-emerald-500 transition"
   >
     <p className="text-gray-600 text-sm">
@@ -809,18 +1068,246 @@ className="input"
     </button>
   </div>
 
-  {/* ✅ SAVE BUTTON (RIGHT ALIGNED) */}
-  <div className="flex justify-end">
-    <button
-      type="button"
-      onClick={handleSavePositionSection}
-      className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-    >
-      Save & Continue
-    </button>
-  </div>
-
 </div>
+
+{showAdditionalPositions && (
+  <div className="col-span-2 space-y-4 rounded-lg border border-gray-200 p-4">
+
+    <div>
+      <h3 className="font-medium">
+        Additional Positions (If more than one position is required)
+      </h3>
+      <p className="mt-1 text-sm text-gray-500">
+        Fill every field, upload JD and PSQ, then click Add before continuing.
+      </p>
+      {errors.additionalPositions && (
+        <p className="mt-2 text-xs text-red-500">{errors.additionalPositions}</p>
+      )}
+    </div>
+
+    <div className="grid grid-cols-6 gap-3">
+
+      <div>
+        <select
+          value={newChild.level}
+          onChange={(e)=>{
+            setNewChild({...newChild,level:e.target.value});
+            setIsSectionSaved(false);
+          }}
+          className="input"
+        >
+          <option value="">Level</option>
+          {LEVEL_OPTIONS.map(l=><option key={l}>{l}</option>)}
+        </select>
+        {errors.newChildLevel && (
+          <p className="mt-1 text-xs text-red-500">{errors.newChildLevel}</p>
+        )}
+      </div>
+
+      <div>
+        <input
+          type="number"
+          placeholder="Openings"
+          value={newChild.openings}
+          onChange={(e)=>{
+            const value = Number(e.target.value);
+
+            setNewChild({...newChild,openings:value});
+            setIsSectionSaved(false);
+
+            if(newChild.requestType === 'BACKFILL'){
+              setBackfillList(
+                Array.from({ length: value || 1 }, () => ({
+                  employeeId:'',
+                  employeeName:''
+                }))
+              );
+              setActiveBackfillIndex(-1);
+            }
+          }}
+          className="input"
+        />
+        {errors.newChildOpenings && (
+          <p className="mt-1 text-xs text-red-500">{errors.newChildOpenings}</p>
+        )}
+      </div>
+
+      <div>
+        <select
+          value={newChild.requestType || 'NEW'}
+          onChange={(e)=>{
+            const value = e.target.value as 'NEW' | 'BACKFILL';
+            setNewChild({...newChild,requestType:value});
+            setIsSectionSaved(false);
+
+            if(value === 'BACKFILL'){
+              const count = newChild.openings || 1;
+
+              setBackfillList(
+                Array.from({ length: count }, () => ({
+                  employeeId: '',
+                  employeeName: ''
+                }))
+              );
+
+              setActiveBackfillIndex(-1);
+            }
+          }}
+          className="input"
+        >
+          <option value="NEW">New</option>
+          <option value="BACKFILL">Backfill</option>
+        </select>
+        {errors.newChildRequestType && (
+          <p className="mt-1 text-xs text-red-500">{errors.newChildRequestType}</p>
+        )}
+      </div>
+
+      <div>
+        <div
+          onDragOver={(e)=>e.preventDefault()}
+          onDrop={(e)=>{
+            e.preventDefault();
+            const file = e.dataTransfer.files?.[0];
+            if(file && validateFile(file)){
+              setNewChild({...newChild,jdFile:file});
+              setIsSectionSaved(false);
+            }
+          }}
+          className="border-2 border-dashed rounded-lg p-3 text-center cursor-pointer bg-gray-50 hover:border-emerald-400"
+        >
+          {!newChild.jdFile ? (
+            <>
+              <p className="text-xs text-gray-500">Upload JD</p>
+
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={(e)=>{
+                  const file = e.target.files?.[0];
+                  if(file && validateFile(file)){
+                    setNewChild({...newChild,jdFile:file});
+                    setIsSectionSaved(false);
+                  }
+                }}
+                className="hidden"
+                id="childJDUpload"
+              />
+
+              <label
+                htmlFor="childJDUpload"
+                className="text-xs text-emerald-600 cursor-pointer"
+              >
+                Choose File
+              </label>
+            </>
+          ) : (
+            <div className="text-xs text-emerald-700 truncate">
+              {newChild.jdFile.name}
+            </div>
+          )}
+        </div>
+        {errors.newChildJd && (
+          <p className="mt-1 text-xs text-red-500">{errors.newChildJd}</p>
+        )}
+      </div>
+
+      <div>
+        <div
+          onDragOver={(e)=>e.preventDefault()}
+          onDrop={(e)=>{
+            e.preventDefault();
+            const file = e.dataTransfer.files?.[0];
+            if(file && validateFile(file)){
+              setNewChild({...newChild,psqFile:file});
+              setIsSectionSaved(false);
+            }
+          }}
+          className="border-2 border-dashed rounded-lg p-3 text-center cursor-pointer bg-gray-50 hover:border-blue-400"
+        >
+          {!newChild.psqFile ? (
+            <>
+              <p className="text-xs text-gray-500">Upload PSQ</p>
+
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={(e)=>{
+                  const file = e.target.files?.[0];
+                  if(file && validateFile(file)){
+                    setNewChild({...newChild,psqFile:file});
+                    setIsSectionSaved(false);
+                  }
+                }}
+                className="hidden"
+                id="childPSQUpload"
+              />
+
+              <label
+                htmlFor="childPSQUpload"
+                className="text-xs text-blue-600 cursor-pointer"
+              >
+                Choose File
+              </label>
+            </>
+          ) : (
+            <div className="text-xs text-blue-700 truncate">
+              {newChild.psqFile.name}
+            </div>
+          )}
+        </div>
+        {errors.newChildPsq && (
+          <p className="mt-1 text-xs text-red-500">{errors.newChildPsq}</p>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={addChildPosition}
+        className="bg-gray-700 text-white px-4 py-2 rounded"
+      >
+        Add
+      </button>
+
+    </div>
+
+    {childPositions.map((pos,index)=>(
+      <div
+        key={index}
+        className="border rounded p-3"
+      >
+        <div className="flex justify-between items-center">
+          <div className="text-sm">
+            <strong>{pos.level}</strong> - {pos.openings} openings
+            <br />
+            Request Type: <strong>{pos.requestType || 'NEW'}</strong>
+            {pos.jdFile && (
+              <>
+                <br />
+                <span className="text-emerald-600">JD: {pos.jdFile.name}</span>
+              </>
+            )}
+            {pos.psqFile && (
+              <>
+                <br />
+                <span className="text-blue-600">PSQ: {pos.psqFile.name}</span>
+              </>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={()=>removeChildPosition(index)}
+            className="text-red-500"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    ))}
+
+  </div>
+)}
 
 <Field label="Start Date">
 <input
@@ -998,7 +1485,7 @@ Only PDF, DOC, DOCX allowed
 
 {/* CHILD POSITIONS */}
 
-{showAdditionalPositions && (
+{false && showAdditionalPositions && (
   <div className="mt-6">
 
     <h3 className="font-medium mb-3">
@@ -1269,6 +1756,16 @@ className="w-full border rounded px-3 py-2"
 
 </div>
 
+<div className="flex justify-end">
+  <button
+    type="button"
+    onClick={handleSavePositionSection}
+    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+  >
+    Save & Continue
+  </button>
+</div>
+
 {/* JD */}
 
 
@@ -1277,26 +1774,56 @@ className="w-full border rounded px-3 py-2"
 
 {/* SKILLS */}
 
+{!isSectionSaved && (
+  <div className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+    Save the job position details section to continue with skills and interview rounds.
+  </div>
+)}
+
+{isSectionSaved && (
+<>
 <Section title="Enter or Update the Skills/Qualifications if Desired">
 
 <Grid>
 
 <Field label="Primary Skills">
-<input
-name="primarySkills"
-value={form.primarySkills}
-onChange={handleChange}
-className="input"
+<SkillInput
+skills={primarySkills}
+inputValue={primarySkillInput}
+onInputChange={setPrimarySkillInput}
+onAddSkill={(skill) => addSkill('primarySkills', skill)}
+onRemoveSkill={(skill) => removeSkill('primarySkills', skill)}
+suggestions={primarySkillSuggestions}
+onKeyDown={(event) =>
+  handleSkillKeyDown(
+    event,
+    'primarySkills',
+    primarySkillInput,
+    setPrimarySkillInput,
+  )
+}
+placeholder="Type a primary skill and press Enter"
 />
 </Field>
 
 
 <Field label="Secondary Skills">
-<input
-name="secondarySkills"
-value={form.secondarySkills}
-onChange={handleChange}
-className="input"
+<SkillInput
+skills={secondarySkills}
+inputValue={secondarySkillInput}
+onInputChange={setSecondarySkillInput}
+onAddSkill={(skill) => addSkill('secondarySkills', skill)}
+onRemoveSkill={(skill) => removeSkill('secondarySkills', skill)}
+suggestions={secondarySkillSuggestions}
+onKeyDown={(event) =>
+  handleSkillKeyDown(
+    event,
+    'secondarySkills',
+    secondarySkillInput,
+    setSecondarySkillInput,
+  )
+}
+placeholder="Type a secondary skill and press Enter"
 />
 </Field>
 
@@ -1444,6 +1971,8 @@ Add Panel
 
 
 </Section>
+ </>
+)}
 
 
 
@@ -1497,11 +2026,19 @@ placeholder="Employee ID"
 value={emp.employeeId}
 onChange={(e) => {
   const updated = [...backfillList];
-  updated[index].employeeId = e.target.value;
+  updated[index].employeeId = sanitizeEmployeeId(e.target.value);
   setBackfillList(updated);
 }}
+inputMode="numeric"
+maxLength={9}
 className="input mb-2 w-full"
 />
+
+{emp.employeeId && emp.employeeId.length < 9 && (
+  <p className="mb-2 text-xs text-red-500">
+    Employee ID must be exactly 9 digits.
+  </p>
+)}
 
 <input
 placeholder="Employee Name"
@@ -1541,7 +2078,13 @@ if (activeBackfillIndex === -1) {
   setActiveBackfillIndex(null);
 
 }}
-className="bg-emerald-600 text-white px-4 py-2 rounded"
+disabled={!isBackfillListValid}
+title={!isBackfillListValid ? 'Enter a 9-digit employee ID and employee name for every backfill entry' : undefined}
+className={`px-4 py-2 rounded text-white ${
+  isBackfillListValid
+    ? 'bg-emerald-600'
+    : 'cursor-not-allowed bg-gray-300'
+}`}
 >
 Save
 </button>
@@ -1600,4 +2143,72 @@ const Field=({label,children}:any)=>(
 {children}
 </div>
 
+);
+
+const SkillInput = ({
+  skills,
+  inputValue,
+  onInputChange,
+  onAddSkill,
+  onRemoveSkill,
+  suggestions,
+  onKeyDown,
+  placeholder,
+}: {
+  skills: string[];
+  inputValue: string;
+  onInputChange: (value: string) => void;
+  onAddSkill: (skill: string) => void;
+  onRemoveSkill: (skill: string) => void;
+  suggestions: string[];
+  onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
+  placeholder: string;
+}) => (
+  <div className="relative">
+    <div className="min-h-[50px] rounded-md border border-gray-300 bg-white px-3 py-2">
+      <div className="flex flex-wrap gap-2">
+        {skills.map((skill) => (
+          <span
+            key={skill}
+            className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700"
+          >
+            {skill}
+            <button
+              type="button"
+              onClick={() => onRemoveSkill(skill)}
+              className="text-emerald-700 hover:text-red-500"
+            >
+              x
+            </button>
+          </span>
+        ))}
+
+        <input
+          value={inputValue}
+          onChange={(event) => onInputChange(event.target.value)}
+          onKeyDown={onKeyDown}
+          className="min-w-[180px] flex-1 border-0 p-0 text-sm outline-none focus:ring-0"
+          placeholder={skills.length ? '' : placeholder}
+        />
+      </div>
+    </div>
+
+    {!!suggestions.length && (
+      <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg">
+        {suggestions.map((suggestion) => (
+          <button
+            key={suggestion}
+            type="button"
+            onClick={() => {
+              onAddSkill(suggestion);
+              onInputChange('');
+            }}
+            className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
 );

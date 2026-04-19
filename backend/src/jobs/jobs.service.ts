@@ -1,4 +1,4 @@
-﻿// src/jobs/jobs.service.ts
+// src/jobs/jobs.service.ts
 
 import {
   Injectable,
@@ -18,6 +18,7 @@ import {
   JobPosition,
   JobPositionStatus,
 } from './job-position.entity';
+import { MailService } from '../common/mail.service';
 
 @Injectable()
 export class JobsService {
@@ -43,6 +44,7 @@ export class JobsService {
     @InjectRepository(JobPosition)
     private readonly positionRepo: Repository<JobPosition>,
 
+    private readonly mailService: MailService,
   ) {}
 
   /* ======================================================
@@ -142,7 +144,7 @@ export class JobsService {
   ====================================================== */
 
   async createJob(data: any): Promise<Job> {
-  console.log('ðŸ”¥ CREATE JOB API HIT');
+  console.log('🔥 CREATE JOB API HIT');
 
   const { interviewRounds, positions, ...jobData } = data;
 
@@ -160,9 +162,10 @@ export class JobsService {
 
   try {
     savedJob = await this.jobRepo.save(jobEntity);
-    console.log('ðŸ”¥ JOB SAVED:', savedJob.id);
+    console.log('JOB SAVED:', savedJob.id);
+    await this.mailService.sendApprovalEmail(savedJob);
   } catch (error) {
-    console.error('âŒ JOB SAVE ERROR:', error);
+    console.error('❌ JOB SAVE ERROR:', error);
     throw error;
   }
 
@@ -259,17 +262,17 @@ async updateJob(jobId: number, data: any): Promise<Job> {
 
   const { interviewRounds, positions, ...jobData } = data;
 
-  // âœ… UPDATE MAIN JOB FIELDS
+  // ✅ UPDATE MAIN JOB FIELDS
   Object.assign(job, jobData);
   (job as any).currentNumberOfPositions = Number(
     jobData.numberOfPositions || 0,
   );
 
-  // ðŸ”¥ CRITICAL: RESET STATUS FOR APPROVAL
+  // 🔥 CRITICAL: RESET STATUS FOR APPROVAL
   job.status = JobStatus.PENDING_APPROVAL;
 
   await this.jobRepo.save(job);
- 
+  await this.mailService.sendApprovalEmail(job);
 
   /* ================= RESET POSITIONS ================= */
 
@@ -591,5 +594,6 @@ async getPositionPSQ(positionId: number) {
   return pos;
 }
 }
+
 
 
