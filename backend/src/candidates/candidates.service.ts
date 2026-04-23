@@ -52,6 +52,31 @@ export class CandidatesService {
     private readonly slotRepo: Repository<PartnerSlot>,
   ) {}
 
+  private normalizeEmail(email?: string | null) {
+    return (email || '').trim().toLowerCase();
+  }
+
+  private async getAssignedScreeningJobIds(email?: string | null) {
+    const panelEmail = this.normalizeEmail(email);
+    if (!panelEmail) return [];
+
+    const jobs = await this.jobRepo.find({
+      relations: ['interviewRounds', 'interviewRounds.panels'],
+    });
+
+    return jobs
+      .filter((job) =>
+        (job.interviewRounds || []).some(
+          (round) =>
+            (round.roundName || '').trim().toUpperCase() === 'SCREENING' &&
+            (round.panels || []).some(
+              (panel) => this.normalizeEmail(panel.email) === panelEmail,
+            ),
+        ),
+      )
+      .map((job) => job.id);
+  }
+
   /* =====================================================
      CREATE CANDIDATE
   ===================================================== */
@@ -67,6 +92,18 @@ export class CandidatesService {
 
     if (!vendor) {
       throw new NotFoundException('Vendor not found');
+    }
+
+    if (data.aadharNo?.trim()) {
+      const duplicateByAadhar = await this.candidateRepo.findOne({
+        where: { aadharNo: data.aadharNo.trim() },
+      });
+
+      if (duplicateByAadhar) {
+        throw new BadRequestException(
+          'Candidate with this Aadhaar number already exists',
+        );
+      }
     }
 
     let job: Job | null = null;
@@ -170,6 +207,10 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
 
     const candidate = this.candidateRepo.create({
       ...data,
+      aadharNo: data.aadharNo?.trim() || null,
+      gender: data.gender?.trim() || null,
+      education: data.education?.trim() || null,
+      videoLink: data.videoLink?.trim() || null,
       experience: Number(data.experience),
       noticePeriod: Number(data.noticePeriod || 0),
       resumePath,
@@ -192,6 +233,8 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
     user: any,
     feedback?: string,
     dropJustification?: string,
+    dateOfJoining?: string,
+    ytjJustification?: string,
   ) {
     const candidate = await this.candidateRepo.findOne({
       where: { id: candidateId },
@@ -211,6 +254,8 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
       user,
       feedback,
       dropJustification,
+      dateOfJoining,
+      ytjJustification,
     );
 
     await this.syncPositionAvailability(
@@ -222,9 +267,18 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
     candidate.status = nextStatus;
 
     if (nextStatus === CandidateStatus.DROPPED) {
-      candidate.dropJustification = dropJustification!.trim();
+      candidate.dropJustification = dropJustification?.trim() || null;
     } else {
       candidate.dropJustification = null;
+    }
+
+    if (nextStatus === CandidateStatus.YET_TO_JOIN) {
+      candidate.dateOfJoining = dateOfJoining || null;
+      candidate.ytjJustification = ytjJustification?.trim() || null;
+    }
+
+    if (nextStatus !== CandidateStatus.YET_TO_JOIN) {
+      candidate.ytjJustification = candidate.ytjJustification || null;
     }
 
     const savedCandidate = await this.candidateRepo.save(candidate);
@@ -244,6 +298,20 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
           vendor: { id: user.vendorId },
         },
         relations: ['job', 'position'],
+        order: { createdAt: 'DESC' },
+      });
+    }
+
+    if (user.role === 'PANEL') {
+      const jobIds = await this.getAssignedScreeningJobIds(user.email);
+
+      if (!jobIds.length) {
+        return [];
+      }
+
+      return this.candidateRepo.find({
+        where: jobIds.map((jobId) => ({ job: { id: jobId } })),
+        relations: ['vendor', 'job', 'position'],
         order: { createdAt: 'DESC' },
       });
     }
@@ -285,6 +353,13 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
       throw new BadRequestException(
         'Unauthorized',
       );
+    }
+
+    if (user.role === 'PANEL') {
+      const jobIds = await this.getAssignedScreeningJobIds(user.email);
+      if (!candidate.job || !jobIds.includes(candidate.job.id)) {
+        throw new BadRequestException('Unauthorized');
+      }
     }
 
     return candidate;
@@ -381,7 +456,7 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
         candidate.job.interviewRounds.length;
 
       if (interviewsCount === totalRounds - 1) {
-        candidate.status = CandidateStatus.SELECTED;
+        candidate.status = CandidateStatus.IDENTIFIED;
       } else {
         candidate.status = CandidateStatus.SCREENING;
       }
@@ -404,7 +479,7 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
   ) {
     const candidate = await this.candidateRepo.findOne({
       where: { id: candidateId },
-      relations: ['vendor'],
+      relations: ['vendor', 'job'],
     });
 
     if (!candidate) {
@@ -422,7 +497,59 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
       );
     }
 
+    if (user.role === 'PANEL') {
+      const jobIds = await this.getAssignedScreeningJobIds(user.email);
+      if (!candidate.job || !jobIds.includes(candidate.job.id)) {
+        throw new BadRequestException('Unauthorized');
+      }
+    }
+
     return candidate.resumePath;
+  }
+
+  async checkDuplicate(email?: string, phone?: string, aadharNo?: string) {
+    if (aadharNo?.trim()) {
+      const aadharMatch = await this.candidateRepo.findOne({
+        where: { aadharNo: aadharNo.trim() },
+      });
+
+      if (aadharMatch) {
+        return {
+          exists: true,
+          field: 'aadharNo',
+        };
+      }
+    }
+
+    if (email?.trim()) {
+      const emailMatch = await this.candidateRepo.findOne({
+        where: { email: email.trim() },
+      });
+
+      if (emailMatch) {
+        return {
+          exists: true,
+          field: 'email',
+        };
+      }
+    }
+
+    if (phone?.trim()) {
+      const phoneMatch = await this.candidateRepo.findOne({
+        where: { phone: phone.trim() },
+      });
+
+      if (phoneMatch) {
+        return {
+          exists: true,
+          field: 'phone',
+        };
+      }
+    }
+
+    return {
+      exists: false,
+    };
   }
 
   private async assertStatusChangeAllowed(
@@ -432,6 +559,8 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
     user: any,
     feedback?: string,
     dropJustification?: string,
+    dateOfJoining?: string,
+    ytjJustification?: string,
   ) {
     if (user.role === 'HIRING_MANAGER') {
       const allowedTransitions: Partial<
@@ -482,49 +611,62 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
         );
       }
 
-      if (this.stageRequiresAttendedInterview(currentStatus)) {
-        const attendedSlot = await this.slotRepo.findOne({
-          where: {
-            candidate: { id: candidateId },
-            attendanceStatus: SlotAttendanceStatus.ATTENDED,
-            hmFeedbackSubmitted: false,
-          },
-          order: { updatedAt: 'DESC' },
-        });
-
-        if (!attendedSlot) {
-          throw new BadRequestException(
-            'Hiring manager feedback can be submitted only after the vendor marks the candidate as interviewed',
-          );
-        }
-      }
-
       return;
     }
 
     if (user.role === 'VENDOR_MANAGER') {
       if (
         ![
+          CandidateStatus.IDENTIFIED,
           CandidateStatus.OPS_SELECTED,
+          CandidateStatus.SELECTED,
+          CandidateStatus.YET_TO_JOIN,
           CandidateStatus.ONBOARDED,
         ].includes(currentStatus)
       ) {
         throw new BadRequestException(
-          'Only Ops Selected or Onboarded candidates can be finalized',
+          'Only Identified, Yet to Join, or Onboarded candidates can be finalized',
         );
       }
 
       if (
-        ![CandidateStatus.ONBOARDED, CandidateStatus.DROPPED].includes(
-          nextStatus,
+        [CandidateStatus.IDENTIFIED, CandidateStatus.OPS_SELECTED, CandidateStatus.SELECTED].includes(
+          currentStatus,
         )
       ) {
-        throw new BadRequestException(
-          'Invalid vendor manager status transition',
-        );
+        if (nextStatus !== CandidateStatus.YET_TO_JOIN) {
+          throw new BadRequestException(
+            'Identified candidates can only be moved to Yet to Join',
+          );
+        }
+
+        if (!dateOfJoining) {
+          throw new BadRequestException('Date of joining is mandatory');
+        }
+
+        if (!ytjJustification?.trim()) {
+          throw new BadRequestException('YTJ justification is mandatory');
+        }
+
+        return;
+      }
+
+      if (currentStatus === CandidateStatus.YET_TO_JOIN) {
+        if (
+          ![CandidateStatus.ONBOARDED, CandidateStatus.DROPPED].includes(
+            nextStatus,
+          )
+        ) {
+          throw new BadRequestException(
+            'YTJ candidates can only be moved to Onboarded or Drop',
+          );
+        }
+
+        return;
       }
 
       if (
+        currentStatus === CandidateStatus.ONBOARDED &&
         nextStatus === CandidateStatus.DROPPED &&
         !dropJustification?.trim()
       ) {
@@ -543,7 +685,6 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
     nextStatus: CandidateStatus,
   ) {
     const occupiedStatuses = new Set<CandidateStatus>([
-      CandidateStatus.OPS_SELECTED,
       CandidateStatus.ONBOARDED,
     ]);
 
@@ -595,15 +736,6 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
     await this.jobRepo.save(job);
   }
 
-  private stageRequiresAttendedInterview(currentStatus: CandidateStatus) {
-    return [
-      CandidateStatus.SCREEN_SELECTED,
-      CandidateStatus.TECH,
-      CandidateStatus.TECH_SELECTED,
-      CandidateStatus.OPS,
-    ].includes(currentStatus);
-  }
-
   private async syncHmFeedbackSubmission(
     candidateId: number,
     user: any,
@@ -613,16 +745,16 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
       return;
     }
 
-    if (
-      ![
-        CandidateStatus.TECH_SELECTED,
-        CandidateStatus.TECH_REJECTED,
-        CandidateStatus.OPS_SELECTED,
-        CandidateStatus.OPS_REJECTED,
-      ].includes(nextStatus)
-    ) {
-      return;
-    }
+      if (
+        ![
+          CandidateStatus.TECH_SELECTED,
+          CandidateStatus.TECH_REJECTED,
+          CandidateStatus.OPS_SELECTED,
+          CandidateStatus.OPS_REJECTED,
+        ].includes(nextStatus)
+      ) {
+        return;
+      }
 
     const attendedSlot = await this.slotRepo.findOne({
       where: {

@@ -11,11 +11,12 @@ import {
   UseGuards,
   ParseIntPipe,
   UploadedFile,
+  UploadedFiles,
   UseInterceptors,
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 
@@ -42,8 +43,8 @@ export class JobsController {
   }
 
   @Get(':id')
-  getJob(@Param('id', ParseIntPipe) id: number) {
-    return this.jobsService.getJobById(id);
+  getJob(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.jobsService.getJobById(id, req.user);
   }
 
   /* ======================================================
@@ -142,7 +143,7 @@ updateVendorJobStatus(
   @Post(':id/jd')
   @Roles(UserRole.HIRING_MANAGER)
   @UseInterceptors(
-    FileInterceptor('jd', {
+    FilesInterceptor('jd', 10, {
       storage: diskStorage({
         destination: './uploads/jds',
         filename: (_, file, cb) => {
@@ -153,21 +154,31 @@ updateVendorJobStatus(
   )
   uploadJD(
     @Param('id', ParseIntPipe) id: number,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFiles() files: Express.Multer.File[],
   ) {
-    return this.jobsService.attachJD(id, file);
+    return this.jobsService.attachJD(id, files);
   }
 
   @Get(':id/jd/view')
   async viewJD(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
-    const job = await this.jobsService.getJD(id);
-    return res.sendFile(job.jdPath, { root: '.' });
+    const file = await this.jobsService.getJD(id);
+    return res.sendFile(file.path, { root: '.' });
   }
 
   @Get(':id/jd/download')
   async downloadJD(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
-    const job = await this.jobsService.getJD(id);
-    return res.download(job.jdPath, job.jdFileName);
+    const file = await this.jobsService.getJD(id);
+    return res.download(file.path, file.fileName);
+  }
+
+  @Get(':id/jd/download/:index')
+  async downloadJDByIndex(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('index', ParseIntPipe) index: number,
+    @Res() res: Response,
+  ) {
+    const file = await this.jobsService.getJD(id, index);
+    return res.download(file.path, file.fileName);
   }
 
   /* ================= PSQ HANDLING ================= */
@@ -175,7 +186,7 @@ updateVendorJobStatus(
 @Post(':id/psq')
 @Roles(UserRole.HIRING_MANAGER)
 @UseInterceptors(
-  FileInterceptor('psq', {
+  FilesInterceptor('psq', 10, {
     storage: diskStorage({
       destination: './uploads/psq',
       filename: (_, file, cb) => {
@@ -186,9 +197,9 @@ updateVendorJobStatus(
 )
 uploadPSQ(
   @Param('id', ParseIntPipe) id: number,
-  @UploadedFile() file: Express.Multer.File,
+  @UploadedFiles() files: Express.Multer.File[],
 ) {
-  return this.jobsService.attachPSQ(id, file);
+  return this.jobsService.attachPSQ(id, files);
 }
 
 @Get(':id/psq/view')
@@ -196,8 +207,8 @@ async viewPSQ(
   @Param('id', ParseIntPipe) id: number,
   @Res() res: Response,
 ) {
-  const job = await this.jobsService.getPSQ(id);
-  return res.sendFile(job.psqPath, { root: '.' });
+  const file = await this.jobsService.getPSQ(id);
+  return res.sendFile(file.path, { root: '.' });
 }
 
 @Get(':id/psq/download')
@@ -205,8 +216,18 @@ async downloadPSQ(
   @Param('id', ParseIntPipe) id: number,
   @Res() res: Response,
 ) {
-  const job = await this.jobsService.getPSQ(id);
-  return res.download(job.psqPath, job.psqFileName);
+  const file = await this.jobsService.getPSQ(id);
+  return res.download(file.path, file.fileName);
+}
+
+@Get(':id/psq/download/:index')
+async downloadPSQByIndex(
+  @Param('id', ParseIntPipe) id: number,
+  @Param('index', ParseIntPipe) index: number,
+  @Res() res: Response,
+) {
+  const file = await this.jobsService.getPSQ(id, index);
+  return res.download(file.path, file.fileName);
 }
 
 @Post('positions/:id/jd')

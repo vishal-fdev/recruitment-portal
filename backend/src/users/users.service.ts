@@ -26,6 +26,36 @@ export class UsersService implements OnModuleInit {
     .getOne();
 }
 
+  async ensureActiveUser(
+    email: string,
+    role: UserRole,
+  ): Promise<User> {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    let user = await this.userRepo.findOne({
+      where: { email: normalizedEmail },
+    });
+
+    if (!user) {
+      user = this.userRepo.create({
+        email: normalizedEmail,
+        role,
+        isActive: true,
+      });
+
+      return this.userRepo.save(user);
+    }
+
+    user.email = normalizedEmail;
+    user.isActive = true;
+
+    if (user.role === role) {
+      return this.userRepo.save(user);
+    }
+
+    return this.userRepo.save(user);
+  }
+
   /* ====================== */
   /* 🔒 SYSTEM USER SEEDING */
   /* ====================== */
@@ -36,7 +66,7 @@ export class UsersService implements OnModuleInit {
       role: UserRole;
     }[] = [
       {
-        email: 'vmemailtestt@gmail.com',
+        email: 'vendormanager@test.com',
         role: UserRole.VENDOR_MANAGER,
       },
       {
@@ -44,7 +74,7 @@ export class UsersService implements OnModuleInit {
         role: UserRole.HIRING_MANAGER,
       },
       {
-        email: 'thevishalrajj@gmail.com',
+        email: 'rishikesh.kumar@test.com', // ✅ UPDATED
         role: UserRole.VENDOR_MANAGER_HEAD,
       },
     ];

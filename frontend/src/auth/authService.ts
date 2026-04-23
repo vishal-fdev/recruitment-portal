@@ -4,7 +4,8 @@ export type UserRole =
   | 'VENDOR'
   | 'VENDOR_MANAGER'
   | 'VENDOR_MANAGER_HEAD'
-  | 'HIRING_MANAGER';
+  | 'HIRING_MANAGER'
+  | 'PANEL';
 
 class AuthService {
   login(token: string, role: UserRole) {

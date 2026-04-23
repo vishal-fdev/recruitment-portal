@@ -10,6 +10,8 @@ const colors: Record<string, string> = {
   SCREEN_REJECTED: 'bg-red-100 text-red-700',
   TECH_SELECTED: 'bg-emerald-100 text-emerald-700',
   TECH_REJECTED: 'bg-red-100 text-red-700',
+  IDENTIFIED: 'bg-green-100 text-green-700',
+  YET_TO_JOIN: 'bg-amber-100 text-amber-700',
   OPS_SELECTED: 'bg-green-100 text-green-700',
   OPS_REJECTED: 'bg-red-100 text-red-700',
   SELECTED: 'bg-green-100 text-green-700',
@@ -25,7 +27,7 @@ export default function StageBadge({ status }: Props) {
         colors[status] || 'bg-gray-200'
       }`}
     >
-      {status.replace('_', ' ')}
+      {status.replace(/_/g, ' ')}
     </span>
   );
 }

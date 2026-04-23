@@ -1,19 +1,19 @@
-import { NavLink } from "react-router-dom";
+import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Users,
   Briefcase,
+  BriefcaseBusiness,
+  LayoutDashboard,
   Layers,
-} from "lucide-react";
-import type { JSX } from "react/jsx-runtime";
-
-import sidebarLogo from "../assets/sidebar-logo.png";
+  Users,
+} from 'lucide-react';
+import type { JSX } from 'react/jsx-runtime';
 
 type Role =
-  | "VENDOR"
-  | "VENDOR_MANAGER"
-  | "VENDOR_MANAGER_HEAD"
-  | "HIRING_MANAGER";
+  | 'VENDOR'
+  | 'VENDOR_MANAGER'
+  | 'VENDOR_MANAGER_HEAD'
+  | 'HIRING_MANAGER'
+  | 'PANEL';
 
 interface SidebarProps {
   role: Role;
@@ -26,157 +26,146 @@ const navConfig: Record<
   { label: string; path: string; icon: JSX.Element }[]
 > = {
   VENDOR: [
-    { label: "Dashboard", path: "/vendor", icon: <LayoutDashboard size={18} /> },
-    { label: "Candidate Management", path: "/vendor/candidates", icon: <Users size={18} /> },
-    { label: "Interview Management", path: "/vendor/partner-slots", icon: <Layers size={18} /> },
+    { label: 'Dashboard', path: '/vendor', icon: <LayoutDashboard size={18} /> },
+    { label: 'Candidate Management', path: '/vendor/candidates', icon: <Users size={18} /> },
+    { label: 'Interview Management', path: '/vendor/partner-slots', icon: <Layers size={18} /> },
   ],
-
   VENDOR_MANAGER: [
-    { label: "Dashboard", path: "/vendor-manager", icon: <LayoutDashboard size={18} /> },
-    { label: "Candidate Management", path: "/vendor-manager/candidates", icon: <Users size={18} /> },
-    { label: "Interview Management", path: "/vendor-manager/partner-slots", icon: <Layers size={18} /> },
-    { label: "Jobs", path: "/vendor-manager/jobs", icon: <Briefcase size={18} /> },
-    { label: "Vendors", path: "/vendor-manager/vendors", icon: <Layers size={18} /> },
+    { label: 'Dashboard', path: '/vendor-manager', icon: <LayoutDashboard size={18} /> },
+    { label: 'Candidate Management', path: '/vendor-manager/candidates', icon: <Users size={18} /> },
+    { label: 'Interview Management', path: '/vendor-manager/partner-slots', icon: <Layers size={18} /> },
+    { label: 'Jobs', path: '/vendor-manager/jobs', icon: <Briefcase size={18} /> },
+    { label: 'Vendors', path: '/vendor-manager/vendors', icon: <Layers size={18} /> },
   ],
-
   VENDOR_MANAGER_HEAD: [
-    { label: "Dashboard", path: "/vendor-manager-head", icon: <LayoutDashboard size={18} /> },
-    { label: "Jobs", path: "/vendor-manager-head/jobs", icon: <Briefcase size={18} /> },
-    { label: "Interview Management", path: "/vendor-manager-head/partner-slots", icon: <Layers size={18} /> },
-    { label: "Vendors", path: "/vendor-manager-head/vendors", icon: <Layers size={18} /> },
+    { label: 'Dashboard', path: '/vendor-manager-head', icon: <LayoutDashboard size={18} /> },
+    { label: 'Jobs', path: '/vendor-manager-head/jobs', icon: <Briefcase size={18} /> },
+    { label: 'Interview Management', path: '/vendor-manager-head/partner-slots', icon: <Layers size={18} /> },
+    { label: 'Vendors', path: '/vendor-manager-head/vendors', icon: <Layers size={18} /> },
   ],
-
   HIRING_MANAGER: [
-    { label: "Dashboard", path: "/hiring-manager", icon: <LayoutDashboard size={18} /> },
-    { label: "Candidate Management", path: "/hiring-manager/candidates", icon: <Users size={18} /> },
-    { label: "Partner Slot Management", path: "/hiring-manager/partner-slots", icon: <Layers size={18} /> },
-    { label: "Job Requisitions", path: "/hiring-manager/jobs", icon: <Briefcase size={18} /> },
+    { label: 'Dashboard', path: '/hiring-manager', icon: <LayoutDashboard size={18} /> },
+    { label: 'Candidate Management', path: '/hiring-manager/candidates', icon: <Users size={18} /> },
+    { label: 'Partner Slot Management', path: '/hiring-manager/partner-slots', icon: <Layers size={18} /> },
+    { label: 'Job Requisitions', path: '/hiring-manager/jobs', icon: <Briefcase size={18} /> },
+  ],
+  PANEL: [
+    { label: 'Dashboard', path: '/panel', icon: <LayoutDashboard size={18} /> },
+    { label: 'Assigned Jobs', path: '/panel/jobs', icon: <Briefcase size={18} /> },
+    { label: 'Candidates', path: '/panel/candidates', icon: <Users size={18} /> },
   ],
 };
 
+const getUserDetails = () => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return { initials: 'U', name: 'Portal User', email: '' };
+    }
+
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const email = payload?.email || '';
+    const rawName = payload?.name || '';
+    const userPart = email.split('@')[0] || 'user';
+    const parts = rawName
+      ? rawName.split(/\s+/).filter(Boolean)
+      : userPart.split(/[._-]/).filter(Boolean);
+    const name =
+      rawName ||
+      parts
+        .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ') ||
+      'Portal User';
+    const initials =
+      parts
+        .slice(0, 2)
+        .map((part: string) => part[0]?.toUpperCase())
+        .join('') || 'U';
+
+    return { initials, name, email };
+  } catch {
+    return { initials: 'U', name: 'Portal User', email: '' };
+  }
+};
+
 const Sidebar = ({ role, expanded, onHover }: SidebarProps) => {
+  const user = getUserDetails();
+
   return (
     <aside
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
-      className={`
-        fixed top-0 left-0 h-screen z-50
-        bg-gradient-to-b from-[#0f172a] via-[#111827] to-[#0b1220]
-        text-white
-        transition-all duration-300 ease-in-out
-        shadow-2xl
-        ${expanded ? "w-64" : "w-20"}
-      `}
+      className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-white/10 bg-[#13192A] text-white transition-all duration-300 ${
+        expanded ? 'w-[280px]' : 'w-[88px]'
+      }`}
     >
-
-      {/* HEADER */}
-      <div className="h-20 flex items-center px-4 border-b border-white/10">
-
-        <div className="flex items-center gap-3">
-
-          {/* LOGO */}
-          <img
-            src={sidebarLogo}
-            alt="HPE"
-            className={`
-              transition-all duration-300 ease-in-out
-              hover:scale-105
-              ${expanded ? "h-12" : "h-12"}
-              object-contain
-            `}
-          />
-
-          {/* TEXT */}
-          {expanded && (
-            <div className="leading-tight transition-all duration-300">
-              <p className="text-lg font-semibold tracking-wide">
-                Epicenter
-              </p>
-              <p className="text-xs text-gray-400 tracking-wider">
-                HPE Recruitment
-              </p>
-            </div>
-          )}
-
+      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-5">
+        <div className="flex h-8 w-8 items-center justify-center rounded-[7px] bg-[#01A982] text-white">
+          <BriefcaseBusiness size={16} />
         </div>
-
+        <div
+          className={`overflow-hidden transition-all duration-300 ${
+            expanded ? 'max-w-[180px] opacity-100' : 'max-w-0 opacity-0'
+          }`}
+        >
+          <p className="text-sm font-semibold tracking-[-0.2px] text-white">Epicenter</p>
+          <p className="mt-0.5 text-[10px] text-white/30">HPE Recruitment</p>
+        </div>
       </div>
 
-      {/* MENU */}
-      <div className="px-4 mt-8">
-
-        {expanded && (
-          <p className="text-[11px] text-gray-500 uppercase tracking-[0.2em] mb-4">
-            Main Menu
-          </p>
-        )}
-
-        <nav className="space-y-3">
-
-          {navConfig[role].map((item, index) => {
-
-            const isDashboard = index === 0;
-
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={isDashboard}
-                className={({ isActive }) =>
-                  `
-                  group flex items-center gap-3 px-4 py-3
-                  rounded-xl
-                  transition-all duration-200
-                  ${
-                    isActive
-                      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                      : "text-gray-400 hover:text-white hover:bg-white/5"
-                  }
-                `
-                }
-              >
-
-                <div className="opacity-90 group-hover:opacity-100">
-                  {item.icon}
-                </div>
-
-                {expanded && (
-                  <span className="text-sm font-medium tracking-wide">
-                    {item.label}
-                  </span>
-                )}
-
-              </NavLink>
-            );
-          })}
-
-        </nav>
+      <div
+        className={`px-4 pt-[18px] text-[10px] font-medium uppercase tracking-[0.1em] text-white/20 transition-opacity duration-300 ${
+          expanded ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        Main Menu
       </div>
 
-      {/* USER CARD */}
-      <div className="absolute bottom-6 left-0 w-full px-4">
+      <nav className="mt-2 space-y-1 px-2">
+        {navConfig[role].map((item, index) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={index === 0}
+            className={({ isActive }) =>
+              `flex items-center rounded-md px-3 py-2.5 text-[13px] transition ${
+                isActive
+                  ? 'bg-[rgba(1,169,130,0.12)] text-[#01A982]'
+                  : 'text-white/50 hover:bg-white/5 hover:text-white/80'
+              } ${expanded ? 'gap-[9px] justify-start' : 'justify-center'}`
+            }
+          >
+            {item.icon}
+            <span
+              className={`overflow-hidden whitespace-nowrap transition-all duration-300 ${
+                expanded ? 'max-w-[180px] opacity-100' : 'max-w-0 opacity-0'
+              }`}
+            >
+              {item.label}
+            </span>
+          </NavLink>
+        ))}
+      </nav>
 
-        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-3 flex items-center gap-3">
-
-          <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center font-semibold text-white">
-            V
+      <div className="mt-auto border-t border-white/10 p-2">
+        <div
+          className={`flex items-center rounded-md px-3 py-2 ${
+            expanded ? 'gap-3' : 'justify-center'
+          }`}
+        >
+          <div className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-[#01A982] text-[11px] font-semibold text-white">
+            {user.initials}
           </div>
-
-          {expanded && (
-            <div className="text-xs">
-              <p className="font-medium text-white">
-                Vishal Raj K
-              </p>
-              <p className="text-gray-400 truncate max-w-[140px]">
-                vishal.raj-k-ext@hpe.com
-              </p>
-            </div>
-          )}
-
+          <div
+            className={`min-w-0 overflow-hidden transition-all duration-300 ${
+              expanded ? 'max-w-[180px] opacity-100' : 'max-w-0 opacity-0'
+            }`}
+          >
+            <p className="truncate text-xs font-medium text-white/80">{user.name}</p>
+            <p className="truncate text-[10px] text-white/30">{user.email}</p>
+          </div>
         </div>
-
       </div>
-
     </aside>
   );
 };

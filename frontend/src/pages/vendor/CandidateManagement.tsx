@@ -18,6 +18,8 @@ type CandidateStatus =
   | 'SCREEN_REJECTED'
   | 'TECH_SELECTED'
   | 'TECH_REJECTED'
+  | 'IDENTIFIED'
+  | 'YET_TO_JOIN'
   | 'OPS_SELECTED'
   | 'OPS_REJECTED'
   | 'ONBOARDED'
@@ -53,6 +55,12 @@ interface Job {
   currentNumberOfPositions?: number;
   jdFileName?: string;
   psqFileName?: string;
+  jdFiles?: {
+    fileName: string;
+  }[];
+  psqFiles?: {
+    fileName: string;
+  }[];
   positions?: {
     id: number;
     openings?: number;
@@ -74,6 +82,8 @@ const STATUS_LABELS: Record<CandidateStatus, string> = {
   SCREEN_REJECTED: 'Screen Reject',
   TECH_SELECTED: 'Tech Select',
   TECH_REJECTED: 'Tech Reject',
+  IDENTIFIED: 'Identified',
+  YET_TO_JOIN: 'YTJ',
   OPS_SELECTED: 'Ops Select',
   OPS_REJECTED: 'Ops Reject',
   ONBOARDED: 'Onboarded',
@@ -90,6 +100,8 @@ const STATUS_STYLES: Record<CandidateStatus, string> = {
   SCREEN_REJECTED: 'bg-rose-50 text-rose-600',
   TECH_SELECTED: 'bg-teal-100 text-teal-700',
   TECH_REJECTED: 'bg-rose-50 text-rose-600',
+  IDENTIFIED: 'bg-emerald-100 text-emerald-700',
+  YET_TO_JOIN: 'bg-amber-100 text-amber-700',
   OPS_SELECTED: 'bg-amber-100 text-amber-700',
   OPS_REJECTED: 'bg-rose-50 text-rose-600',
   ONBOARDED: 'bg-emerald-100 text-emerald-700',
@@ -158,7 +170,7 @@ const VendorCandidateManagement = () => {
       .filter((candidate) => {
         if (candidateStatusFilter !== 'ALL') {
           const normalizedStatus =
-            candidate.status === 'SELECTED' ? 'OPS_SELECTED' : candidate.status;
+            candidate.status === 'SELECTED' ? 'IDENTIFIED' : candidate.status;
           if (normalizedStatus !== candidateStatusFilter) {
             return false;
           }
@@ -215,10 +227,16 @@ const VendorCandidateManagement = () => {
     jobId: number,
     fileType: 'jd' | 'psq',
     fileName?: string,
+    fileIndex?: number,
   ) => {
     event.stopPropagation();
 
-    const response = await api.get(`/jobs/${jobId}/${fileType}/download`, {
+    const downloadPath =
+      typeof fileIndex === 'number'
+        ? `/jobs/${jobId}/${fileType}/download/${fileIndex}`
+        : `/jobs/${jobId}/${fileType}/download`;
+
+    const response = await api.get(downloadPath, {
       responseType: 'blob',
     });
 
@@ -334,6 +352,8 @@ const VendorCandidateManagement = () => {
                 <option value="SCREEN_REJECTED">Screen Reject</option>
                 <option value="TECH_SELECTED">Tech Select</option>
                 <option value="TECH_REJECTED">Tech Reject</option>
+                <option value="IDENTIFIED">Identified</option>
+                <option value="YET_TO_JOIN">YTJ</option>
                 <option value="OPS_SELECTED">Ops Select</option>
                 <option value="OPS_REJECTED">Ops Reject</option>
                 <option value="ONBOARDED">Onboarded</option>
@@ -495,41 +515,57 @@ const VendorCandidateManagement = () => {
                           </span>
                         </BodyCell>
                         <BodyCell>
-                          {job.jdFileName ? (
-                            <button
-                              type="button"
-                              onClick={(event) =>
-                                void handleFileDownload(
-                                  event,
-                                  job.id,
-                                  'jd',
-                                  job.jdFileName,
-                                )
-                              }
-                              className="font-medium text-emerald-600 hover:underline"
-                            >
-                              Download JD
-                            </button>
+                          {(job.jdFiles?.length || job.jdFileName) ? (
+                            <div className="flex flex-col items-center gap-1">
+                              {(job.jdFiles?.length ? job.jdFiles : [{ fileName: job.jdFileName! }]).map(
+                                (file, index) => (
+                                  <button
+                                    key={`jd-${job.id}-${file.fileName}-${index}`}
+                                    type="button"
+                                    onClick={(event) =>
+                                      void handleFileDownload(
+                                        event,
+                                        job.id,
+                                        'jd',
+                                        file.fileName,
+                                        job.jdFiles?.length ? index : undefined,
+                                      )
+                                    }
+                                    className="font-medium text-emerald-600 hover:underline"
+                                  >
+                                    {job.jdFiles?.length ? `Download JD ${index + 1}` : 'Download JD'}
+                                  </button>
+                                ),
+                              )}
+                            </div>
                           ) : (
                             '-'
                           )}
                         </BodyCell>
                         <BodyCell>
-                          {job.psqFileName ? (
-                            <button
-                              type="button"
-                              onClick={(event) =>
-                                void handleFileDownload(
-                                  event,
-                                  job.id,
-                                  'psq',
-                                  job.psqFileName,
-                                )
-                              }
-                              className="font-medium text-emerald-600 hover:underline"
-                            >
-                              Download PSQ
-                            </button>
+                          {(job.psqFiles?.length || job.psqFileName) ? (
+                            <div className="flex flex-col items-center gap-1">
+                              {(job.psqFiles?.length ? job.psqFiles : [{ fileName: job.psqFileName! }]).map(
+                                (file, index) => (
+                                  <button
+                                    key={`psq-${job.id}-${file.fileName}-${index}`}
+                                    type="button"
+                                    onClick={(event) =>
+                                      void handleFileDownload(
+                                        event,
+                                        job.id,
+                                        'psq',
+                                        file.fileName,
+                                        job.psqFiles?.length ? index : undefined,
+                                      )
+                                    }
+                                    className="font-medium text-emerald-600 hover:underline"
+                                  >
+                                    {job.psqFiles?.length ? `Download PSQ ${index + 1}` : 'Download PSQ'}
+                                  </button>
+                                ),
+                              )}
+                            </div>
                           ) : (
                             '-'
                           )}

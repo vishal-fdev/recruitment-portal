@@ -112,6 +112,9 @@ export class Job {
   @Column({ nullable: true })
   jdMimeType!: string;
 
+  @Column({ type: 'text', nullable: true })
+  jdFiles!: string;
+
   /* ================= PSQ ================= */
 
   @Column({ nullable: true })
@@ -122,6 +125,9 @@ export class Job {
 
   @Column({ nullable: true })
   psqMimeType!: string;
+
+  @Column({ type: 'text', nullable: true })
+  psqFiles!: string;
 
   /* ================= TIMESTAMP ================= */
 

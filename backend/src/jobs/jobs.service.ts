@@ -18,7 +18,15 @@ import {
   JobPosition,
   JobPositionStatus,
 } from './job-position.entity';
+import { UsersService } from '../users/users.service';
+import { UserRole } from '../users/user.entity';
 import { MailService } from '../common/mail.service';
+
+type StoredFileMeta = {
+  path: string;
+  fileName: string;
+  mimeType: string;
+};
 
 @Injectable()
 export class JobsService {
@@ -43,9 +51,119 @@ export class JobsService {
 
     @InjectRepository(JobPosition)
     private readonly positionRepo: Repository<JobPosition>,
-
+    private readonly usersService: UsersService,
     private readonly mailService: MailService,
   ) {}
+
+  private normalizeEmail(email?: string | null) {
+    return (email || '').trim().toLowerCase();
+  }
+
+  private getScreeningPanels(interviewRounds: any[] = []) {
+    return interviewRounds
+      .filter(
+        (round) =>
+          this.normalizeEmail(round?.roundName) === 'screening' ||
+          (round?.roundName || '').trim().toUpperCase() === 'SCREENING',
+      )
+      .flatMap((round) => round.panels || [])
+      .filter((panel) => this.normalizeEmail(panel?.email));
+  }
+
+  private async syncScreeningPanelUsers(interviewRounds: any[] = []) {
+    const uniqueEmails = new Set<string>();
+
+    for (const panel of this.getScreeningPanels(interviewRounds)) {
+      const email = this.normalizeEmail(panel.email);
+      if (!email || uniqueEmails.has(email)) continue;
+      uniqueEmails.add(email);
+      await this.usersService.ensureActiveUser(email, UserRole.PANEL);
+    }
+  }
+
+  private async notifyScreeningPanels(job: any) {
+    const notified = new Set<string>();
+
+    for (const round of job.interviewRounds || []) {
+      if ((round.roundName || '').trim().toUpperCase() !== 'SCREENING') {
+        continue;
+      }
+
+      for (const panel of round.panels || []) {
+        const email = this.normalizeEmail(panel.email);
+        if (!email || notified.has(email)) continue;
+        notified.add(email);
+        await this.mailService.sendPanelAssignmentEmail(panel, job);
+      }
+    }
+  }
+
+  private parseStoredFiles(value?: string | null): StoredFileMeta[] {
+    if (!value) return [];
+
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private buildStoredFiles(files: Express.Multer.File[] = []): StoredFileMeta[] {
+    return files.map((file) => ({
+      path: file.path,
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+    }));
+  }
+
+  private attachStoredFilesToJob(job: Job) {
+    return {
+      ...job,
+      jdFiles: this.parseStoredFiles(job.jdFiles),
+      psqFiles: this.parseStoredFiles(job.psqFiles),
+    };
+  }
+
+  private setPrimaryFileFields(
+    job: Job,
+    field: 'jd' | 'psq',
+    files: StoredFileMeta[],
+  ) {
+    const firstFile = files[0];
+
+    if (field === 'jd') {
+      job.jdPath = firstFile?.path || '';
+      job.jdFileName = firstFile?.fileName || '';
+      job.jdMimeType = firstFile?.mimeType || '';
+      job.jdFiles = files.length ? JSON.stringify(files) : '';
+      return;
+    }
+
+    job.psqPath = firstFile?.path || '';
+    job.psqFileName = firstFile?.fileName || '';
+    job.psqMimeType = firstFile?.mimeType || '';
+    job.psqFiles = files.length ? JSON.stringify(files) : '';
+  }
+
+  private getPositionCurrentOpenings(position: JobPosition) {
+    const typedPosition = position as JobPosition & {
+      currentOpenings?: number;
+    };
+
+    return Number(typedPosition.currentOpenings ?? position.openings ?? 0);
+  }
+
+  private setPositionCurrentOpenings(
+    position: JobPosition,
+    value: number,
+  ) {
+    const typedPosition = position as JobPosition & {
+      currentOpenings?: number;
+    };
+
+    typedPosition.currentOpenings = value;
+  }
 
   /* ======================================================
      ROLE BASED JOB LIST
@@ -88,15 +206,15 @@ export class JobsService {
           job.positions?.filter(
             (p) =>
               p.status === JobPositionStatus.OPEN &&
-              ((p as any).currentOpenings ?? p.openings) > 0,
+              this.getPositionCurrentOpenings(p) > 0,
           ) || [];
         const hasMainOpenings =
           Number(
-            (job as any).currentNumberOfPositions ?? job.numberOfPositions ?? 0,
+            job.currentNumberOfPositions ?? job.numberOfPositions ?? 0,
           ) > 0;
 
         return {
-          ...job,
+          ...this.attachStoredFilesToJob(job),
           positions: openPositions,
           hasMainOpenings,
         };
@@ -104,6 +222,29 @@ export class JobsService {
       .filter(
         (job) => job.positions.length > 0 || job.hasMainOpenings,
       );
+  }
+
+  /* ================= PANEL ================= */
+
+  if (user.role === 'PANEL') {
+    const panelEmail = this.normalizeEmail(user.email);
+
+    const jobs = await this.jobRepo.find({
+      relations: ['positions', 'interviewRounds', 'interviewRounds.panels'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return jobs
+      .filter((job) =>
+        (job.interviewRounds || []).some(
+          (round) =>
+            (round.roundName || '').trim().toUpperCase() === 'SCREENING' &&
+            (round.panels || []).some(
+              (panel) => this.normalizeEmail(panel.email) === panelEmail,
+            ),
+        ),
+      )
+      .map((job) => this.attachStoredFilesToJob(job));
   }
 
   /* ================= VENDOR MANAGER ================= */
@@ -124,7 +265,7 @@ export class JobsService {
   });
 
    return jobs.map((job) => ({
-    ...job,
+    ...this.attachStoredFilesToJob(job),
     positions: job.positions || [],
   }));
 }
@@ -136,7 +277,7 @@ export class JobsService {
     order: { createdAt: 'DESC' },
   });
 
-  return jobs;
+  return jobs.map((job) => this.attachStoredFilesToJob(job));
 }
 
   /* ======================================================
@@ -154,7 +295,7 @@ export class JobsService {
 
   jobEntity.status = JobStatus.PENDING_APPROVAL;
   jobEntity.isActive = true;
-  (jobEntity as any).currentNumberOfPositions = Number(
+  jobEntity.currentNumberOfPositions = Number(
     jobData.numberOfPositions || 0,
   );
 
@@ -162,8 +303,7 @@ export class JobsService {
 
   try {
     savedJob = await this.jobRepo.save(jobEntity);
-    console.log('JOB SAVED:', savedJob.id);
-    await this.mailService.sendApprovalEmail(savedJob);
+    console.log('🔥 JOB SAVED:', savedJob.id);
   } catch (error) {
     console.error('❌ JOB SAVE ERROR:', error);
     throw error;
@@ -173,10 +313,13 @@ export class JobsService {
 
   if (Array.isArray(positions) && positions.length) {
     for (const pos of positions) {
-      const positionEntity = this.positionRepo.create() as JobPosition;
+      const positionEntity = new JobPosition();
       positionEntity.level = pos.level;
       positionEntity.openings = Number(pos.openings || 0);
-      (positionEntity as any).currentOpenings = Number(pos.openings || 0);
+      this.setPositionCurrentOpenings(
+        positionEntity,
+        Number(pos.openings || 0),
+      );
       positionEntity.status = JobPositionStatus.OPEN;
       positionEntity.requestType = pos.requestType || 'NEW';
       positionEntity.backfillEmployeeId = pos.backfillEmployeeId || null;
@@ -190,6 +333,8 @@ export class JobsService {
   /* ================= INTERVIEW ================= */
 
   if (Array.isArray(interviewRounds)) {
+    await this.syncScreeningPanelUsers(interviewRounds);
+
     for (const round of interviewRounds) {
       const roundEntity = this.roundRepo.create({
         roundName: round.roundName,
@@ -212,8 +357,9 @@ export class JobsService {
       }
     }
   }
-
-  return this.getJobById(savedJob.id);
+  const hydratedJob = await this.getJobById(savedJob.id);
+  await this.notifyScreeningPanels(hydratedJob);
+  return hydratedJob;
 }
 
 
@@ -264,7 +410,7 @@ async updateJob(jobId: number, data: any): Promise<Job> {
 
   // ✅ UPDATE MAIN JOB FIELDS
   Object.assign(job, jobData);
-  (job as any).currentNumberOfPositions = Number(
+  job.currentNumberOfPositions = Number(
     jobData.numberOfPositions || 0,
   );
 
@@ -272,7 +418,7 @@ async updateJob(jobId: number, data: any): Promise<Job> {
   job.status = JobStatus.PENDING_APPROVAL;
 
   await this.jobRepo.save(job);
-  await this.mailService.sendApprovalEmail(job);
+ 
 
   /* ================= RESET POSITIONS ================= */
 
@@ -280,10 +426,10 @@ async updateJob(jobId: number, data: any): Promise<Job> {
 
   if (Array.isArray(positions)) {
     for (const pos of positions) {
-      const newPos = this.positionRepo.create() as JobPosition;
+      const newPos = new JobPosition();
       newPos.level = pos.level;
       newPos.openings = Number(pos.openings || 0);
-      (newPos as any).currentOpenings = Number(pos.openings || 0);
+      this.setPositionCurrentOpenings(newPos, Number(pos.openings || 0));
       newPos.status = JobPositionStatus.OPEN;
       newPos.requestType = pos.requestType || 'NEW';
       newPos.backfillEmployeeId = pos.backfillEmployeeId || null;
@@ -299,6 +445,8 @@ async updateJob(jobId: number, data: any): Promise<Job> {
   await this.roundRepo.delete({ job: { id: jobId } });
 
   if (Array.isArray(interviewRounds)) {
+    await this.syncScreeningPanelUsers(interviewRounds);
+
     for (const round of interviewRounds) {
       const roundEntity = this.roundRepo.create({
         roundName: round.roundName,
@@ -321,8 +469,9 @@ async updateJob(jobId: number, data: any): Promise<Job> {
       }
     }
   }
-
-  return this.getJobById(jobId);
+  const hydratedJob = await this.getJobById(jobId);
+  await this.notifyScreeningPanels(hydratedJob);
+  return hydratedJob;
 }
 
   /* ======================================================
@@ -373,7 +522,7 @@ async updateJob(jobId: number, data: any): Promise<Job> {
      GET JOB BY ID
   ====================================================== */
 
-  async getJobById(jobId: number): Promise<any> {
+  async getJobById(jobId: number, user?: any): Promise<any> {
     const job = await this.jobRepo.findOne({
       where: { id: jobId },
       relations: [
@@ -388,6 +537,21 @@ async updateJob(jobId: number, data: any): Promise<Job> {
 
     if (!job) {
       throw new NotFoundException('Job not found');
+    }
+
+    if (user?.role === 'PANEL') {
+      const panelEmail = this.normalizeEmail(user.email);
+      const hasAccess = (job.interviewRounds || []).some(
+        (round) =>
+          (round.roundName || '').trim().toUpperCase() === 'SCREENING' &&
+          (round.panels || []).some(
+            (panel) => this.normalizeEmail(panel.email) === panelEmail,
+          ),
+      );
+
+      if (!hasAccess) {
+        throw new NotFoundException('Job not found');
+      }
     }
 
     const allVendors = await this.vendorRepo.find({
@@ -407,7 +571,7 @@ async updateJob(jobId: number, data: any): Promise<Job> {
     });
 
     return {
-      ...job,
+      ...this.attachStoredFilesToJob(job),
       vendors,
     };
   }
@@ -454,7 +618,7 @@ async updateJob(jobId: number, data: any): Promise<Job> {
     if (!position)
       throw new NotFoundException('Position not found');
 
-    (position as any).currentOpenings = 0;
+    this.setPositionCurrentOpenings(position, 0);
     position.status = JobPositionStatus.CLOSED;
     await this.positionRepo.save(position);
     return { success: true };
@@ -482,23 +646,26 @@ async updateJob(jobId: number, data: any): Promise<Job> {
     return { success: true };
   }
 
-  async attachJD(jobId: number, file: Express.Multer.File) {
+  async attachJD(jobId: number, files: Express.Multer.File[]) {
     const job = await this.jobRepo.findOne({ where: { id: jobId } });
     if (!job) throw new NotFoundException('Job not found');
 
-    job.jdPath = file.path;
-    job.jdFileName = file.originalname;
-    job.jdMimeType = file.mimetype;
+    const existingFiles = this.parseStoredFiles(job.jdFiles);
+    const mergedFiles = [...existingFiles, ...this.buildStoredFiles(files)];
+    this.setPrimaryFileFields(job, 'jd', mergedFiles);
 
     return this.jobRepo.save(job);
   }
 
-  async getJD(jobId: number) {
+  async getJD(jobId: number, index = 0) {
     const job = await this.jobRepo.findOne({ where: { id: jobId } });
-    if (!job || !job.jdPath)
+    const files = job ? this.parseStoredFiles(job.jdFiles) : [];
+    const selectedFile = files[index] || files[0];
+
+    if (!job || !selectedFile)
       throw new NotFoundException('JD not found');
 
-    return job;
+    return selectedFile;
   }
 
   /* ======================================================
@@ -533,23 +700,26 @@ async updateVendorJobStatus(
    PSQ HANDLING (ADD BELOW getJD)
 ====================================================== */
 
-async attachPSQ(jobId: number, file: Express.Multer.File) {
+async attachPSQ(jobId: number, files: Express.Multer.File[]) {
   const job = await this.jobRepo.findOne({ where: { id: jobId } });
   if (!job) throw new NotFoundException('Job not found');
 
-  job.psqPath = file.path;
-  job.psqFileName = file.originalname;
-  job.psqMimeType = file.mimetype;
+  const existingFiles = this.parseStoredFiles(job.psqFiles);
+  const mergedFiles = [...existingFiles, ...this.buildStoredFiles(files)];
+  this.setPrimaryFileFields(job, 'psq', mergedFiles);
 
   return this.jobRepo.save(job);
 }
 
-async getPSQ(jobId: number) {
+async getPSQ(jobId: number, index = 0) {
   const job = await this.jobRepo.findOne({ where: { id: jobId } });
-  if (!job || !job.psqPath)
+  const files = job ? this.parseStoredFiles(job.psqFiles) : [];
+  const selectedFile = files[index] || files[0];
+
+  if (!job || !selectedFile)
     throw new NotFoundException('PSQ not found');
 
-  return job;
+  return selectedFile;
 }
 
 /* ======================================================
@@ -594,6 +764,3 @@ async getPositionPSQ(positionId: number) {
   return pos;
 }
 }
-
-
-

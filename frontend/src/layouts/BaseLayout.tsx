@@ -11,7 +11,8 @@ type Role =
   | "VENDOR"
   | "VENDOR_MANAGER"
   | "VENDOR_MANAGER_HEAD"
-  | "HIRING_MANAGER";
+  | "HIRING_MANAGER"
+  | "PANEL";
 
 const BaseLayout = () => {
 
@@ -42,7 +43,7 @@ const BaseLayout = () => {
       <div
         className={`
           flex flex-col flex-1 transition-all duration-300
-          ${sidebarExpanded ? "ml-64" : "ml-20"}
+          ${sidebarExpanded ? "ml-[280px]" : "ml-[88px]"}
         `}
       >
 

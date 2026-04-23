@@ -14,6 +14,7 @@ const normalizeRole = (role: string): UserRole => {
     case 'VENDOR_MANAGER':
     case 'VENDOR_MANAGER_HEAD':
     case 'HIRING_MANAGER':
+    case 'PANEL':
       return role;
     default:
       throw new Error('Invalid role received from backend');
@@ -40,6 +41,7 @@ const Login = () => {
     if (role === 'VENDOR') return '/vendor';
     if (role === 'VENDOR_MANAGER') return '/vendor-manager';
     if (role === 'VENDOR_MANAGER_HEAD') return '/vendor-manager-head';
+    if (role === 'PANEL') return '/panel';
     return '/hiring-manager';
   };
 

@@ -40,6 +40,12 @@ export interface JobPosition {
   backfillEmployeeName?: string;
 }
 
+export interface JobFile {
+  path: string;
+  fileName: string;
+  mimeType: string;
+}
+
 /* ===================== JOB RESPONSE TYPE ===================== */
 
 export interface Job {
@@ -61,9 +67,11 @@ export interface Job {
   createdAt: string;
 
   jdFileName?: string;
+  jdFiles?: JobFile[];
 
   // ✅ ADD THIS (PSQ support)
   psqFileName?: string;
+  psqFiles?: JobFile[];
 
   /* ===================== NEW UI FIELDS ===================== */
 
@@ -202,6 +210,9 @@ export const viewJD = (jobId: number) =>
 export const downloadJD = (jobId: number) =>
   `${import.meta.env.VITE_API_URL}/jobs/${jobId}/jd/download`;
 
+export const downloadJDByIndex = (jobId: number, index: number) =>
+  `${import.meta.env.VITE_API_URL}/jobs/${jobId}/jd/download/${index}`;
+
 /* ===================== PSQ FILE HANDLING (NEW) ===================== */
 
 export const viewPSQ = (jobId: number) =>
@@ -209,6 +220,9 @@ export const viewPSQ = (jobId: number) =>
 
 export const downloadPSQ = (jobId: number) =>
   `${import.meta.env.VITE_API_URL}/jobs/${jobId}/psq/download`;
+
+export const downloadPSQByIndex = (jobId: number, index: number) =>
+  `${import.meta.env.VITE_API_URL}/jobs/${jobId}/psq/download/${index}`;
 
 /* ===================== JOB TEMPLATE ===================== */
 

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Bar,
   BarChart,
@@ -11,289 +12,333 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import {
-  BriefcaseBusiness,
-  CircleDot,
-  Clock3,
-  TrendingUp,
-  UserRoundSearch,
-  Users,
-} from 'lucide-react';
-import type {
-  DashboardStats,
-  SubmissionStat,
-} from '../../services/dashboardService';
+import type { DashboardStats, SubmissionStat } from '../../services/dashboardService';
 import { getDashboardStats } from '../../services/dashboardService';
+import { getVendorCandidates } from '../../services/candidateService';
+import { getJobs, type Job } from '../../services/jobService';
 
-const CHART_COLORS = [
-  '#10b981',
-  '#6366f1',
-  '#ef4444',
-  '#14b8a6',
-  '#f59e0b',
-  '#22c55e',
-  '#06b6d4',
-  '#64748b',
-];
+type CandidateRecord = {
+  id: number;
+  name: string;
+  status: string;
+  job?: {
+    id: number;
+    title: string;
+  };
+  createdAt?: string;
+};
+
+const CHART_COLORS = ['#01A982', '#00C98D', '#7F77DD', '#EF9F27', '#E24B4A', '#378ADD'];
 
 const DashboardHome = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [candidates, setCandidates] = useState<CandidateRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadStats = async () => {
+    let mounted = true;
+
+    const loadData = async () => {
       try {
-        const data = await getDashboardStats();
-        setStats(data);
+        const [dashboardStats, vendorJobs, vendorCandidates] = await Promise.all([
+          getDashboardStats(),
+          getJobs(),
+          getVendorCandidates(),
+        ]);
+
+        if (!mounted) return;
+
+        setStats(dashboardStats);
+        setJobs(vendorJobs || []);
+        setCandidates(vendorCandidates || []);
       } catch (error) {
-        console.error('Failed to load dashboard stats', error);
+        console.error('Failed to load vendor dashboard', error);
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
-    void loadStats();
-    const intervalId = window.setInterval(() => {
-      void loadStats();
+    void loadData();
+    const interval = window.setInterval(() => {
+      void loadData();
     }, 30000);
 
-    return () => window.clearInterval(intervalId);
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+    };
   }, []);
-
-  const kpis = stats?.kpis ?? {};
-  const activeCandidates = Number(kpis.activeCandidates ?? 0);
-  const activeRequests = Number(kpis.openJobs ?? kpis.activeJobs ?? 0);
-  const submissions = Number(kpis.submissions ?? 0);
-  const activePartners = useMemo(() => {
-    if (!stats) return 0;
-    return activeCandidates > 0 || activeRequests > 0 || submissions > 0 ? 1 : 0;
-  }, [activeCandidates, activeRequests, stats, submissions]);
 
   const stageData = useMemo(
     () =>
       Object.entries(stats?.stageSummary ?? {})
-        .map(([name, value]) => ({
-          name: formatStageLabel(name),
+        .filter(([, value]) => Number(value) > 0)
+        .map(([status, value]) => ({
+          name: formatStageLabel(status),
           value: Number(value),
-        }))
-        .filter((item) => item.value > 0),
-    [stats?.stageSummary],
+          rawStatus: status,
+        })),
+    [stats],
   );
 
   const weeklySubmissions: SubmissionStat[] = stats?.submissionsByDate ?? [];
-  const barData = weeklySubmissions.map((item) => ({
-    label: item.label,
-    count: item.count,
-  }));
 
-  const totalWeeklySubmissions = weeklySubmissions.reduce(
-    (sum, item) => sum + Number(item.count),
-    0,
-  );
+  const candidatesSubmitted = candidates.length;
+  const assignedJobs = jobs.length;
+  const submittedThisWeek = weeklySubmissions.reduce((sum, item) => sum + Number(item.count), 0);
+  const jobsCreatedToday = jobs.filter((job) => isToday(job.createdAt)).length;
+  const interviewStatuses = ['SCREEN_SELECTED', 'TECH_SELECTED', 'IDENTIFIED', 'SELECTED', 'YET_TO_JOIN'];
+  const interviewCandidates = candidates.filter((candidate) => interviewStatuses.includes(candidate.status));
+  const interviewJobsCount = new Set(interviewCandidates.map((candidate) => candidate.job?.id).filter(Boolean)).size;
+  const offersPlaced = candidates.filter((candidate) => candidate.status === 'ONBOARDED').length;
+
+  const assignedJobsList = [...jobs]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 4);
+
+  const candidateLiveStatus = [...candidates]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
+    )
+    .slice(0, 4);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-[2.3rem] font-semibold text-slate-900">Dashboard</h1>
-        <p className="mt-2 text-base text-slate-600">
-          Overview of your recruitment metrics
-        </p>
+        <h1 className="text-[26px] font-semibold leading-tight text-[#0F172A]">
+          Vendor dashboard
+        </h1>
+        <div className="mt-2 flex items-center gap-2 text-[15px] text-[#6B7280]">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#96F7E4]" />
+          <span>Live recruitment activity</span>
+        </div>
       </div>
 
-      {loading ? (
-        <div className="rounded-3xl border border-white/70 bg-white/90 p-10 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-          <p className="text-sm text-slate-500">Loading dashboard...</p>
-        </div>
-      ) : (
-        <>
-          <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-            <MetricCard
-              title="Active Partners"
-              value={activePartners}
-              helper="Active partnerships"
-              helperClassName="text-emerald-500"
-              icon={
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-[#01a982]">
-                  <Users size={26} />
-                </div>
-              }
-            />
-            <MetricCard
-              title="Active Candidates"
-              value={activeCandidates}
-              helper="In pipeline"
-              helperClassName="text-blue-500"
-              icon={
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-blue-500">
-                  <UserRoundSearch size={26} />
-                </div>
-              }
-            />
-            <MetricCard
-              title="Active Requests"
-              value={activeRequests}
-              helper="Open positions"
-              helperClassName="text-violet-500"
-              icon={
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-violet-50 text-violet-500">
-                  <BriefcaseBusiness size={26} />
-                </div>
-              }
-            />
-          </section>
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          accent="#01A982"
+          title="ASSIGNED JOBS"
+          value={loading ? '...' : assignedJobs}
+          helper={`${jobsCreatedToday} new today`}
+          helperColor="text-[#01A982]"
+        />
+        <StatCard
+          accent="#3B82F6"
+          title="CANDIDATES SUBMITTED"
+          value={loading ? '...' : candidatesSubmitted}
+          helper={`${submittedThisWeek} this week`}
+          helperColor="text-[#01A982]"
+        />
+        <StatCard
+          accent="#7C6CF2"
+          title="IN INTERVIEW STAGE"
+          value={loading ? '...' : interviewCandidates.length}
+          helper={`Across ${interviewJobsCount} jobs`}
+          helperColor="text-[#94A3B8]"
+        />
+        <StatCard
+          accent="#F59E0B"
+          title="OFFERS / PLACED"
+          value={loading ? '...' : offersPlaced}
+          helper="This quarter"
+          helperColor="text-[#01A982]"
+        />
+      </section>
 
-          <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_1fr]">
-            <div className="overflow-hidden rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-              <div className="mb-6 flex items-center gap-2 text-slate-900">
-                <CircleDot size={18} className="text-[#01a982]" />
-                <h2 className="text-[1.6rem] font-semibold">Candidate Stage Summary</h2>
-              </div>
-
-              {stageData.length ? (
-                <div className="grid gap-4 xl:grid-cols-[1fr_280px] xl:items-center">
-                  <div className="h-[340px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={stageData}
-                          dataKey="value"
-                          nameKey="name"
-                          innerRadius={70}
-                          outerRadius={118}
-                          paddingAngle={3}
-                          stroke="white"
-                          strokeWidth={3}
-                        >
-                          {stageData.map((entry, index) => (
-                            <Cell
-                              key={`${entry.name}-${index}`}
-                              fill={CHART_COLORS[index % CHART_COLORS.length]}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{
-                            borderRadius: 14,
-                            borderColor: '#e2e8f0',
-                            boxShadow: '0 16px 40px rgba(15, 23, 42, 0.12)',
-                          }}
+      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_1fr]">
+        <DashboardCard title="Candidate stage summary">
+          {stageData.length ? (
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_220px]">
+              <div className="h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={stageData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={68}
+                      outerRadius={120}
+                      paddingAngle={3}
+                    >
+                      {stageData.map((entry, index) => (
+                        <Cell
+                          key={`${entry.name}-${index}`}
+                          fill={CHART_COLORS[index % CHART_COLORS.length]}
                         />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                    {stageData.map((item, index) => (
-                      <LegendItem
-                        key={item.name}
-                        color={CHART_COLORS[index % CHART_COLORS.length]}
-                        label={item.name}
-                        value={item.value}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <EmptyState message="No candidate stage data available yet." />
-              )}
-            </div>
-
-            <div className="overflow-hidden rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-              <div className="mb-6 flex items-center gap-2 text-slate-900">
-                <TrendingUp size={18} className="text-[#01a982]" />
-                <h2 className="text-[1.6rem] font-semibold">Weekly Profile Submissions</h2>
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-
-              {barData.length ? (
-                <>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={barData} barCategoryGap={30}>
-                        <CartesianGrid strokeDasharray="3 5" stroke="#e5e7eb" />
-                        <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 13 }} />
-                        <YAxis allowDecimals={false} tick={{ fill: '#64748b', fontSize: 13 }} />
-                        <Tooltip
-                          cursor={{ fill: 'rgba(1, 169, 130, 0.08)' }}
-                          contentStyle={{
-                            borderRadius: 14,
-                            borderColor: '#e2e8f0',
-                            boxShadow: '0 16px 40px rgba(15, 23, 42, 0.12)',
-                          }}
-                        />
-                        <Bar dataKey="count" fill="#01a982" radius={[8, 8, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+              <div className="flex flex-col justify-center gap-3">
+                {stageData.map((entry, index) => (
+                  <div key={entry.name} className="flex items-center gap-3">
+                    <span
+                      className="h-3 w-3 rounded-full"
+                      style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+                    />
+                    <span className="flex-1 text-sm text-[#475569]">{entry.name}</span>
+                    <span className="text-sm font-semibold text-[#0F172A]">{entry.value}</span>
                   </div>
-
-                  <div className="mt-5 rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                    Total submissions this week:{' '}
-                    <span className="font-semibold text-slate-900">
-                      {totalWeeklySubmissions}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <EmptyState message="No weekly submission data available yet." />
-              )}
+                ))}
+              </div>
             </div>
-          </section>
-        </>
-      )}
+          ) : (
+            <EmptyState message="No candidate stage data available yet." heightClassName="h-[320px]" />
+          )}
+        </DashboardCard>
+
+        <DashboardCard
+          title="Assigned jobs"
+          action={
+            <button
+              type="button"
+              onClick={() => navigate('/vendor/candidates')}
+              className="text-[13px] font-semibold text-[#01A982]"
+            >
+              View all
+            </button>
+          }
+        >
+          <div className="space-y-3">
+            {assignedJobsList.length ? (
+              assignedJobsList.map((job) => (
+                <div
+                  key={job.id}
+                  className="flex items-center gap-3 rounded-[18px] border border-black/5 bg-[#F8FAFC] px-4 py-4"
+                >
+                  <div className="min-w-[110px] text-[15px] text-[#7C8699]">{`JOB-${String(job.id).padStart(3, '0')}`}</div>
+                  <div className="flex-1">
+                    <div className="text-[16px] font-medium text-[#0F172A]">{job.title}</div>
+                  </div>
+                  <div className="min-w-[92px] text-[15px] text-[#94A3B8]">{job.location || '-'}</div>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/vendor/candidates')}
+                    className="rounded-[12px] bg-[#01A982] px-5 py-2 text-sm font-semibold text-white transition hover:shadow-md"
+                  >
+                    Submit
+                  </button>
+                </div>
+              ))
+            ) : (
+              <EmptyState message="No assigned jobs available." heightClassName="h-[320px]" />
+            )}
+          </div>
+        </DashboardCard>
+      </section>
+
+      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_1fr]">
+        <DashboardCard title="Weekly profile submissions">
+          {weeklySubmissions.length ? (
+            <div className="space-y-3">
+              <div className="h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={weeklySubmissions}>
+                    <CartesianGrid strokeDasharray="4 4" stroke="#E2E8F0" />
+                    <XAxis dataKey="label" tick={{ fill: '#64748B', fontSize: 12 }} />
+                    <YAxis allowDecimals={false} tick={{ fill: '#64748B', fontSize: 12 }} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#01A982" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="rounded-[14px] bg-[#F8FAFC] px-4 py-3 text-sm text-[#475569]">
+                Total submissions this week: <span className="font-semibold text-[#0F172A]">{submittedThisWeek}</span>
+              </div>
+            </div>
+          ) : (
+            <EmptyState message="No weekly submission data available yet." heightClassName="h-[320px]" />
+          )}
+        </DashboardCard>
+
+        <DashboardCard title="My candidates — live status">
+          <div className="space-y-3">
+            {candidateLiveStatus.length ? (
+              candidateLiveStatus.map((candidate) => (
+                <div
+                  key={candidate.id}
+                  className="flex items-center gap-4 rounded-[18px] border border-black/5 bg-white px-4 py-4 shadow-[0_1px_0_rgba(15,23,42,0.04)]"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F1F5F9] text-[16px] font-semibold uppercase text-[#6B7280]">
+                    {getInitials(candidate.name)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-[16px] font-medium text-[#0F172A]">{candidate.name}</div>
+                    <div className="text-[15px] text-[#94A3B8]">
+                      {candidate.job ? `JOB-${String(candidate.job.id).padStart(3, '0')}` : 'No job assigned'}
+                    </div>
+                  </div>
+                  <span className={`rounded-full px-4 py-2 text-sm font-medium ${getLiveStatusClass(candidate.status)}`}>
+                    {formatLiveStatus(candidate.status)}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <EmptyState message="No live candidate activity yet." heightClassName="h-[320px]" />
+            )}
+          </div>
+        </DashboardCard>
+      </section>
     </div>
   );
 };
 
-export default DashboardHome;
-
-const MetricCard = ({
+const StatCard = ({
   title,
   value,
   helper,
-  helperClassName,
-  icon,
+  helperColor,
+  accent,
 }: {
   title: string;
-  value: number;
+  value: number | string;
   helper: string;
-  helperClassName: string;
-  icon: ReactNode;
+  helperColor: string;
+  accent: string;
 }) => (
-  <div className="rounded-[26px] border border-white/70 bg-white/95 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_28px_70px_rgba(15,23,42,0.18)]">
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <p className="text-sm font-medium text-slate-700">{title}</p>
-        <p className="mt-2 text-[2.2rem] font-semibold leading-none text-slate-950">
-          {value}
-        </p>
-      </div>
-      {icon}
-    </div>
-
-    <div className={`mt-5 inline-flex items-center gap-2 text-sm ${helperClassName}`}>
-      <Clock3 size={14} />
-      <span>{helper}</span>
+  <div className="overflow-hidden rounded-[18px] border border-black/10 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.04)]">
+    <div className="h-1 w-full" style={{ backgroundColor: accent }} />
+    <div className="px-7 py-5">
+      <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">{title}</p>
+      <p className="mt-2 text-[42px] font-semibold leading-none tracking-[-0.03em] text-[#0F172A]">{value}</p>
+      <p className={`mt-3 text-[14px] ${helperColor}`}>{helper}</p>
     </div>
   </div>
 );
 
-const LegendItem = ({
-  color,
-  label,
-  value,
+const DashboardCard = ({
+  title,
+  children,
+  action,
 }: {
-  color: string;
-  label: string;
-  value: number;
+  title: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
 }) => (
-  <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
-    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
-    <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{label}</span>
-    <span className="text-sm font-semibold text-slate-900">({value})</span>
+  <div className="rounded-[22px] border border-black/10 bg-white px-7 py-6 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
+    <div className="mb-5 flex items-center justify-between gap-4">
+      <h2 className="text-[20px] font-semibold text-[#0F172A]">{title}</h2>
+      {action}
+    </div>
+    {children}
   </div>
 );
 
-const EmptyState = ({ message }: { message: string }) => (
-  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-14 text-center text-sm text-slate-400">
+const EmptyState = ({
+  message,
+  heightClassName,
+}: {
+  message: string;
+  heightClassName: string;
+}) => (
+  <div className={`flex items-center justify-center text-sm text-[#94A3B8] ${heightClassName}`}>
     {message}
   </div>
 );
@@ -303,3 +348,76 @@ const formatStageLabel = (value: string) =>
     .replace(/_/g, ' ')
     .toLowerCase()
     .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const formatLiveStatus = (status: string) => {
+  switch (status) {
+    case 'IDENTIFIED':
+      return 'Identified';
+    case 'SCREEN_SELECTED':
+      return 'Screen select';
+    case 'SCREEN_REJECTED':
+      return 'Screen reject';
+    case 'TECH_SELECTED':
+      return 'Tech select';
+    case 'TECH_REJECTED':
+      return 'Tech reject';
+    case 'OPS_SELECTED':
+      return 'Ops select';
+    case 'OPS_REJECTED':
+      return 'Ops reject';
+    case 'ONBOARDED':
+      return 'Onboarded';
+    case 'DROPPED':
+      return 'Drop';
+    case 'YET_TO_JOIN':
+      return 'YTJ';
+    default:
+      return formatStageLabel(status);
+  }
+};
+
+const getLiveStatusClass = (status: string) => {
+  switch (status) {
+    case 'OPS_SELECTED':
+    case 'IDENTIFIED':
+      return 'bg-[#EFE7FF] text-[#6D28D9]';
+    case 'SCREEN_SELECTED':
+    case 'TECH_SELECTED':
+      return 'bg-[#DDFBF2] text-[#0F766E]';
+    case 'SUBMITTED':
+      return 'bg-[#DBEAFE] text-[#1D4ED8]';
+    case 'SCREEN_REJECTED':
+    case 'TECH_REJECTED':
+    case 'OPS_REJECTED':
+    case 'DROPPED':
+      return 'bg-[#FEE2E2] text-[#B91C1C]';
+    case 'ONBOARDED':
+      return 'bg-[#DCFCE7] text-[#15803D]';
+    case 'YET_TO_JOIN':
+      return 'bg-[#FEF3C7] text-[#B45309]';
+    default:
+      return 'bg-[#F1F5F9] text-[#475569]';
+  }
+};
+
+const getInitials = (name: string) =>
+  name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
+const isToday = (value?: string) => {
+  if (!value) return false;
+  const date = new Date(value);
+  const now = new Date();
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  );
+};
+
+export default DashboardHome;

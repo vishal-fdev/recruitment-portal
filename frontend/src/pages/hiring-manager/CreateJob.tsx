@@ -18,9 +18,6 @@ interface InterviewRound {
 interface ChildPosition {
   level: string;
   openings: number;
-  jdFile?: File | null;
-  psqFile?: File | null;
-
   requestType?: 'NEW' | 'BACKFILL';
   backfillEmployeeId?: string;
   backfillEmployeeName?: string;
@@ -88,8 +85,8 @@ const { id } = useParams(); // jobId for edit
 const isEditMode = !!id;
 
 const [loading,setLoading] = useState(false);
-const [jdFile, setJdFile] = useState<File | null>(null);
-const [psqFile, setPsqFile] = useState<File | null>(null);
+const [jdFiles, setJdFiles] = useState<File[]>([]);
+const [psqFiles, setPsqFiles] = useState<File[]>([]);
 const [isDraggingPSQ, setIsDraggingPSQ] = useState(false);
 const [isDragging, setIsDragging] = useState(false);
 
@@ -135,8 +132,6 @@ const [activeBackfillIndex,setActiveBackfillIndex] = useState<number | null>(nul
 const [newChild,setNewChild] = useState<ChildPosition>({
   level:'',
   openings:1,
-  jdFile:null,
-  psqFile:null,
   requestType:'NEW',
   backfillEmployeeId:'',
   backfillEmployeeName:''
@@ -379,7 +374,7 @@ const isBackfillListValid =
   backfillList.length > 0 &&
   backfillList.every(
     (employee) =>
-      employee.employeeId.trim().length === 9 &&
+      employee.employeeId.trim().length > 0 &&
       employee.employeeName.trim().length > 0,
   );
 
@@ -433,14 +428,6 @@ if(name==='requestType'){
 
 
 
-const handleFileChange=(e:any)=>{
-
-if(e.target.files && e.target.files[0]){
-setJdFile(e.target.files[0]);
-}
-
-};
-
 const validateFile = (file: File) => {
   const allowedTypes = [
     'application/pdf',
@@ -456,13 +443,34 @@ const validateFile = (file: File) => {
   return true;
 };
 
+const getValidFiles = (files: FileList | File[]) =>
+  Array.from(files).filter((file) => validateFile(file));
+
+const mergeFiles = (currentFiles: File[], incomingFiles: File[]) => {
+  const seen = new Set(
+    currentFiles.map((file) => `${file.name}-${file.size}-${file.lastModified}`),
+  );
+
+  const uniqueIncoming = incomingFiles.filter((file) => {
+    const key = `${file.name}-${file.size}-${file.lastModified}`;
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+
+  return [...currentFiles, ...uniqueIncoming];
+};
+
 const handleDrop = (e: React.DragEvent) => {
   e.preventDefault();
   setIsDragging(false);
 
-  const file = e.dataTransfer.files?.[0];
-  if (file && validateFile(file)) {
-    setJdFile(file);
+  const files = getValidFiles(e.dataTransfer.files);
+  if (files.length) {
+    setJdFiles((prev) => mergeFiles(prev, files));
   }
 };
 
@@ -472,9 +480,9 @@ const handlePSQDrop = (e: React.DragEvent) => {
   e.preventDefault();
   setIsDraggingPSQ(false);
 
-  const file = e.dataTransfer.files?.[0];
-  if (file && validateFile(file)) {
-    setPsqFile(file);
+  const files = getValidFiles(e.dataTransfer.files);
+  if (files.length) {
+    setPsqFiles((prev) => mergeFiles(prev, files));
   }
 };
 
@@ -488,7 +496,7 @@ const handlePSQDragLeave = () => {
 };
 
 const removePSQ = () => {
-  setPsqFile(null);
+  setPsqFiles([]);
 };
 
 const handleDragOver = (e: React.DragEvent) => {
@@ -501,7 +509,7 @@ const handleDragLeave = () => {
 };
 
 const removeFile = () => {
-  setJdFile(null);
+  setJdFiles([]);
 };
 
 
@@ -517,9 +525,6 @@ if(!newChild.openings || newChild.openings < 1) {
   newErrors.newChildOpenings = 'Required';
 }
 if(!newChild.requestType) newErrors.newChildRequestType = 'Required';
-if(!newChild.jdFile) newErrors.newChildJd = 'Required';
-if(!newChild.psqFile) newErrors.newChildPsq = 'Required';
-
 if (Object.keys(newErrors).length > 0) {
   setErrors((prev: any) => ({ ...prev, ...newErrors }));
   alert('Please fill all additional position details before adding');
@@ -539,16 +544,12 @@ setErrors((prev: any) => ({
   newChildLevel: undefined,
   newChildOpenings: undefined,
   newChildRequestType: undefined,
-  newChildJd: undefined,
-  newChildPsq: undefined,
 }));
 setIsSectionSaved(false);
 
 setNewChild({
   level:'',
   openings:1,
-  jdFile:null,
-  psqFile:null,
   requestType:'NEW'
 });
 
@@ -560,16 +561,6 @@ setChildPositions(childPositions.filter((_,i)=>i!==index));
 setIsSectionSaved(false);
 };
 
-
-const handleChildJDChange=(index:number,file:File)=>{
-
-const updated=[...childPositions];
-
-updated[index].jdFile=file;
-
-setChildPositions(updated);
-
-};
 
 const handleChildRequestTypeChange = (index:number,value:'NEW'|'BACKFILL')=>{
   const updated=[...childPositions];
@@ -731,8 +722,6 @@ const handleSavePositionSection = () => {
     const hasDraftChild =
       !!newChild.level ||
       newChild.openings !== 1 ||
-      !!newChild.jdFile ||
-      !!newChild.psqFile ||
       newChild.requestType !== 'NEW' ||
       !!newChild.backfillEmployeeId ||
       !!newChild.backfillEmployeeName;
@@ -743,8 +732,6 @@ const handleSavePositionSection = () => {
         newErrors.newChildOpenings = 'Required';
       }
       if (!newChild.requestType) newErrors.newChildRequestType = 'Required';
-      if (!newChild.jdFile) newErrors.newChildJd = 'Required';
-      if (!newChild.psqFile) newErrors.newChildPsq = 'Required';
     }
   }
 
@@ -811,16 +798,16 @@ const jobId = isEditMode ? id : jobRes.data.id;
 
 /* JD upload same as before */
 
-if(jdFile){
+if(jdFiles.length){
 const fd=new FormData();
-fd.append('jd',jdFile);
+jdFiles.forEach((file) => fd.append('jd', file));
 await api.post(`/jobs/${jobId}/jd`,fd,{headers:{'Content-Type':'multipart/form-data'}});
 }
 
 // ✅ PSQ UPLOAD (ADD THIS BLOCK)
-if(psqFile){
+if(psqFiles.length){
   const fd = new FormData();
-  fd.append('psq', psqFile);
+  psqFiles.forEach((file) => fd.append('psq', file));
 
   await api.post(`/jobs/${jobId}/psq`, fd, {
     headers: { 'Content-Type': 'multipart/form-data' }
@@ -835,36 +822,6 @@ try {
 } catch (err) {
   console.warn('Job fetch skipped (non-blocking)', err);
 }
-
-for (let i = 0; i < childPositions.length; i++) {
-
-  const pos = childPositions[i];
- const dbPos = positionsFromDB[i];
-if (!dbPos) continue;
-
-  // ✅ JD upload per position
-  if (pos.jdFile) {
-    const fd = new FormData();
-    fd.append('jd', pos.jdFile);
-
-    await api.post(`/jobs/positions/${dbPos.id}/jd`, fd, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-  }
-
-  // ✅ PSQ upload per position
-  if (pos.psqFile) {
-    const fd = new FormData();
-    fd.append('psq', pos.psqFile);
-
-    await api.post(`/jobs/positions/${dbPos.id}/psq`, fd, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-  
-  }
-
-}
-
 navigate('/hiring-manager/jobs');
 
 }catch{
@@ -884,6 +841,16 @@ setLoading(false);
 return(
 
 <div className="w-full px-8 space-y-8">
+
+<div>
+  <button
+    type="button"
+    onClick={() => navigate('/hiring-manager/jobs')}
+    className="rounded-md bg-[#01a982] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:shadow-md"
+  >
+    ← Back
+  </button>
+</div>
 
 
 <div className="bg-white shadow rounded p-6">
@@ -1078,14 +1045,14 @@ className="input"
         Additional Positions (If more than one position is required)
       </h3>
       <p className="mt-1 text-sm text-gray-500">
-        Fill every field, upload JD and PSQ, then click Add before continuing.
+        Fill every field, then click Add before continuing.
       </p>
       {errors.additionalPositions && (
         <p className="mt-2 text-xs text-red-500">{errors.additionalPositions}</p>
       )}
     </div>
 
-    <div className="grid grid-cols-6 gap-3">
+    <div className="grid grid-cols-4 gap-3">
 
       <div>
         <select
@@ -1163,104 +1130,6 @@ className="input"
         )}
       </div>
 
-      <div>
-        <div
-          onDragOver={(e)=>e.preventDefault()}
-          onDrop={(e)=>{
-            e.preventDefault();
-            const file = e.dataTransfer.files?.[0];
-            if(file && validateFile(file)){
-              setNewChild({...newChild,jdFile:file});
-              setIsSectionSaved(false);
-            }
-          }}
-          className="border-2 border-dashed rounded-lg p-3 text-center cursor-pointer bg-gray-50 hover:border-emerald-400"
-        >
-          {!newChild.jdFile ? (
-            <>
-              <p className="text-xs text-gray-500">Upload JD</p>
-
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={(e)=>{
-                  const file = e.target.files?.[0];
-                  if(file && validateFile(file)){
-                    setNewChild({...newChild,jdFile:file});
-                    setIsSectionSaved(false);
-                  }
-                }}
-                className="hidden"
-                id="childJDUpload"
-              />
-
-              <label
-                htmlFor="childJDUpload"
-                className="text-xs text-emerald-600 cursor-pointer"
-              >
-                Choose File
-              </label>
-            </>
-          ) : (
-            <div className="text-xs text-emerald-700 truncate">
-              {newChild.jdFile.name}
-            </div>
-          )}
-        </div>
-        {errors.newChildJd && (
-          <p className="mt-1 text-xs text-red-500">{errors.newChildJd}</p>
-        )}
-      </div>
-
-      <div>
-        <div
-          onDragOver={(e)=>e.preventDefault()}
-          onDrop={(e)=>{
-            e.preventDefault();
-            const file = e.dataTransfer.files?.[0];
-            if(file && validateFile(file)){
-              setNewChild({...newChild,psqFile:file});
-              setIsSectionSaved(false);
-            }
-          }}
-          className="border-2 border-dashed rounded-lg p-3 text-center cursor-pointer bg-gray-50 hover:border-blue-400"
-        >
-          {!newChild.psqFile ? (
-            <>
-              <p className="text-xs text-gray-500">Upload PSQ</p>
-
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={(e)=>{
-                  const file = e.target.files?.[0];
-                  if(file && validateFile(file)){
-                    setNewChild({...newChild,psqFile:file});
-                    setIsSectionSaved(false);
-                  }
-                }}
-                className="hidden"
-                id="childPSQUpload"
-              />
-
-              <label
-                htmlFor="childPSQUpload"
-                className="text-xs text-blue-600 cursor-pointer"
-              >
-                Choose File
-              </label>
-            </>
-          ) : (
-            <div className="text-xs text-blue-700 truncate">
-              {newChild.psqFile.name}
-            </div>
-          )}
-        </div>
-        {errors.newChildPsq && (
-          <p className="mt-1 text-xs text-red-500">{errors.newChildPsq}</p>
-        )}
-      </div>
-
       <button
         type="button"
         onClick={addChildPosition}
@@ -1281,18 +1150,6 @@ className="input"
             <strong>{pos.level}</strong> - {pos.openings} openings
             <br />
             Request Type: <strong>{pos.requestType || 'NEW'}</strong>
-            {pos.jdFile && (
-              <>
-                <br />
-                <span className="text-emerald-600">JD: {pos.jdFile.name}</span>
-              </>
-            )}
-            {pos.psqFile && (
-              <>
-                <br />
-                <span className="text-blue-600">PSQ: {pos.psqFile.name}</span>
-              </>
-            )}
           </div>
 
           <button
@@ -1364,7 +1221,7 @@ className="input"
   ${isDragging ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300 bg-gray-50'}`}
 >
 
-  {!jdFile ? (
+  {!jdFiles.length ? (
     <>
       <p className="text-gray-600">
         Drag & drop JD here or click to upload
@@ -1372,11 +1229,12 @@ className="input"
 
       <input
         type="file"
+        multiple
         accept=".pdf,.doc,.docx"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file && validateFile(file)) {
-            setJdFile(file);
+          const files = e.target.files ? getValidFiles(e.target.files) : [];
+          if (files.length) {
+            setJdFiles((prev) => mergeFiles(prev, files));
           }
         }}
         className="hidden"
@@ -1391,20 +1249,35 @@ className="input"
       </label>
     </>
   ) : (
-    <div className="flex items-center justify-between bg-white p-3 rounded shadow">
+    <div className="space-y-2">
+      {jdFiles.map((file, index) => (
+        <div
+          key={`${file.name}-${file.size}-${file.lastModified}`}
+          className="flex items-center justify-between bg-white p-3 rounded shadow"
+        >
+          <div className="text-sm text-emerald-700 truncate">
+            📄 {file.name}
+          </div>
 
-      <div className="text-sm text-emerald-700 truncate">
-        📄 {jdFile.name}
-      </div>
+          <button
+            type="button"
+            onClick={() =>
+              setJdFiles((prev) => prev.filter((_, fileIndex) => fileIndex !== index))
+            }
+            className="text-red-500 hover:text-red-700 text-sm"
+          >
+            Remove
+          </button>
+        </div>
+      ))}
 
       <button
         type="button"
         onClick={removeFile}
-        className="text-red-500 hover:text-red-700 text-sm"
+        className="text-sm font-medium text-red-500 hover:text-red-700"
       >
-        Remove
+        Remove All
       </button>
-
     </div>
   )}
 
@@ -1426,7 +1299,7 @@ Only PDF, DOC, DOCX allowed
   ${isDraggingPSQ ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'}`}
 >
 
-  {!psqFile ? (
+  {!psqFiles.length ? (
     <>
       <p className="text-gray-600">
         Drag & drop PSQ here or click to upload
@@ -1434,11 +1307,12 @@ Only PDF, DOC, DOCX allowed
 
       <input
         type="file"
+        multiple
         accept=".pdf,.doc,.docx"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file && validateFile(file)) {
-            setPsqFile(file);
+          const files = e.target.files ? getValidFiles(e.target.files) : [];
+          if (files.length) {
+            setPsqFiles((prev) => mergeFiles(prev, files));
           }
         }}
         className="hidden"
@@ -1453,20 +1327,35 @@ Only PDF, DOC, DOCX allowed
       </label>
     </>
   ) : (
-    <div className="flex items-center justify-between bg-white p-3 rounded shadow">
+    <div className="space-y-2">
+      {psqFiles.map((file, index) => (
+        <div
+          key={`${file.name}-${file.size}-${file.lastModified}`}
+          className="flex items-center justify-between bg-white p-3 rounded shadow"
+        >
+          <div className="text-sm text-blue-700 truncate">
+            📄 {file.name}
+          </div>
 
-      <div className="text-sm text-blue-700 truncate">
-        📄 {psqFile.name}
-      </div>
+          <button
+            type="button"
+            onClick={() =>
+              setPsqFiles((prev) => prev.filter((_, fileIndex) => fileIndex !== index))
+            }
+            className="text-red-500 hover:text-red-700 text-sm"
+          >
+            Remove
+          </button>
+        </div>
+      ))}
 
       <button
         type="button"
         onClick={removePSQ}
-        className="text-red-500 hover:text-red-700 text-sm"
+        className="text-sm font-medium text-red-500 hover:text-red-700"
       >
-        Remove
+        Remove All
       </button>
-
     </div>
   )}
 
@@ -1480,264 +1369,6 @@ Only PDF, DOC, DOCX allowed
 
 </Grid>
 </Section>
-
-
-
-{/* CHILD POSITIONS */}
-
-{false && showAdditionalPositions && (
-  <div className="mt-6">
-
-    <h3 className="font-medium mb-3">
-      Additional Positions (If more than one position is required)
-    </h3>
-
-    {/* ADD NEW CHILD */}
-<div className="grid grid-cols-6 gap-3">
-
-<select
-value={newChild.level}
-onChange={(e)=>setNewChild({...newChild,level:e.target.value})}
-className="input"
->
-<option value="">Level</option>
-{LEVEL_OPTIONS.map(l=><option key={l}>{l}</option>)}
-</select>
-
-<input
-type="number"
-placeholder="Openings"
-value={newChild.openings}
-onChange={(e)=>{
-  const value = Number(e.target.value);
-
-  setNewChild({...newChild,openings:value});
-
-  if(newChild.requestType === 'BACKFILL'){
-    setBackfillList(
-      Array.from({ length: value || 1 }, () => ({
-        employeeId:'',
-        employeeName:''
-      }))
-    );
-    setActiveBackfillIndex(-1);
-  }
-}}
-className="input"
-/>
-
-{/* REQUEST TYPE */}
-<select
-value={newChild.requestType || 'NEW'}
-onChange={(e)=>{
-  const value = e.target.value as 'NEW' | 'BACKFILL';
-  setNewChild({...newChild,requestType:value});
-
-  if(value === 'BACKFILL'){
-  const count = newChild.openings || 1;
-
-  setBackfillList(
-    Array.from({ length: count }, () => ({
-      employeeId: '',
-      employeeName: ''
-    }))
-  );
-
-  setActiveBackfillIndex(-1);
-}
-}}
-className="input"
->
-<option value="NEW">New</option>
-<option value="BACKFILL">Backfill</option>
-</select>
-
-{/* JD Upload */}
-<div 
-  onDragOver={(e)=>e.preventDefault()}
-  onDrop={(e)=>{
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if(file && validateFile(file)){
-      setNewChild({...newChild,jdFile:file});
-    }
-  }}
-  className="border-2 border-dashed rounded-lg p-3 text-center cursor-pointer bg-gray-50 hover:border-emerald-400"
->
-  {!newChild.jdFile ? (
-    <>
-      <p className="text-xs text-gray-500">📄 Upload JD</p>
-
-      <input
-        type="file"
-        accept=".pdf,.doc,.docx"
-        onChange={(e)=>{
-          const file = e.target.files?.[0];
-          if(file && validateFile(file)){
-            setNewChild({...newChild,jdFile:file});
-          }
-        }}
-        className="hidden"
-        id="childJDUpload"
-      />
-
-      <label
-        htmlFor="childJDUpload"
-        className="text-xs text-emerald-600 cursor-pointer"
-      >
-        Choose File
-      </label>
-    </>
-  ) : (
-    <div className="text-xs text-emerald-700 truncate">
-      📄 {newChild.jdFile.name}
-    </div>
-  )}
-</div>
-
-
-
-{/* PSQ Upload */}
-<div
-  onDragOver={(e)=>e.preventDefault()}
-  onDrop={(e)=>{
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if(file && validateFile(file)){
-      setNewChild({...newChild,psqFile:file});
-    }
-  }}
-  className="border-2 border-dashed rounded-lg p-3 text-center cursor-pointer bg-gray-50 hover:border-blue-400"
->
-  {!newChild.psqFile ? (
-    <>
-      <p className="text-xs text-gray-500">📝 Upload PSQ</p>
-
-      <input
-        type="file"
-        accept=".pdf,.doc,.docx"
-        onChange={(e)=>{
-          const file = e.target.files?.[0];
-          if(file && validateFile(file)){
-            setNewChild({...newChild,psqFile:file});
-          }
-        }}
-        className="hidden"
-        id="childPSQUpload"
-      />
-
-      <label
-        htmlFor="childPSQUpload"
-        className="text-xs text-blue-600 cursor-pointer"
-      >
-        Choose File
-      </label>
-    </>
-  ) : (
-    <div className="text-xs text-blue-700 truncate">
-      📝 {newChild.psqFile.name}
-    </div>
-  )}
-</div>
-
-
-<button
-onClick={()=>{
-  let updatedChild = {...newChild};
-
-  // attach backfill data if exists
-  if(newChild.requestType === 'BACKFILL'){
-  updatedChild.backfillEmployeeId = JSON.stringify(backfillList);
-}
-
-  setChildPositions([...childPositions,updatedChild]);
-
-  // reset
-  setNewChild({
-  level:'',
-  openings:1,
-  jdFile:null,
-  psqFile:null,
-  requestType:'NEW'
-});
-
-  setBackfill({employeeId:'',employeeName:''});
-}}
-className="bg-gray-700 text-white px-4 py-2 rounded"
->
-Add
-</button>
-
-</div>
-
-{/* CHILD LIST (READ ONLY) */}
-{childPositions.map((pos,index)=>(
-
-<div
-key={index}
-className="mt-3 border p-3 rounded"
->
-
-<div className="flex justify-between items-center">
-
-<div className="text-sm">
-
-<strong>{pos.level}</strong> — {pos.openings} openings
-
-<br/>
-
-Request Type: <strong>{pos.requestType || 'NEW'}</strong>
-
-{pos.requestType === 'BACKFILL' && pos.backfillEmployeeId && (
-  <>
-    <br/>
-    {JSON.parse(pos.backfillEmployeeId).map((emp:any, i:number) => (
-      <div key={i} className="text-emerald-600">
-        Employee {i+1}: {emp.employeeId} — {emp.employeeName}
-      </div>
-    ))}
-  </>
-)}
-
-
-<br/>
-
-{pos.jdFile && (
-<>
-  <br/>
-  <span className="text-emerald-600">
-    📄 JD: {pos.jdFile.name}
-  </span>
-</>
-)}
-
-{pos.psqFile && (
-<>
-  <br/>
-  <span className="text-blue-600">
-    📄 PSQ: {pos.psqFile.name}
-  </span>
-</>
-)}
-
-</div>
-
-<button
-onClick={()=>removeChildPosition(index)}
-className="text-red-500"
->
-Remove
-</button>
-
-</div>
-
-</div>
-
-))}
-
-</div>
-)}
-
 {/* JD */}
 
 <div className="mt-4">
@@ -2034,12 +1665,6 @@ maxLength={9}
 className="input mb-2 w-full"
 />
 
-{emp.employeeId && emp.employeeId.length < 9 && (
-  <p className="mb-2 text-xs text-red-500">
-    Employee ID must be exactly 9 digits.
-  </p>
-)}
-
 <input
 placeholder="Employee Name"
 value={emp.employeeName}
@@ -2079,7 +1704,7 @@ if (activeBackfillIndex === -1) {
 
 }}
 disabled={!isBackfillListValid}
-title={!isBackfillListValid ? 'Enter a 9-digit employee ID and employee name for every backfill entry' : undefined}
+title={!isBackfillListValid ? 'Enter employee ID and employee name for every backfill entry' : undefined}
 className={`px-4 py-2 rounded text-white ${
   isBackfillListValid
     ? 'bg-emerald-600'

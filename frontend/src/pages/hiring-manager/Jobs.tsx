@@ -1,5 +1,3 @@
-// src/pages/hiring-manager/Jobs.tsx
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/api';
@@ -12,19 +10,20 @@ interface Job {
   level?: string;
   createdAt: string;
   status: string;
+  numberOfPositions?: number;
+  currentNumberOfPositions?: number;
 }
 
 const HMJobs = () => {
   const navigate = useNavigate();
   const role = authService.getRole();
-
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchJobs = async () => {
     try {
       const res = await api.get('/jobs');
-      setJobs(res.data);
+      setJobs(res.data || []);
     } catch {
       alert('Failed to load jobs');
     } finally {
@@ -33,143 +32,108 @@ const HMJobs = () => {
   };
 
   useEffect(() => {
-    fetchJobs();
+    void fetchJobs();
   }, []);
 
   return (
     <div className="space-y-6">
-
-      {/* HEADER */}
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-800">
-            Job Requisitions
-          </h1>
-          <p className="text-sm text-gray-500">
-            Create and manage job openings
-          </p>
+          <h1 className="text-2xl font-semibold text-gray-800">My job openings</h1>
+          <p className="text-sm text-gray-500">Create and manage job openings</p>
         </div>
 
         {role === 'HIRING_MANAGER' && (
           <button
             onClick={() => navigate('/hiring-manager/jobs/create')}
-            className="bg-emerald-600 text-white px-5 py-2 rounded shadow hover:bg-emerald-700 transition"
+            className="rounded-[14px] bg-[#01A982] px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(1,169,130,0.18)]"
           >
             + Create Job
           </button>
         )}
       </div>
 
-      {/* TABLE */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm text-center">
-          <thead className="bg-gray-50 text-gray-600">
-            <tr>
-              <th className="px-4 py-3">HRQ ID</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Level</th>
-              <th className="px-4 py-3">Location</th>
-              <th className="px-4 py-3">Assigned Date</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Action</th>
-            </tr>
-          </thead>
+      <div className="space-y-4">
+        {loading && <div className="rounded-[20px] bg-white p-8 shadow">Loading...</div>}
 
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={7} className="py-6 text-gray-500">
-                  Loading...
-                </td>
-              </tr>
-            )}
+        {!loading &&
+          jobs.map((job) => (
+            <button
+              key={job.id}
+              type="button"
+              onClick={() => navigate(`/hiring-manager/jobs/${job.id}`)}
+              className="w-full rounded-[24px] border border-black/8 bg-white p-6 text-left shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-sm font-medium text-[#01A982]">{`HRQ${job.id}`}</span>
+                    <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${getStatusChipClass(job.status)}`}>
+                      <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(job.status)}`} />
+                      {formatStatus(job.status)}
+                    </span>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-[#0F172A]">{job.title}</h2>
+                    <p className="mt-1 text-sm text-[#64748B]">
+                      {job.location} · Level {job.level || '-'}
+                    </p>
+                  </div>
+                </div>
 
-            {!loading &&
-              jobs.map((job) => (
-                <tr
-                  key={job.id}
-                  className="border-t hover:bg-gray-50 cursor-pointer transition"
-                  onClick={() =>
-                    navigate(`/hiring-manager/jobs/${job.id}`)
-                  }
-                >
-                  <td className="px-4 py-3 font-medium text-emerald-600">
-                    HRQ{job.id}
-                  </td>
+                {(job.status === 'PENDING_APPROVAL' || job.status === 'REJECTED') && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      navigate(`/hiring-manager/edit-job/${job.id}`);
+                    }}
+                    className="rounded-[12px] bg-[#01A982] px-4 py-2 text-sm font-semibold text-white"
+                  >
+                    Resubmit
+                  </button>
+                )}
+              </div>
 
-                  <td className="px-4 py-3 text-gray-700">
-                    {job.title}
-                  </td>
+              <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4">
+                <Info label="Assigned Date" value={new Date(job.createdAt).toLocaleDateString('en-IN')} />
+                <Info label="Total Positions" value={String(job.numberOfPositions ?? 0)} />
+                <Info label="Current Positions" value={String(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0)} />
+                <Info label="Status" value={formatStatus(job.status)} />
+              </div>
+            </button>
+          ))}
 
-                  <td className="px-4 py-3 text-gray-700">
-                    {job.level || '—'}
-                  </td>
-
-                  <td className="px-4 py-3 text-gray-700">
-                    {job.location}
-                  </td>
-
-                  <td className="px-4 py-3 text-gray-700">
-                    {new Date(job.createdAt).toLocaleDateString('en-IN')}
-                  </td>
-
-                  <td className="px-4 py-3">
-                    <div className="flex justify-center">
-                      <StatusBadge status={job.status} />
-                    </div>
-                  </td>
-
-                  {/* ✅ FIXED EDIT BUTTON LOGIC */}
-                  <td className="px-4 py-3">
-                    {(job.status === 'PENDING_APPROVAL' || job.status === 'REJECTED') && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/hiring-manager/edit-job/${job.id}`);
-                        }}
-                        className="text-blue-600 hover:text-blue-800 font-semibold"
-                      >
-                        Edit
-                      </button>
-                    )}
-                  </td>
-
-                </tr>
-              ))}
-          </tbody>
-        </table>
+        {!loading && jobs.length === 0 && (
+          <div className="rounded-[20px] bg-white p-10 text-center text-sm text-gray-500 shadow">No jobs found.</div>
+        )}
       </div>
     </div>
   );
 };
 
-export default HMJobs;
+const Info = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-[16px] bg-[#F8FAFC] px-4 py-3">
+    <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[#94A3B8]">{label}</div>
+    <div className="mt-1 text-sm font-medium text-[#0F172A]">{value}</div>
+  </div>
+);
 
-/* ================= STATUS BADGE ================= */
+const formatStatus = (status: string) =>
+  status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 
-const StatusBadge = ({ status }: { status: string }) => {
-  let styles = '';
-
-  switch (status) {
-    case 'PENDING_APPROVAL':
-      styles = 'bg-yellow-100 text-yellow-700';
-      break;
-    case 'APPROVED':
-      styles = 'bg-green-100 text-green-700';
-      break;
-    case 'REJECTED':
-      styles = 'bg-red-100 text-red-700';
-      break;
-    case 'CLOSED':
-      styles = 'bg-gray-200 text-gray-600';
-      break;
-    default:
-      styles = 'bg-indigo-100 text-indigo-700';
-  }
-
-  return (
-    <span className={`px-3 py-1 rounded-full text-xs font-medium ${styles}`}>
-      {status.replace('_', ' ')}
-    </span>
-  );
+const getStatusDotClass = (status: string) => {
+  if (status === 'APPROVED') return 'bg-[#01A982]';
+  if (status === 'REJECTED') return 'bg-[#EF4444]';
+  if (status === 'PENDING_APPROVAL') return 'bg-[#F59E0B]';
+  return 'bg-[#94A3B8]';
 };
+
+const getStatusChipClass = (status: string) => {
+  if (status === 'APPROVED') return 'bg-[#DDFBF2] text-[#0F766E]';
+  if (status === 'REJECTED') return 'bg-[#FEE2E2] text-[#B91C1C]';
+  if (status === 'PENDING_APPROVAL') return 'bg-[#FEF3C7] text-[#B45309]';
+  return 'bg-[#E5E7EB] text-[#64748B]';
+};
+
+export default HMJobs;

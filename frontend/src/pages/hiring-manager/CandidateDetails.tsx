@@ -7,6 +7,7 @@ import {
   Clock3,
   FileText,
   IdCard,
+  Link2,
   Mail,
   MapPin,
   Phone,
@@ -16,7 +17,6 @@ import {
 import api from '../../api/api';
 import StageBadge from '../../components/StageBadge';
 import { authService } from '../../auth/authService';
-import { getPartnerSlots, type PartnerSlot } from '../../services/partnerSlotService';
 
 type CandidateStatus =
   | 'SUBMITTED'
@@ -24,6 +24,8 @@ type CandidateStatus =
   | 'SCREEN_REJECTED'
   | 'TECH_SELECTED'
   | 'TECH_REJECTED'
+  | 'IDENTIFIED'
+  | 'YET_TO_JOIN'
   | 'OPS_SELECTED'
   | 'OPS_REJECTED'
   | 'ONBOARDED'
@@ -39,7 +41,6 @@ const HM_FLOW: CandidateStatus[] = [
   'SUBMITTED',
   'SCREEN_SELECTED',
   'TECH_SELECTED',
-  'OPS_SELECTED',
 ];
 
 const LEGACY_FLOW_MAP: Partial<Record<CandidateStatus, CandidateStatus>> = {
@@ -47,7 +48,7 @@ const LEGACY_FLOW_MAP: Partial<Record<CandidateStatus, CandidateStatus>> = {
   SCREENING: 'SUBMITTED',
   TECH: 'SCREEN_SELECTED',
   OPS: 'TECH_SELECTED',
-  SELECTED: 'OPS_SELECTED',
+  SELECTED: 'IDENTIFIED',
 };
 
 const ROUND_COLORS = [
@@ -61,13 +62,18 @@ const CandidateDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const role = authService.getRole();
+  const pathname = window.location.pathname;
+  const today = new Date().toLocaleDateString('en-CA');
 
   const [candidate, setCandidate] = useState<any>(null);
   const [feedback, setFeedback] = useState('');
   const [showRejectBox, setShowRejectBox] = useState(false);
   const [showDropBox, setShowDropBox] = useState(false);
+  const [showYtjBox, setShowYtjBox] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hmSlotGateMessage, setHmSlotGateMessage] = useState('');
+  const [ytjDateOfJoining, setYtjDateOfJoining] = useState('');
+  const [ytjJustification, setYtjJustification] = useState('');
 
   const backRoute = useMemo(() => {
     const pathname = window.location.pathname;
@@ -88,6 +94,10 @@ const CandidateDetails = () => {
       return '/hiring-manager/candidates';
     }
 
+    if (pathname.startsWith('/panel/')) {
+      return '/panel/candidates';
+    }
+
     switch (role) {
       case 'VENDOR':
         return '/vendor/candidates';
@@ -95,6 +105,8 @@ const CandidateDetails = () => {
         return '/vendor-manager/candidates';
       case 'VENDOR_MANAGER_HEAD':
         return '/vendor-manager-head/jobs';
+      case 'PANEL':
+        return '/panel/candidates';
       default:
         return '/hiring-manager/candidates';
     }
@@ -110,33 +122,8 @@ const CandidateDetails = () => {
     const res = await api.get(`/candidates/${candidateId}`);
     setCandidate(res.data);
 
-    if (role === 'HIRING_MANAGER') {
-      const slotData = await getPartnerSlots();
-      const relevantSlots = slotData.filter(
-        (slot: PartnerSlot) => slot.candidate?.id === Number(candidateId),
-      );
-
-      const needsInterviewCompletion = ['SCREEN_SELECTED', 'TECH', 'TECH_SELECTED', 'OPS'].includes(
-        res.data.status,
-      );
-
-      if (!needsInterviewCompletion) {
-        setHmSlotGateMessage('');
-        return;
-      }
-
-      const attendedSlotReady = relevantSlots.some(
-        (slot) =>
-          slot.status === 'CLOSED' &&
-          slot.attendanceStatus === 'ATTENDED' &&
-          !slot.hmFeedbackSubmitted,
-      );
-
-      setHmSlotGateMessage(
-        attendedSlotReady
-          ? ''
-          : 'Hiring manager feedback will unlock after the vendor marks this candidate as interviewed in Partner Slot Management.',
-      );
+    if (pathname.startsWith('/hiring-manager/')) {
+      setHmSlotGateMessage('');
     }
   };
 
@@ -153,24 +140,50 @@ const CandidateDetails = () => {
   );
 
   const nextStage =
-    currentStageIndex >= 0 ? HM_FLOW[currentStageIndex + 1] : null;
+    normalizedStatus === 'TECH_SELECTED'
+      ? 'OPS_SELECTED'
+      : currentStageIndex >= 0
+        ? HM_FLOW[currentStageIndex + 1]
+        : null;
 
   const hmFinalStatuses: CandidateStatus[] = [
     'SCREEN_REJECTED',
     'TECH_REJECTED',
     'OPS_REJECTED',
     'OPS_SELECTED',
+    'IDENTIFIED',
+    'YET_TO_JOIN',
     'ONBOARDED',
     'DROPPED',
     'REJECTED',
     'SELECTED',
   ];
 
+  const isHiringManagerView = pathname.startsWith('/hiring-manager/');
+  const isVendorManagerView = pathname.startsWith('/vendor-manager/');
   const isFinalForHm = hmFinalStatuses.includes(candidate.status);
-  const canHmEdit = role === 'HIRING_MANAGER' && !isFinalForHm && !hmSlotGateMessage;
+  const canHmEdit = isHiringManagerView && !isFinalForHm && !hmSlotGateMessage;
   const canVmFinalize =
-    role === 'VENDOR_MANAGER' &&
-    ['OPS_SELECTED', 'SELECTED', 'ONBOARDED'].includes(candidate.status);
+    isVendorManagerView &&
+    ['IDENTIFIED', 'OPS_SELECTED', 'SELECTED', 'YET_TO_JOIN', 'ONBOARDED'].includes(candidate.status);
+
+  const hmSelectLabel =
+    normalizedStatus === 'SUBMITTED'
+      ? 'Screen Select'
+      : normalizedStatus === 'SCREEN_SELECTED'
+        ? 'Tech Select'
+        : normalizedStatus === 'TECH_SELECTED'
+          ? 'Ops Select'
+          : 'Select';
+
+  const hmRejectLabel =
+    normalizedStatus === 'SUBMITTED'
+      ? 'Screen Reject'
+      : normalizedStatus === 'SCREEN_SELECTED'
+        ? 'Tech Reject'
+        : normalizedStatus === 'TECH_SELECTED'
+          ? 'Ops Reject'
+          : 'Reject';
 
   const submitHmDecision = async (decision: 'SELECT' | 'REJECT') => {
     let status: CandidateStatus | null = null;
@@ -207,9 +220,20 @@ const CandidateDetails = () => {
   };
 
   const submitVendorManagerDecision = async (
-    status: 'ONBOARDED' | 'DROPPED',
+    status: 'YET_TO_JOIN' | 'ONBOARDED' | 'DROPPED',
   ) => {
-    if (status === 'DROPPED' && !feedback.trim()) {
+    if (status === 'YET_TO_JOIN') {
+      if (!ytjDateOfJoining) {
+        alert('DOJ is required');
+        return;
+      }
+      if (!ytjJustification.trim()) {
+        alert('YTJ justification is mandatory');
+        return;
+      }
+    }
+
+    if (status === 'DROPPED' && candidate.status !== 'YET_TO_JOIN' && !feedback.trim()) {
       alert('Drop justification is mandatory');
       return;
     }
@@ -219,10 +243,15 @@ const CandidateDetails = () => {
     await api.patch(`/candidates/${candidate.id}/status`, {
       status,
       dropJustification: feedback,
+      dateOfJoining: ytjDateOfJoining,
+      ytjJustification,
     });
 
     await loadCandidate(candidate.id);
     setFeedback('');
+    setYtjDateOfJoining('');
+    setYtjJustification('');
+    setShowYtjBox(false);
     setShowDropBox(false);
     setLoading(false);
   };
@@ -303,6 +332,11 @@ const CandidateDetails = () => {
                   label: 'Phone',
                   value: candidate.phone,
                 },
+                {
+                  icon: <IdCard size={13} />,
+                  label: 'Aadhaar No',
+                  value: candidate.aadharNo || '-',
+                },
               ]}
             />
 
@@ -322,6 +356,11 @@ const CandidateDetails = () => {
                   icon: <Building2 size={13} />,
                   label: 'Current Organization',
                   value: candidate.currentOrg || '-',
+                },
+                {
+                  icon: <Briefcase size={13} />,
+                  label: 'Education',
+                  value: candidate.education || '-',
                 },
               ]}
             />
@@ -351,6 +390,11 @@ const CandidateDetails = () => {
                       ? `${candidate.experience} years`
                       : '-',
                 },
+                {
+                  icon: <User size={13} />,
+                  label: 'Gender',
+                  value: candidate.gender || '-',
+                },
               ]}
             />
 
@@ -370,6 +414,23 @@ const CandidateDetails = () => {
                   icon: <Calendar size={13} />,
                   label: 'Date of Joining',
                   value: formatDate(candidate.dateOfJoining),
+                },
+                {
+                  icon: <Link2 size={13} />,
+                  label: 'Video Profile',
+                  value: candidate.videoLink ? (
+                    <a
+                      href={candidate.videoLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-slate-700 hover:text-emerald-600"
+                    >
+                      Open Video
+                      <Link2 size={12} />
+                    </a>
+                  ) : (
+                    '-'
+                  ),
                 },
               ]}
             />
@@ -532,6 +593,24 @@ const CandidateDetails = () => {
         </section>
       )}
 
+      {candidate.status === 'YET_TO_JOIN' && candidate.ytjJustification && (
+        <section className="rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-800">
+            Yet To Join Details
+          </h2>
+          <div className="mt-3 space-y-2 text-sm text-slate-700">
+            <p>
+              <span className="font-medium">DOJ:</span>{' '}
+              {formatDate(candidate.dateOfJoining)}
+            </p>
+            <p>
+              <span className="font-medium">Justification:</span>{' '}
+              {candidate.ytjJustification}
+            </p>
+          </div>
+        </section>
+      )}
+
       {(canHmEdit || canVmFinalize) && (
         <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-800">
@@ -550,14 +629,14 @@ const CandidateDetails = () => {
                   onClick={() => void submitHmDecision('SELECT')}
                   className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
                 >
-                  Select
+                  {hmSelectLabel}
                 </button>
                 <button
                   disabled={loading}
                   onClick={() => setShowRejectBox(true)}
                   className="rounded-lg bg-rose-500 px-5 py-2 text-sm font-medium text-white hover:bg-rose-600 disabled:opacity-60"
                 >
-                  Reject
+                  {hmRejectLabel}
                 </button>
               </div>
 
@@ -582,7 +661,7 @@ const CandidateDetails = () => {
             </div>
           )}
 
-          {role === 'HIRING_MANAGER' && hmSlotGateMessage && (
+          {isHiringManagerView && hmSlotGateMessage && (
             <p className="mt-4 text-sm text-amber-600">{hmSlotGateMessage}</p>
           )}
 
@@ -593,27 +672,71 @@ const CandidateDetails = () => {
               </p>
 
               <div className="flex flex-wrap gap-3">
-                <button
-                  disabled={loading}
-                  onClick={() => void submitVendorManagerDecision('ONBOARDED')}
-                  className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
-                >
-                  Onboarded
-                </button>
-                <button
-                  disabled={loading}
-                  onClick={() => setShowDropBox(true)}
-                  className="rounded-lg bg-rose-500 px-5 py-2 text-sm font-medium text-white hover:bg-rose-600 disabled:opacity-60"
-                >
-                  Drop
-                </button>
+                {['IDENTIFIED', 'OPS_SELECTED', 'SELECTED'].includes(candidate.status) && (
+                  <button
+                    disabled={loading}
+                    onClick={() => setShowYtjBox(true)}
+                    className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
+                  >
+                    Yet To Join
+                  </button>
+                )}
+
+                {candidate.status === 'YET_TO_JOIN' &&
+                  candidate.dateOfJoining === today && (
+                    <>
+                      <button
+                        disabled={loading}
+                        onClick={() => void submitVendorManagerDecision('ONBOARDED')}
+                        className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
+                      >
+                        Onboarded
+                      </button>
+                      <button
+                        disabled={loading}
+                        onClick={() => setShowDropBox(true)}
+                        className="rounded-lg bg-rose-500 px-5 py-2 text-sm font-medium text-white hover:bg-rose-600 disabled:opacity-60"
+                      >
+                        Drop
+                      </button>
+                    </>
+                  )}
               </div>
+
+              {showYtjBox && (
+                <div className="space-y-3">
+                  <input
+                    type="date"
+                    value={ytjDateOfJoining}
+                    onChange={(event) => setYtjDateOfJoining(event.target.value)}
+                    className="w-full rounded-xl border border-emerald-200 p-3 text-sm outline-none ring-0"
+                  />
+                  <textarea
+                    rows={4}
+                    placeholder="Enter YTJ justification..."
+                    value={ytjJustification}
+                    onChange={(event) => setYtjJustification(event.target.value)}
+                    className="w-full rounded-xl border border-emerald-200 p-3 text-sm outline-none ring-0"
+                  />
+                  <button
+                    disabled={loading}
+                    onClick={() => void submitVendorManagerDecision('YET_TO_JOIN')}
+                    className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    Save YTJ
+                  </button>
+                </div>
+              )}
 
               {showDropBox && (
                 <div className="space-y-3">
                   <textarea
                     rows={4}
-                    placeholder="Enter drop justification..."
+                    placeholder={
+                      candidate.status === 'YET_TO_JOIN'
+                        ? 'Enter drop note (optional)...'
+                        : 'Enter drop justification...'
+                    }
                     value={feedback}
                     onChange={(event) => setFeedback(event.target.value)}
                     className="w-full rounded-xl border border-emerald-200 p-3 text-sm outline-none ring-0"

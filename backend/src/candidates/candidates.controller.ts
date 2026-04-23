@@ -10,6 +10,7 @@ import {
   UploadedFile,
   Body,
   Req,
+  Query,
   Param,
   ParseIntPipe,
   Res,
@@ -66,9 +67,20 @@ export class CandidatesController {
     UserRole.VENDOR_MANAGER,
     UserRole.VENDOR_MANAGER_HEAD,
     UserRole.HIRING_MANAGER,
+    UserRole.PANEL,
   )
   findAll(@Req() req: any) {
     return this.service.getCandidatesForUser(req.user);
+  }
+
+  @Get('check-duplicate')
+  @Roles(UserRole.VENDOR)
+  checkDuplicate(
+    @Query('email') email?: string,
+    @Query('phone') phone?: string,
+    @Query('aadharNo') aadharNo?: string,
+  ) {
+    return this.service.checkDuplicate(email, phone, aadharNo);
   }
 
   /* ================= GET ONE ================= */
@@ -79,6 +91,7 @@ export class CandidatesController {
     UserRole.VENDOR_MANAGER,
     UserRole.VENDOR_MANAGER_HEAD,
     UserRole.HIRING_MANAGER,
+    UserRole.PANEL,
   )
   getOne(
     @Param('id', ParseIntPipe) id: number,
@@ -98,6 +111,8 @@ export class CandidatesController {
       status: CandidateStatus;
       feedback?: string;
       dropJustification?: string;
+      dateOfJoining?: string;
+      ytjJustification?: string;
     },
     @Req() req: any,
   ) {
@@ -107,6 +122,8 @@ export class CandidatesController {
       req.user,
       body.feedback,
       body.dropJustification,
+      body.dateOfJoining,
+      body.ytjJustification,
     );
   }
 
@@ -139,6 +156,7 @@ export class CandidatesController {
     UserRole.VENDOR_MANAGER,
     UserRole.VENDOR_MANAGER_HEAD,
     UserRole.HIRING_MANAGER,
+    UserRole.PANEL,
   )
   async resume(
     @Param('id', ParseIntPipe) id: number,

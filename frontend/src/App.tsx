@@ -42,6 +42,10 @@ import HMPartnerSlots from './pages/hiring-manager/PartnerSlots';
 import HMJobs from './pages/hiring-manager/Jobs';
 import CreateJob from './pages/hiring-manager/CreateJob';
 import HMJobDetails from './pages/hiring-manager/JobDetails';
+import PanelDashboard from './pages/panel/Dashboard';
+import PanelJobs from './pages/panel/Jobs';
+import PanelJobDetails from './pages/panel/JobDetails';
+import PanelCandidates from './pages/panel/Candidates';
 
 import VMJobDetails from './pages/vendor-manager/JobDetails';
 import VendorJobDetails from './pages/vendor/JobDetails';
@@ -129,6 +133,22 @@ const App = () => {
         <Route path="candidates" element={<HMCandidates />} />
         <Route path="candidates/:id" element={<CandidateDetails />} />
         <Route path="partner-slots" element={<HMPartnerSlots />} />
+      </Route>
+
+      {/* ================= PANEL ================= */}
+      <Route
+        path="/panel"
+        element={
+          <WithRoleGuard allowedRole="PANEL">
+            <HiringManagerLayout />
+          </WithRoleGuard>
+        }
+      >
+        <Route index element={<PanelDashboard />} />
+        <Route path="jobs" element={<PanelJobs />} />
+        <Route path="jobs/:id" element={<PanelJobDetails />} />
+        <Route path="candidates" element={<PanelCandidates />} />
+        <Route path="candidates/:id" element={<CandidateDetails />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />

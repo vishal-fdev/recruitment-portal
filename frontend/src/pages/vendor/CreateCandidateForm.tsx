@@ -27,6 +27,10 @@ const CreateCandidateForm = () => {
     name: '',
     email: '',
     phone: '',
+    aadharNo: '',
+    gender: '',
+    education: '',
+    videoLink: '',
     primarySkills: '',
     secondarySkills: '',
     country: '',
@@ -62,13 +66,17 @@ const CreateCandidateForm = () => {
 
   /* ================= DUPLICATE CHECK ================= */
 
-  const checkDuplicate = async (email: string, phone: string) => {
+  const checkDuplicate = async (
+    email: string,
+    phone: string,
+    aadharNo: string,
+  ) => {
     try {
 
       const res = await api.get(
         `/candidates/check-duplicate`,
         {
-          params: { email, phone },
+          params: { email, phone, aadharNo },
         },
       );
 
@@ -77,6 +85,10 @@ const CreateCandidateForm = () => {
         if (res.data.field === 'email') {
           setDuplicateError(
             'Candidate with this email already exists',
+          );
+        } else if (res.data.field === 'aadharNo') {
+          setDuplicateError(
+            'Candidate with this Aadhaar number already exists',
           );
         } else {
           setDuplicateError(
@@ -108,12 +120,17 @@ const CreateCandidateForm = () => {
       [name]: value,
     }));
 
-    if (name === 'email' || name === 'phone') {
+    if (name === 'email' || name === 'phone' || name === 'aadharNo') {
 
-      if (form.email && form.phone) {
+      const nextEmail = name === 'email' ? value : form.email;
+      const nextPhone = name === 'phone' ? value : form.phone;
+      const nextAadhar = name === 'aadharNo' ? value : form.aadharNo;
+
+      if (nextEmail || nextPhone || nextAadhar) {
         await checkDuplicate(
-          name === 'email' ? value : form.email,
-          name === 'phone' ? value : form.phone,
+          nextEmail,
+          nextPhone,
+          nextAadhar,
         );
       }
     }
@@ -186,6 +203,7 @@ const CreateCandidateForm = () => {
       const duplicate = await checkDuplicate(
         form.email,
         form.phone,
+        form.aadharNo,
       );
 
       if (duplicate) {
@@ -308,6 +326,44 @@ const CreateCandidateForm = () => {
                 name="email"
                 onChange={handleChange}
                 required
+              />
+            </FormField>
+
+            <FormField label="Aadhaar No *">
+              <input
+                name="aadharNo"
+                onChange={handleChange}
+                required
+              />
+            </FormField>
+
+            <FormField label="Gender *">
+              <select
+                name="gender"
+                onChange={handleChange}
+                required
+              >
+                <option value="">Select gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </FormField>
+
+            <FormField label="Education *">
+              <input
+                name="education"
+                onChange={handleChange}
+                required
+              />
+            </FormField>
+
+            <FormField label="Upload Video (SharePoint Link)">
+              <input
+                type="url"
+                name="videoLink"
+                onChange={handleChange}
+                placeholder="Paste SharePoint video link"
               />
             </FormField>
 

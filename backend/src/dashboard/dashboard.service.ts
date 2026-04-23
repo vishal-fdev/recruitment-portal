@@ -39,6 +39,10 @@ export class DashboardService {
       return this.getHiringManagerDashboard(user);
     }
 
+    if (user.role === 'PANEL') {
+      return this.getPanelDashboard(user);
+    }
+
     return {};
   }
 
@@ -68,7 +72,13 @@ export class DashboardService {
           (c) => c.status === CandidateStatus.SCREENING,
         ).length,
         selected: candidates.filter(
-          (c) => c.status === CandidateStatus.SELECTED,
+          (c) =>
+            [
+              CandidateStatus.SELECTED,
+              CandidateStatus.IDENTIFIED,
+              CandidateStatus.YET_TO_JOIN,
+              CandidateStatus.ONBOARDED,
+            ].includes(c.status),
         ).length,
         rejected: candidates.filter(
           (c) => c.status === CandidateStatus.REJECTED,
@@ -104,7 +114,13 @@ export class DashboardService {
           (c) => c.status === CandidateStatus.SCREENING,
         ).length,
         selected: candidates.filter(
-          (c) => c.status === CandidateStatus.SELECTED,
+          (c) =>
+            [
+              CandidateStatus.SELECTED,
+              CandidateStatus.IDENTIFIED,
+              CandidateStatus.YET_TO_JOIN,
+              CandidateStatus.ONBOARDED,
+            ].includes(c.status),
         ).length,
         rejected: candidates.filter(
           (c) => c.status === CandidateStatus.REJECTED,
@@ -143,7 +159,13 @@ export class DashboardService {
           (c) => c.status === CandidateStatus.SCREENING,
         ).length,
         selected: candidates.filter(
-          (c) => c.status === CandidateStatus.SELECTED,
+          (c) =>
+            [
+              CandidateStatus.SELECTED,
+              CandidateStatus.IDENTIFIED,
+              CandidateStatus.YET_TO_JOIN,
+              CandidateStatus.ONBOARDED,
+            ].includes(c.status),
         ).length,
         rejected: candidates.filter(
           (c) => c.status === CandidateStatus.REJECTED,
@@ -155,6 +177,43 @@ export class DashboardService {
       submissionsByDate: this.buildWeeklySubmissions(
         candidates,
       ),
+    };
+  }
+
+  private async getPanelDashboard(user: any) {
+    const panelEmail = (user.email || '').trim().toLowerCase();
+    const jobs = await this.jobRepo.find({
+      relations: ['interviewRounds', 'interviewRounds.panels'],
+    });
+
+    const assignedJobs = jobs.filter((job) =>
+      (job.interviewRounds || []).some(
+        (round) =>
+          (round.roundName || '').trim().toUpperCase() === 'SCREENING' &&
+          (round.panels || []).some(
+            (panel) => (panel.email || '').trim().toLowerCase() === panelEmail,
+          ),
+      ),
+    );
+
+    const jobIds = assignedJobs.map((job) => job.id);
+    const candidates = jobIds.length
+      ? await this.candidateRepo.find({
+          where: jobIds.map((jobId) => ({ job: { id: jobId } })),
+          relations: ['job'],
+        })
+      : [];
+
+    return {
+      kpis: {
+        openJobs: assignedJobs.length,
+        totalCandidates: candidates.length,
+        interviews: candidates.filter((candidate) =>
+          ['SCREEN_SELECTED', 'TECH_SELECTED', 'IDENTIFIED'].includes(candidate.status),
+        ).length,
+      },
+      stageSummary: this.buildStageSummary(candidates),
+      submissionsByDate: this.buildWeeklySubmissions(candidates),
     };
   }
 

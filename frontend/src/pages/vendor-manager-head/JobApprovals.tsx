@@ -1,5 +1,3 @@
-// src/pages/vendor-manager-head/JobApprovals.tsx
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getJobs } from '../../services/jobService';
@@ -11,19 +9,13 @@ const JobApprovals = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadJobs();
+    void loadJobs();
   }, []);
 
   const loadJobs = async () => {
     try {
       const all = await getJobs();
-
-      const sorted = all.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() -
-          new Date(a.createdAt).getTime(),
-      );
-
+      const sorted = all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setJobs(sorted);
     } catch {
       console.error('Failed to load jobs');
@@ -32,220 +24,113 @@ const JobApprovals = () => {
     }
   };
 
-  /* ================= STATUS COLORS ================= */
-
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'APPROVED':
-        return 'bg-green-100 text-green-700';
-      case 'REJECTED':
-        return 'bg-red-100 text-red-700';
-      case 'PENDING_APPROVAL':
-        return 'bg-yellow-100 text-yellow-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  /* ================= FORMAT ADDITIONAL POSITIONS ================= */
-
-  const formatAdditionalPositions = (job: Job) => {
-    if (!job.positions || job.positions.length === 0) return '-';
-
-    return job.positions
-      .map((p) => `${p.openings} (${p.level})`)
-      .join(' / ');
-  };
-
-  /* ================= TOTAL POSITIONS ================= */
-
   const getTotalPositions = (job: Job) => {
     const main = job.numberOfPositions || 0;
-
-    const child =
-      job.positions?.reduce(
-        (sum, p) => sum + (p.openings || 0),
-        0,
-      ) || 0;
-
+    const child = job.positions?.reduce((sum, p) => sum + (p.openings || 0), 0) || 0;
     return main + child;
   };
 
-  /* ================= CLOSED POSITIONS ================= */
-
   const getClosedPositions = (job: Job) => {
     const mainClosed =
-      Number(job.numberOfPositions || 0) -
-      Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0);
-
+      Number(job.numberOfPositions || 0) - Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0);
     const childClosed =
       job.positions?.reduce(
-        (sum, p) =>
-          sum +
-          (Number(p.openings || 0) -
-            Number(p.currentOpenings ?? p.openings ?? 0)),
+        (sum, p) => sum + (Number(p.openings || 0) - Number(p.currentOpenings ?? p.openings ?? 0)),
         0,
       ) || 0;
-
     return mainClosed + childClosed;
   };
 
-  /* ================= CURRENT POSITIONS ================= */
-
-  const getCurrentPositions = (job: Job) => {
-    return getTotalPositions(job) - getClosedPositions(job);
-  };
-
-  /* ================= PROGRESS % ================= */
-
-  const getProgress = (job: Job) => {
-    const total = getTotalPositions(job);
-    const closed = getClosedPositions(job);
-
-    if (!total) return 0;
-
-    return Math.round((closed / total) * 100);
-  };
+  const getCurrentPositions = (job: Job) => getTotalPositions(job) - getClosedPositions(job);
 
   return (
-    <div className="space-y-8">
-
-      {/* HEADER */}
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-black">
-          Job Approval Queue
-        </h1>
-        <p className="text-gray-500 mt-1">
-          Review, approve or reject job requisitions
-        </p>
+        <h1 className="text-2xl font-semibold text-black">Job Approval Queue</h1>
+        <p className="mt-1 text-gray-500">Review, approve or reject job requisitions</p>
       </div>
 
-      {/* TABLE */}
-      <div className="bg-white rounded-xl shadow border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm text-gray-800">
+      <div className="space-y-4">
+        {loading && <div className="rounded-[20px] bg-white p-8 shadow">Loading...</div>}
 
-          {/* TABLE HEAD */}
-          <thead className="bg-gray-100 border-b border-gray-200">
-            <tr>
-              <th className="px-6 py-4 text-center font-semibold">HRQID</th>
-              <th className="px-6 py-4 text-center font-semibold">Role</th>
-              <th className="px-6 py-4 text-center font-semibold">Location</th>
-              <th className="px-6 py-4 text-center font-semibold">Level</th>
-              <th className="px-6 py-4 text-center font-semibold">No. of Positions</th>
-              <th className="px-6 py-4 text-center font-semibold">Additional Positions</th>
-              <th className="px-6 py-4 text-center font-semibold">Total Positions</th>
-              <th className="px-6 py-4 text-center font-semibold">Current Positions</th>
-              <th className="px-6 py-4 text-center font-semibold">Progress</th>
-              <th className="px-6 py-4 text-center font-semibold">Created Date</th>
-              <th className="px-6 py-4 text-center font-semibold">Status</th>
-            </tr>
-          </thead>
+        {!loading &&
+          jobs.map((job) => {
+            const totalPositions = getTotalPositions(job);
+            const currentPositions = getCurrentPositions(job);
+            const progress = totalPositions ? Math.round(((totalPositions - currentPositions) / totalPositions) * 100) : 0;
 
-          <tbody>
-
-            {loading && (
-              <tr>
-                <td colSpan={11} className="py-10 text-center text-gray-500">
-                  Loading...
-                </td>
-              </tr>
-            )}
-
-            {!loading && jobs.length === 0 && (
-              <tr>
-                <td colSpan={11} className="py-10 text-center text-gray-500">
-                  No jobs found.
-                </td>
-              </tr>
-            )}
-
-            {!loading &&
-              jobs.map((job) => {
-                const mainPositions = `${job.numberOfPositions || 0} (${job.level || '-'})`;
-                const additionalPositions = formatAdditionalPositions(job);
-                const totalPositions = getTotalPositions(job);
-                const currentPositions = getCurrentPositions(job);
-                const progress = getProgress(job);
-
-                return (
-                  <tr
-                    key={job.id}
-                    className="border-t hover:bg-gray-50 transition cursor-pointer"
-                    onClick={() =>
-                      navigate(`/vendor-manager-head/jobs/${job.id}`)
-                    }
-                  >
-                    <td className="px-6 py-4 text-center font-semibold">
-                      HRQ{job.id}
-                    </td>
-
-                    <td className="px-6 py-4 text-center">
-                      {job.title}
-                    </td>
-
-                    <td className="px-6 py-4 text-center">
-                      {job.location}
-                    </td>
-
-                    <td className="px-6 py-4 text-center">
-                      {job.level || '-'}
-                    </td>
-
-                    <td className="px-6 py-4 text-center font-medium">
-                      {mainPositions}
-                    </td>
-
-                    <td className="px-6 py-4 text-center">
-                      {additionalPositions}
-                    </td>
-
-                    <td className="px-6 py-4 text-center font-semibold">
-                      {totalPositions}
-                    </td>
-
-                    <td className="px-6 py-4 text-center font-semibold">
-                      {currentPositions}
-                    </td>
-
-                    {/* ✅ PROGRESS BAR */}
-                    <td className="px-6 py-4">
-                      <div className="w-full">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-green-600 h-2 rounded-full"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                        <div className="text-xs text-center mt-1 text-gray-600">
-                          {progress}%
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 text-center">
-                      {job.createdAt
-                        ? job.createdAt.split('T')[0]
-                        : '-'}
-                    </td>
-
-                    <td className="px-6 py-4 text-center">
-                      <span
-                        className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusStyle(
-                          job.status,
-                        )}`}
-                      >
-                        {job.status.replace('_', ' ')}
+            return (
+              <button
+                key={job.id}
+                type="button"
+                onClick={() => navigate(`/vendor-manager-head/jobs/${job.id}`)}
+                className="w-full rounded-[24px] border border-black/8 bg-white p-6 text-left shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-sm font-medium text-[#01A982]">{`HRQ${job.id}`}</span>
+                      <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${getStatusClass(job.status)}`}>
+                        <span className={`h-2.5 w-2.5 rounded-full ${getDotClass(job.status)}`} />
+                        {formatStatus(job.status)}
                       </span>
-                    </td>
-                  </tr>
-                );
-              })}
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-semibold text-[#0F172A]">{job.title}</h2>
+                      <p className="mt-1 text-sm text-[#64748B]">{job.location} · Level {job.level || '-'}</p>
+                    </div>
+                  </div>
+                </div>
 
-          </tbody>
-        </table>
+                <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-5">
+                  <Info label="Total Positions" value={String(totalPositions)} />
+                  <Info label="Current Positions" value={String(currentPositions)} />
+                  <Info label="Created Date" value={job.createdAt ? job.createdAt.split('T')[0] : '-'} />
+                  <Info label="Progress" value={`${progress}%`} />
+                  <Info label="Status" value={formatStatus(job.status)} />
+                </div>
+              </button>
+            );
+          })}
       </div>
     </div>
   );
+};
+
+const Info = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-[16px] bg-[#F8FAFC] px-4 py-3">
+    <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[#94A3B8]">{label}</div>
+    <div className="mt-1 text-sm font-medium text-[#0F172A]">{value}</div>
+  </div>
+);
+
+const formatStatus = (status: string) =>
+  status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+
+const getStatusClass = (status: string) => {
+  switch (status) {
+    case 'APPROVED':
+      return 'bg-green-100 text-green-700';
+    case 'REJECTED':
+      return 'bg-red-100 text-red-700';
+    case 'PENDING_APPROVAL':
+      return 'bg-yellow-100 text-yellow-700';
+    default:
+      return 'bg-gray-100 text-gray-700';
+  }
+};
+
+const getDotClass = (status: string) => {
+  switch (status) {
+    case 'APPROVED':
+      return 'bg-[#01A982]';
+    case 'REJECTED':
+      return 'bg-[#EF4444]';
+    case 'PENDING_APPROVAL':
+      return 'bg-[#F59E0B]';
+    default:
+      return 'bg-[#94A3B8]';
+  }
 };
 
 export default JobApprovals;

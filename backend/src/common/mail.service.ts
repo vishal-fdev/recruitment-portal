@@ -5,9 +5,8 @@ import * as nodemailer from 'nodemailer';
 export class MailService implements OnModuleInit {
   private transporter: nodemailer.Transporter;
 
-  private buildVendorHeadRedirect(path: string) {
+  private buildLoginRedirect(email: string, path: string) {
     const frontendUrl = process.env.FRONTEND_URL;
-    const email = process.env.VENDOR_HEAD_EMAIL;
 
     if (!frontendUrl || !email) {
       return `${frontendUrl || ''}${path}`;
@@ -17,6 +16,13 @@ export class MailService implements OnModuleInit {
     loginUrl.searchParams.set('email', email);
     loginUrl.searchParams.set('redirect', path);
     return loginUrl.toString();
+  }
+
+  private buildVendorHeadRedirect(path: string) {
+    return this.buildLoginRedirect(
+      process.env.VENDOR_HEAD_EMAIL || '',
+      path,
+    );
   }
 
   onModuleInit() {
@@ -92,6 +98,43 @@ export class MailService implements OnModuleInit {
 
     } catch (error) {
       console.error('❌ EMAIL ERROR FULL:', error);
+    }
+  }
+
+  async sendPanelAssignmentEmail(panel: { name?: string; email?: string }, job: any) {
+    if (!this.transporter || !panel.email) {
+      return;
+    }
+
+    try {
+      const viewUrl = this.buildLoginRedirect(
+        panel.email,
+        `/panel/jobs/${job.id}`,
+      );
+
+      const html = `
+      <div style="font-family: Arial; padding: 20px;">
+        <h2>Screening Panel Assignment</h2>
+        <p>Hello ${panel.name || 'Panel Member'},</p>
+        <p>You have been assigned to the screening round for the following job.</p>
+        <p><strong>HRQ ID:</strong> HRQ${job.id}</p>
+        <p><strong>Job Title:</strong> ${job.title}</p>
+        <p><strong>Location:</strong> ${job.location}</p>
+        <p><strong>Hiring Manager:</strong> ${job.hiringManager || '-'}</p>
+        <div style="margin-top: 20px;">
+          <a href="${viewUrl}" style="background:#01a982;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;">View Assigned Job</a>
+        </div>
+      </div>
+      `;
+
+      await this.transporter.sendMail({
+        from: `"Recruitment Portal" <${process.env.MAIL_USER}>`,
+        to: panel.email,
+        subject: `Screening Panel Assignment - ${job.title}`,
+        html,
+      });
+    } catch (error) {
+      console.error('❌ PANEL EMAIL ERROR:', error);
     }
   }
 }

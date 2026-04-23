@@ -29,6 +29,18 @@ export class Candidate {
   @Column()
   phone!: string;
 
+  @Column({ nullable: true })
+  aadharNo!: string;
+
+  @Column({ nullable: true })
+  gender!: string;
+
+  @Column({ nullable: true })
+  education!: string;
+
+  @Column({ nullable: true })
+  videoLink!: string;
+
   @Column({ type: 'text', nullable: true })
   primarySkills!: string;
 
@@ -64,6 +76,12 @@ export class Candidate {
 
   @Column({ type: 'text', nullable: true })
   dropJustification!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  ytjJustification!: string | null;
+
+  @Column({ type: 'date', nullable: true })
+  dateOfJoining!: string | null;
 
   @CreateDateColumn()
   createdAt!: Date;
