@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Eye,
   Filter,
@@ -112,8 +112,11 @@ const STATUS_STYLES: Record<CandidateStatus, string> = {
 
 const VendorCandidateManagement = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState<VendorTab>('CANDIDATES');
+  const [activeTab, setActiveTab] = useState<VendorTab>(
+    searchParams.get('tab')?.toLowerCase() === 'hrq' ? 'HRQ' : 'CANDIDATES',
+  );
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(true);
@@ -130,6 +133,21 @@ const VendorCandidateManagement = () => {
     void loadCandidates();
     void loadJobs();
   }, []);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')?.toLowerCase();
+    if (tab === 'hrq' && activeTab !== 'HRQ') {
+      setActiveTab('HRQ');
+    }
+    if ((!tab || tab === 'candidates') && activeTab !== 'CANDIDATES') {
+      setActiveTab('CANDIDATES');
+    }
+  }, [activeTab, searchParams]);
+
+  const handleTabChange = (tab: VendorTab) => {
+    setActiveTab(tab);
+    setSearchParams(tab === 'HRQ' ? { tab: 'hrq' } : {});
+  };
 
   const loadCandidates = async () => {
     try {
@@ -295,13 +313,13 @@ const VendorCandidateManagement = () => {
             active={activeTab === 'CANDIDATES'}
             icon={<ListChecks size={16} />}
             label="Candidates List"
-            onClick={() => setActiveTab('CANDIDATES')}
+            onClick={() => handleTabChange('CANDIDATES')}
           />
           <TabButton
             active={activeTab === 'HRQ'}
             icon={<ReceiptText size={16} />}
             label="All HRQID"
-            onClick={() => setActiveTab('HRQ')}
+            onClick={() => handleTabChange('HRQ')}
           />
         </div>
       </div>

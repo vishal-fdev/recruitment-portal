@@ -95,7 +95,7 @@ const Sidebar = ({ role, expanded, onHover }: SidebarProps) => {
     <aside
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
-      className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-white/10 bg-[#13192A] text-white transition-all duration-300 ${
+      className={`sticky top-0 z-40 flex h-screen shrink-0 flex-col border-r border-white/10 bg-[#13192A] text-white transition-all duration-300 ${
         expanded ? 'w-[280px]' : 'w-[88px]'
       }`}
     >

@@ -35,6 +35,34 @@ export class PartnerSlotsService {
     private readonly roundRepo: Repository<InterviewRound>,
   ) {}
 
+  private normalizeValue(value?: string | null) {
+    return (value || '').trim().toLowerCase();
+  }
+
+  private getEmailDisplayVariants(email?: string | null) {
+    const normalizedEmail = this.normalizeValue(email);
+    const localPart = normalizedEmail.split('@')[0] || '';
+    const humanizedLocal = localPart
+      .split(/[._-]/)
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    return new Set(
+      [normalizedEmail, localPart, humanizedLocal].filter(Boolean),
+    );
+  }
+
+  private isHiringManagerMatch(jobHiringManager?: string | null, userEmail?: string | null) {
+    const normalizedHm = this.normalizeValue(jobHiringManager);
+    if (!normalizedHm) {
+      return true;
+    }
+
+    const variants = this.getEmailDisplayVariants(userEmail);
+    return variants.has(normalizedHm);
+  }
+
   async getSlotsForUser(user: any) {
     if (user.role === 'VENDOR') {
       return this.slotRepo.find({
@@ -50,8 +78,7 @@ export class PartnerSlotsService {
 
       return allSlots.filter(
         (slot) =>
-          slot.job?.hiringManager?.trim().toLowerCase() ===
-          (user.email || '').trim().toLowerCase(),
+          this.isHiringManagerMatch(slot.job?.hiringManager, user.email),
       );
     }
 
@@ -87,7 +114,7 @@ export class PartnerSlotsService {
         (candidate) =>
           candidate.job &&
           candidate.vendor &&
-          candidate.job.hiringManager?.trim().toLowerCase() === hmEmail &&
+          this.isHiringManagerMatch(candidate.job.hiringManager, hmEmail) &&
           ![
             CandidateStatus.REJECTED,
             CandidateStatus.DROPPED,
@@ -135,11 +162,19 @@ export class PartnerSlotsService {
       throw new NotFoundException('Candidate not found');
     }
 
-    if (
-      candidate.job.hiringManager?.trim().toLowerCase() !==
-      (user.email || '').trim().toLowerCase()
-    ) {
+    if (!this.isHiringManagerMatch(candidate.job.hiringManager, user.email)) {
       throw new BadRequestException('Candidate is not assigned to this hiring manager');
+    }
+
+    const scheduleableStatuses = new Set<CandidateStatus>([
+      CandidateStatus.SCREEN_SELECTED,
+      CandidateStatus.TECH_SELECTED,
+    ]);
+
+    if (!scheduleableStatuses.has(candidate.status)) {
+      throw new BadRequestException(
+        'Interview scheduling is only allowed while the candidate is in Screen Select or Tech Select',
+      );
     }
 
     const existingActiveSlot = await this.slotRepo.findOne({

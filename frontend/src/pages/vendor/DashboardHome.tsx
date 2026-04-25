@@ -211,7 +211,8 @@ const DashboardHome = () => {
               assignedJobsList.map((job) => (
                 <div
                   key={job.id}
-                  className="flex items-center gap-3 rounded-[18px] border border-black/5 bg-[#F8FAFC] px-4 py-4"
+                  onClick={() => navigate(`/vendor/jobs/${job.id}`)}
+                  className="flex cursor-pointer items-center gap-3 rounded-[18px] border border-black/5 bg-[#F8FAFC] px-4 py-4 transition hover:bg-[#EEFDF9]"
                 >
                   <div className="min-w-[110px] text-[15px] text-[#7C8699]">{`JOB-${String(job.id).padStart(3, '0')}`}</div>
                   <div className="flex-1">
@@ -220,7 +221,10 @@ const DashboardHome = () => {
                   <div className="min-w-[92px] text-[15px] text-[#94A3B8]">{job.location || '-'}</div>
                   <button
                     type="button"
-                    onClick={() => navigate('/vendor/candidates')}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      navigate(`/vendor/candidates/create?jobId=${job.id}`);
+                    }}
                     className="rounded-[12px] bg-[#01A982] px-5 py-2 text-sm font-semibold text-white transition hover:shadow-md"
                   >
                     Submit
@@ -264,7 +268,8 @@ const DashboardHome = () => {
               candidateLiveStatus.map((candidate) => (
                 <div
                   key={candidate.id}
-                  className="flex items-center gap-4 rounded-[18px] border border-black/5 bg-white px-4 py-4 shadow-[0_1px_0_rgba(15,23,42,0.04)]"
+                  onClick={() => navigate(`/vendor/candidates/${candidate.id}`)}
+                  className="flex cursor-pointer items-center gap-4 rounded-[18px] border border-black/5 bg-white px-4 py-4 shadow-[0_1px_0_rgba(15,23,42,0.04)] transition hover:bg-[#F8FAFC]"
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F1F5F9] text-[16px] font-semibold uppercase text-[#6B7280]">
                     {getInitials(candidate.name)}

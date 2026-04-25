@@ -41,10 +41,6 @@ const VendorJobDetails = () => {
     switch (status) {
       case 'APPROVED':
         return 'bg-gray-300 text-black';
-      case 'ON_HOLD':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'CLOSED':
-        return 'bg-gray-200 text-gray-600';
       case 'REJECTED':
         return 'bg-gray-400 text-black';
       case 'PENDING_APPROVAL':
@@ -63,7 +59,7 @@ const VendorJobDetails = () => {
       {/* BACK BUTTON */}
 
       <button
-        onClick={() => navigate('/vendor/jobs')}
+        onClick={() => navigate('/vendor/candidates?tab=hrq')}
         className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
       >
         ← Back

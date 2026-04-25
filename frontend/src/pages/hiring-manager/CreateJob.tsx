@@ -512,6 +512,20 @@ const removeFile = () => {
   setJdFiles([]);
 };
 
+const addMoreJdFiles = (files: FileList | null) => {
+  const validFiles = files ? getValidFiles(files) : [];
+  if (validFiles.length) {
+    setJdFiles((prev) => mergeFiles(prev, validFiles));
+  }
+};
+
+const addMorePsqFiles = (files: FileList | null) => {
+  const validFiles = files ? getValidFiles(files) : [];
+  if (validFiles.length) {
+    setPsqFiles((prev) => mergeFiles(prev, validFiles));
+  }
+};
+
 
 
 /* CHILD POSITIONS */
@@ -1231,12 +1245,7 @@ className="input"
         type="file"
         multiple
         accept=".pdf,.doc,.docx"
-        onChange={(e) => {
-          const files = e.target.files ? getValidFiles(e.target.files) : [];
-          if (files.length) {
-            setJdFiles((prev) => mergeFiles(prev, files));
-          }
-        }}
+        onChange={(e) => addMoreJdFiles(e.target.files)}
         className="hidden"
         id="jdUpload"
       />
@@ -1271,13 +1280,31 @@ className="input"
         </div>
       ))}
 
-      <button
-        type="button"
-        onClick={removeFile}
-        className="text-sm font-medium text-red-500 hover:text-red-700"
-      >
-        Remove All
-      </button>
+      <div className="mt-3 flex flex-col items-center gap-3">
+        <input
+          type="file"
+          multiple
+          accept=".pdf,.doc,.docx"
+          onChange={(e) => addMoreJdFiles(e.target.files)}
+          className="hidden"
+          id="jdUploadMore"
+        />
+
+        <label
+          htmlFor="jdUploadMore"
+          className="inline-block rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white cursor-pointer hover:bg-emerald-700"
+        >
+          Add More Files
+        </label>
+
+        <button
+          type="button"
+          onClick={removeFile}
+          className="text-sm font-medium text-red-500 hover:text-red-700"
+        >
+          Remove All
+        </button>
+      </div>
     </div>
   )}
 
@@ -1309,12 +1336,7 @@ Only PDF, DOC, DOCX allowed
         type="file"
         multiple
         accept=".pdf,.doc,.docx"
-        onChange={(e) => {
-          const files = e.target.files ? getValidFiles(e.target.files) : [];
-          if (files.length) {
-            setPsqFiles((prev) => mergeFiles(prev, files));
-          }
-        }}
+        onChange={(e) => addMorePsqFiles(e.target.files)}
         className="hidden"
         id="psqUpload"
       />
@@ -1349,13 +1371,31 @@ Only PDF, DOC, DOCX allowed
         </div>
       ))}
 
-      <button
-        type="button"
-        onClick={removePSQ}
-        className="text-sm font-medium text-red-500 hover:text-red-700"
-      >
-        Remove All
-      </button>
+      <div className="mt-3 flex flex-col items-center gap-3">
+        <input
+          type="file"
+          multiple
+          accept=".pdf,.doc,.docx"
+          onChange={(e) => addMorePsqFiles(e.target.files)}
+          className="hidden"
+          id="psqUploadMore"
+        />
+
+        <label
+          htmlFor="psqUploadMore"
+          className="inline-block rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white cursor-pointer hover:bg-blue-700"
+        >
+          Add More Files
+        </label>
+
+        <button
+          type="button"
+          onClick={removePSQ}
+          className="text-sm font-medium text-red-500 hover:text-red-700"
+        >
+          Remove All
+        </button>
+      </div>
     </div>
   )}
 

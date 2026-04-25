@@ -21,11 +21,7 @@ const VendorManagerLayout = () => {
         role={role}
       />
 
-      <div
-        className={`flex flex-1 flex-col transition-all duration-300 ${
-          sidebarExpanded ? 'ml-[280px]' : 'ml-[88px]'
-        }`}
-      >
+      <div className="flex flex-1 flex-col transition-all duration-300">
         <Topbar role={role} onLogout={handleLogout} />
         <main className="flex-1 overflow-auto bg-[#F3F5F9] p-8">
           <Outlet />

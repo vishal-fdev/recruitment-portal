@@ -43,7 +43,6 @@ const BaseLayout = () => {
       <div
         className={`
           flex flex-col flex-1 transition-all duration-300
-          ${sidebarExpanded ? "ml-[280px]" : "ml-[88px]"}
         `}
       >
 

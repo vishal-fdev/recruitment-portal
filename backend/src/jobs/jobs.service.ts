@@ -358,6 +358,7 @@ export class JobsService {
     }
   }
   const hydratedJob = await this.getJobById(savedJob.id);
+  await this.mailService.sendApprovalEmail(hydratedJob);
   await this.notifyScreeningPanels(hydratedJob);
   return hydratedJob;
 }
@@ -470,6 +471,7 @@ async updateJob(jobId: number, data: any): Promise<Job> {
     }
   }
   const hydratedJob = await this.getJobById(jobId);
+  await this.mailService.sendApprovalEmail(hydratedJob);
   await this.notifyScreeningPanels(hydratedJob);
   return hydratedJob;
 }

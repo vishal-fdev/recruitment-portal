@@ -61,7 +61,7 @@ const VendorManagerPortalSidebar = ({
     <aside
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
-      className={`fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-white/10 bg-[#151B2D] text-white transition-all duration-300 ${
+      className={`sticky top-0 z-40 flex h-screen shrink-0 flex-col border-r border-white/10 bg-[#151B2D] text-white transition-all duration-300 ${
         expanded ? 'w-[280px]' : 'w-[88px]'
       }`}
     >
@@ -75,7 +75,7 @@ const VendorManagerPortalSidebar = ({
           }`}
         >
           <p className="whitespace-nowrap text-[15px] font-semibold tracking-[-0.02em] text-white">
-            Dribble
+            VendorSync
           </p>
           <p className="mt-0.5 whitespace-nowrap text-xs text-white/45">HPE Vendor Portal</p>
         </div>

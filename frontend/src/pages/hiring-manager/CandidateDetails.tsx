@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Briefcase,
   Building2,
+  CalendarDays,
   Calendar,
   Clock3,
   FileText,
@@ -17,6 +18,11 @@ import {
 import api from '../../api/api';
 import StageBadge from '../../components/StageBadge';
 import { authService } from '../../auth/authService';
+import {
+  createPartnerSlot,
+  getPartnerSlots,
+  type PartnerSlot,
+} from '../../services/partnerSlotService';
 
 type CandidateStatus =
   | 'SUBMITTED'
@@ -74,6 +80,14 @@ const CandidateDetails = () => {
   const [hmSlotGateMessage, setHmSlotGateMessage] = useState('');
   const [ytjDateOfJoining, setYtjDateOfJoining] = useState('');
   const [ytjJustification, setYtjJustification] = useState('');
+  const [partnerSlotLoading, setPartnerSlotLoading] = useState(false);
+  const [showScheduleBox, setShowScheduleBox] = useState(false);
+  const [slotForm, setSlotForm] = useState({
+    interviewDate: '',
+    interviewTime: '',
+    hmComment: '',
+  });
+  const [latestSlot, setLatestSlot] = useState<PartnerSlot | null>(null);
 
   const backRoute = useMemo(() => {
     const pathname = window.location.pathname;
@@ -124,6 +138,21 @@ const CandidateDetails = () => {
 
     if (pathname.startsWith('/hiring-manager/')) {
       setHmSlotGateMessage('');
+      try {
+        const slots = await getPartnerSlots();
+        const candidateSlots = slots
+          .filter((slot) => slot.candidate?.id === Number(candidateId))
+          .sort(
+            (a, b) =>
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+          );
+        setLatestSlot(candidateSlots[0] || null);
+      } catch (error) {
+        console.error('Failed to load candidate slot details', error);
+        setLatestSlot(null);
+      }
+    } else {
+      setLatestSlot(null);
     }
   };
 
@@ -182,8 +211,17 @@ const CandidateDetails = () => {
       : normalizedStatus === 'SCREEN_SELECTED'
         ? 'Tech Reject'
         : normalizedStatus === 'TECH_SELECTED'
-          ? 'Ops Reject'
+        ? 'Ops Reject'
           : 'Reject';
+
+  const hasOpenInterviewSlot =
+    latestSlot &&
+    ['PENDING_VENDOR', 'SCHEDULED'].includes(latestSlot.status);
+
+  const canScheduleInterview =
+    isHiringManagerView &&
+    ['SCREEN_SELECTED', 'TECH_SELECTED'].includes(normalizedStatus) &&
+    !hasOpenInterviewSlot;
 
   const submitHmDecision = async (decision: 'SELECT' | 'REJECT') => {
     let status: CandidateStatus | null = null;
@@ -216,7 +254,41 @@ const CandidateDetails = () => {
     await loadCandidate(candidate.id);
     setFeedback('');
     setShowRejectBox(false);
+    if (decision === 'SELECT' && ['SCREEN_SELECTED', 'TECH_SELECTED'].includes(status)) {
+      setShowScheduleBox(true);
+    }
     setLoading(false);
+  };
+
+  const submitScheduleInterview = async () => {
+    if (!candidate?.id) return;
+    if (!slotForm.interviewDate || !slotForm.interviewTime) {
+      alert('Interview date and time are required');
+      return;
+    }
+
+    setPartnerSlotLoading(true);
+    try {
+      await createPartnerSlot({
+        candidateId: candidate.id,
+        interviewDate: slotForm.interviewDate,
+        interviewTime: slotForm.interviewTime,
+        hmComment: slotForm.hmComment,
+      });
+
+      await loadCandidate(candidate.id);
+      setShowScheduleBox(false);
+      setSlotForm({
+        interviewDate: '',
+        interviewTime: '',
+        hmComment: '',
+      });
+    } catch (error: any) {
+      console.error(error);
+      alert(error?.response?.data?.message || 'Failed to schedule interview');
+    } finally {
+      setPartnerSlotLoading(false);
+    }
   };
 
   const submitVendorManagerDecision = async (
@@ -611,6 +683,85 @@ const CandidateDetails = () => {
         </section>
       )}
 
+      {isHiringManagerView && ['SCREEN_SELECTED', 'TECH_SELECTED'].includes(normalizedStatus) && (
+        <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800">
+                Interview Scheduling
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Schedule the next interview round for this candidate.
+              </p>
+            </div>
+
+            {canScheduleInterview && (
+              <button
+                type="button"
+                onClick={() => setShowScheduleBox(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600"
+              >
+                <CalendarDays size={16} />
+                Schedule Interview
+              </button>
+            )}
+          </div>
+
+          {hasOpenInterviewSlot && latestSlot && (
+            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm text-slate-700">
+              <div className="grid gap-3 md:grid-cols-4">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                    Round
+                  </p>
+                  <p className="font-medium text-slate-800">
+                    {formatRoundName(latestSlot.roundName)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                    Interview Date
+                  </p>
+                  <p className="font-medium text-slate-800">
+                    {formatDate(latestSlot.interviewDate)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                    Interview Time
+                  </p>
+                  <p className="font-medium text-slate-800">
+                    {latestSlot.interviewTime || '-'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                    Vendor Response
+                  </p>
+                  <p className="font-medium text-slate-800">
+                    {latestSlot.status === 'PENDING_VENDOR'
+                      ? 'Awaiting vendor'
+                      : latestSlot.status === 'SCHEDULED'
+                        ? 'Accepted'
+                        : latestSlot.status}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!hasOpenInterviewSlot && latestSlot?.status === 'REJECTED' && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-slate-700">
+              <p className="font-medium text-slate-800">Last slot was rejected by vendor.</p>
+              <p className="mt-1">
+                <span className="font-medium">Justification:</span>{' '}
+                {latestSlot.vendorJustification || '-'}
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
       {(canHmEdit || canVmFinalize) && (
         <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-800">
@@ -753,6 +904,102 @@ const CandidateDetails = () => {
             </div>
           )}
         </section>
+      )}
+
+      {showScheduleBox && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-800">
+                  Schedule Interview
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Set the interview date and time for {candidate.name}.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowScheduleBox(false)}
+                className="text-slate-400 hover:text-slate-700"
+              >
+                x
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Interview Date
+                </label>
+                <input
+                  type="date"
+                  value={slotForm.interviewDate}
+                  onChange={(event) =>
+                    setSlotForm((prev) => ({
+                      ...prev,
+                      interviewDate: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Interview Time
+                </label>
+                <input
+                  type="time"
+                  value={slotForm.interviewTime}
+                  onChange={(event) =>
+                    setSlotForm((prev) => ({
+                      ...prev,
+                      interviewTime: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Comments
+                </label>
+                <textarea
+                  rows={4}
+                  value={slotForm.hmComment}
+                  onChange={(event) =>
+                    setSlotForm((prev) => ({
+                      ...prev,
+                      hmComment: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="Optional hiring manager note..."
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowScheduleBox(false)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={partnerSlotLoading}
+                onClick={() => void submitScheduleInterview()}
+                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

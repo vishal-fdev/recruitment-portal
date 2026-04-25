@@ -3,7 +3,7 @@
 import { Outlet } from "react-router-dom";
 import { useState } from "react";
 import Topbar from "../components/Topbar";
-import VendorPortalSidebar from "../components/VendorPortalSidebar";
+import Sidebar from "../components/Sidebar";
 import { authService } from "../auth/authService";
 
 const VendorLayout = () => {
@@ -19,7 +19,8 @@ const VendorLayout = () => {
   return (
 
     <div className="flex min-h-screen bg-gray-100">
-      <VendorPortalSidebar
+      <Sidebar
+        role={role}
         expanded={sidebarExpanded}
         onHover={setSidebarExpanded}
       />
@@ -28,8 +29,7 @@ const VendorLayout = () => {
 
       <div
         className={`
-          ml-[88px] flex flex-1 flex-col transition-all duration-300
-          ${sidebarExpanded ? "ml-[280px]" : "ml-[88px]"}
+          flex flex-1 flex-col transition-all duration-300
         `}
       >
 
