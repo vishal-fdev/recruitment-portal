@@ -94,6 +94,12 @@ export class CandidatesService {
       throw new NotFoundException('Vendor not found');
     }
 
+    if (!vendor.isActive) {
+      throw new BadRequestException(
+        'This vendor is inactive and cannot submit candidates',
+      );
+    }
+
     if (data.aadharNo?.trim()) {
       const duplicateByAadhar = await this.candidateRepo.findOne({
         where: { aadharNo: data.aadharNo.trim() },
@@ -282,7 +288,12 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
     }
 
     const savedCandidate = await this.candidateRepo.save(candidate);
-    await this.syncHmFeedbackSubmission(candidate.id, user, nextStatus);
+    await this.syncHmFeedbackSubmission(
+      candidate.id,
+      user,
+      nextStatus,
+      feedback,
+    );
 
     return savedCandidate;
   }
@@ -598,16 +609,9 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
         );
       }
 
-      if (
-        [
-          CandidateStatus.SCREEN_REJECTED,
-          CandidateStatus.TECH_REJECTED,
-          CandidateStatus.OPS_REJECTED,
-        ].includes(nextStatus) &&
-        !feedback?.trim()
-      ) {
+      if (!feedback?.trim()) {
         throw new BadRequestException(
-          'Rejection justification is mandatory',
+          'Feedback is mandatory for this decision',
         );
       }
 
@@ -740,6 +744,7 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
     candidateId: number,
     user: any,
     nextStatus: CandidateStatus,
+    feedback?: string,
   ) {
     if (user.role !== 'HIRING_MANAGER') {
       return;
@@ -747,6 +752,8 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
 
       if (
         ![
+          CandidateStatus.SCREEN_SELECTED,
+          CandidateStatus.SCREEN_REJECTED,
           CandidateStatus.TECH_SELECTED,
           CandidateStatus.TECH_REJECTED,
           CandidateStatus.OPS_SELECTED,
@@ -755,6 +762,59 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
       ) {
         return;
       }
+
+    const candidate = await this.candidateRepo.findOne({
+      where: { id: candidateId },
+      relations: ['job', 'job.interviewRounds', 'job.interviewRounds.panels'],
+    });
+
+    if (!candidate?.job) {
+      return;
+    }
+
+    const orderedRounds = [...(candidate.job.interviewRounds || [])].sort(
+      (a, b) => a.id - b.id,
+    );
+
+    const isScreenDecision = [
+      CandidateStatus.SCREEN_SELECTED,
+      CandidateStatus.SCREEN_REJECTED,
+    ].includes(nextStatus);
+
+    if (isScreenDecision) {
+      const screeningRound = orderedRounds[0] || null;
+      if (!screeningRound) {
+        return;
+      }
+
+      const existingScreeningInterview = await this.interviewRepo.findOne({
+        where: {
+          candidate: { id: candidateId },
+          round: { id: screeningRound.id },
+        },
+        relations: ['round'],
+      });
+
+      if (!existingScreeningInterview) {
+        const interview = this.interviewRepo.create({
+          candidate,
+          round: screeningRound,
+          panelMembers: (screeningRound.panels || [])
+            .map((panel) => panel.name)
+            .filter(Boolean)
+            .join(', '),
+          feedback: feedback?.trim() || '',
+          decision:
+            nextStatus === CandidateStatus.SCREEN_SELECTED
+              ? 'SELECT'
+              : 'REJECT',
+        });
+
+        await this.interviewRepo.save(interview);
+      }
+
+      return;
+    }
 
     const attendedSlot = await this.slotRepo.findOne({
       where: {
@@ -767,6 +827,47 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
 
     if (!attendedSlot) {
       return;
+    }
+
+    const normalizedRoundName = (attendedSlot.roundName || '')
+      .trim()
+      .toUpperCase();
+
+    const round =
+      orderedRounds.find(
+        (item) =>
+          (item.roundName || '').trim().toUpperCase() === normalizedRoundName,
+      ) || null;
+
+    if (round) {
+      const existingInterview = await this.interviewRepo.findOne({
+        where: {
+          candidate: { id: candidateId },
+          round: { id: round.id },
+        },
+        relations: ['round'],
+      });
+
+      if (!existingInterview) {
+        const decision =
+          nextStatus === CandidateStatus.TECH_SELECTED ||
+          nextStatus === CandidateStatus.OPS_SELECTED
+            ? 'SELECT'
+            : 'REJECT';
+
+        const interview = this.interviewRepo.create({
+          candidate,
+          round,
+          panelMembers: (round.panels || [])
+            .map((panel) => panel.name)
+            .filter(Boolean)
+            .join(', '),
+          feedback: feedback?.trim() || attendedSlot.hmComment || '',
+          decision,
+        });
+
+        await this.interviewRepo.save(interview);
+      }
     }
 
     attendedSlot.hmFeedbackSubmitted = true;

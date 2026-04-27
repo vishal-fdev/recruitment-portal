@@ -3,12 +3,16 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from './user.entity';
+import { Vendor } from '../vendors/vendors.entity';
 
 @Injectable()
 export class UsersService implements OnModuleInit {
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+
+    @InjectRepository(Vendor)
+    private readonly vendorRepo: Repository<Vendor>,
   ) {}
 
   async onModuleInit() {
@@ -20,11 +24,30 @@ export class UsersService implements OnModuleInit {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-  return this.userRepo
-    .createQueryBuilder('user')
-    .where('LOWER(user.email) = LOWER(:email)', { email })
-    .getOne();
-}
+    const user = await this.userRepo
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.vendor', 'vendor')
+      .where('LOWER(user.email) = LOWER(:email)', { email })
+      .getOne();
+
+    if (!user) {
+      return null;
+    }
+
+    if (user.role === UserRole.VENDOR && !user.vendor) {
+      const vendor = await this.vendorRepo
+        .createQueryBuilder('vendor')
+        .where('LOWER(vendor.email) = LOWER(:email)', { email })
+        .getOne();
+
+      if (vendor) {
+        user.vendor = vendor;
+        await this.userRepo.save(user);
+      }
+    }
+
+    return user;
+  }
 
   async ensureActiveUser(
     email: string,

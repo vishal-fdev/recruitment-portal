@@ -73,6 +73,9 @@ const CandidateDetails = () => {
 
   const [candidate, setCandidate] = useState<any>(null);
   const [feedback, setFeedback] = useState('');
+  const [pendingHmDecision, setPendingHmDecision] = useState<
+    'SELECT' | 'REJECT' | null
+  >(null);
   const [showRejectBox, setShowRejectBox] = useState(false);
   const [showDropBox, setShowDropBox] = useState(false);
   const [showYtjBox, setShowYtjBox] = useState(false);
@@ -191,7 +194,6 @@ const CandidateDetails = () => {
   const isHiringManagerView = pathname.startsWith('/hiring-manager/');
   const isVendorManagerView = pathname.startsWith('/vendor-manager/');
   const isFinalForHm = hmFinalStatuses.includes(candidate.status);
-  const canHmEdit = isHiringManagerView && !isFinalForHm && !hmSlotGateMessage;
   const canVmFinalize =
     isVendorManagerView &&
     ['IDENTIFIED', 'OPS_SELECTED', 'SELECTED', 'YET_TO_JOIN', 'ONBOARDED'].includes(candidate.status);
@@ -218,20 +220,56 @@ const CandidateDetails = () => {
     latestSlot &&
     ['PENDING_VENDOR', 'SCHEDULED'].includes(latestSlot.status);
 
+  const hasAttendedInterviewAwaitingHmFeedback =
+    latestSlot?.status === 'CLOSED' &&
+    latestSlot?.attendanceStatus === 'ATTENDED' &&
+    !latestSlot?.hmFeedbackSubmitted;
+
   const canScheduleInterview =
     isHiringManagerView &&
     ['SCREEN_SELECTED', 'TECH_SELECTED'].includes(normalizedStatus) &&
-    !hasOpenInterviewSlot;
+    !hasOpenInterviewSlot &&
+    !hasAttendedInterviewAwaitingHmFeedback;
+
+  const canHmSubmitStageDecision =
+    normalizedStatus === 'SUBMITTED' || hasAttendedInterviewAwaitingHmFeedback;
+
+  const canHmEdit =
+    isHiringManagerView &&
+    !isFinalForHm &&
+    !hmSlotGateMessage &&
+    canHmSubmitStageDecision;
+
+  const interviewGateMessage =
+    normalizedStatus === 'SCREEN_SELECTED'
+      ? hasOpenInterviewSlot
+        ? 'Waiting for vendor response on the scheduled screening interview.'
+        : latestSlot?.status === 'REJECTED'
+          ? 'The last screening slot was rejected. Please schedule the screening interview again.'
+          : latestSlot?.status === 'CLOSED' &&
+              latestSlot?.attendanceStatus !== 'ATTENDED'
+            ? 'The screening interview was not completed. Please schedule the screening interview again.'
+            : 'Schedule the screening interview to continue this candidate.'
+      : normalizedStatus === 'TECH_SELECTED'
+        ? hasOpenInterviewSlot
+          ? 'Waiting for vendor response on the scheduled technical interview.'
+          : latestSlot?.status === 'REJECTED'
+            ? 'The last technical slot was rejected. Please schedule the technical interview again.'
+            : latestSlot?.status === 'CLOSED' &&
+                latestSlot?.attendanceStatus !== 'ATTENDED'
+              ? 'The technical interview was not completed. Please schedule the technical interview again.'
+              : 'Schedule the technical interview to continue this candidate.'
+        : '';
 
   const submitHmDecision = async (decision: 'SELECT' | 'REJECT') => {
     let status: CandidateStatus | null = null;
 
-    if (decision === 'REJECT') {
-      if (!feedback.trim()) {
-        alert('Rejection justification is mandatory');
-        return;
-      }
+    if (!feedback.trim()) {
+      alert('Feedback is mandatory');
+      return;
+    }
 
+    if (decision === 'REJECT') {
       if (normalizedStatus === 'SUBMITTED') status = 'SCREEN_REJECTED';
       if (normalizedStatus === 'SCREEN_SELECTED') status = 'TECH_REJECTED';
       if (normalizedStatus === 'TECH_SELECTED') status = 'OPS_REJECTED';
@@ -254,6 +292,7 @@ const CandidateDetails = () => {
     await loadCandidate(candidate.id);
     setFeedback('');
     setShowRejectBox(false);
+    setPendingHmDecision(null);
     if (decision === 'SELECT' && ['SCREEN_SELECTED', 'TECH_SELECTED'].includes(status)) {
       setShowScheduleBox(true);
     }
@@ -707,6 +746,10 @@ const CandidateDetails = () => {
             )}
           </div>
 
+          {!canScheduleInterview && !hasAttendedInterviewAwaitingHmFeedback && interviewGateMessage && (
+            <p className="mt-4 text-sm text-slate-600">{interviewGateMessage}</p>
+          )}
+
           {hasOpenInterviewSlot && latestSlot && (
             <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm text-slate-700">
               <div className="grid gap-3 md:grid-cols-4">
@@ -750,6 +793,17 @@ const CandidateDetails = () => {
             </div>
           )}
 
+          {hasAttendedInterviewAwaitingHmFeedback && latestSlot && (
+            <div className="mt-4 rounded-xl border border-cyan-200 bg-cyan-50/70 px-4 py-3 text-sm text-slate-700">
+              <p className="font-medium text-slate-800">
+                The {formatRoundName(latestSlot.roundName).toLowerCase()} interview has been marked as attended.
+              </p>
+              <p className="mt-1">
+                You can now submit the next stage decision for this candidate.
+              </p>
+            </div>
+          )}
+
           {!hasOpenInterviewSlot && latestSlot?.status === 'REJECTED' && (
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-slate-700">
               <p className="font-medium text-slate-800">Last slot was rejected by vendor.</p>
@@ -777,14 +831,20 @@ const CandidateDetails = () => {
               <div className="flex flex-wrap gap-3">
                 <button
                   disabled={loading}
-                  onClick={() => void submitHmDecision('SELECT')}
+                  onClick={() => {
+                    setPendingHmDecision('SELECT');
+                    setShowRejectBox(true);
+                  }}
                   className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
                 >
                   {hmSelectLabel}
                 </button>
                 <button
                   disabled={loading}
-                  onClick={() => setShowRejectBox(true)}
+                  onClick={() => {
+                    setPendingHmDecision('REJECT');
+                    setShowRejectBox(true);
+                  }}
                   className="rounded-lg bg-rose-500 px-5 py-2 text-sm font-medium text-white hover:bg-rose-600 disabled:opacity-60"
                 >
                   {hmRejectLabel}
@@ -795,18 +855,42 @@ const CandidateDetails = () => {
                 <div className="space-y-3">
                   <textarea
                     rows={4}
-                    placeholder="Enter rejection justification..."
+                    placeholder="Enter feedback / justification..."
                     value={feedback}
                     onChange={(event) => setFeedback(event.target.value)}
                     className="w-full rounded-xl border border-emerald-200 p-3 text-sm outline-none ring-0"
                   />
-                  <button
-                    disabled={loading}
-                    onClick={() => void submitHmDecision('REJECT')}
-                    className="rounded-lg bg-rose-600 px-5 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-60"
-                  >
-                    Confirm Reject
-                  </button>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => {
+                        setShowRejectBox(false);
+                        setPendingHmDecision(null);
+                        setFeedback('');
+                      }}
+                      className="rounded-lg border border-slate-200 px-5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      disabled={loading || !pendingHmDecision}
+                      onClick={() =>
+                        pendingHmDecision
+                          ? void submitHmDecision(pendingHmDecision)
+                          : undefined
+                      }
+                      className={`rounded-lg px-5 py-2 text-sm font-medium text-white disabled:opacity-60 ${
+                        pendingHmDecision === 'REJECT'
+                          ? 'bg-rose-600 hover:bg-rose-700'
+                          : 'bg-emerald-600 hover:bg-emerald-700'
+                      }`}
+                    >
+                      {pendingHmDecision === 'REJECT'
+                        ? `Confirm ${hmRejectLabel}`
+                        : `Confirm ${hmSelectLabel}`}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

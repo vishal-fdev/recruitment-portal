@@ -174,10 +174,20 @@ export class JobsService {
   /* ================= VENDOR ================= */
 
   if (user.role === 'VENDOR') {
+    const vendorId = user.vendor?.id || user.vendorId;
+    if (!vendorId) return [];
+
+    const vendor = await this.vendorRepo.findOne({
+      where: { id: vendorId },
+    });
+
+    if (!vendor || !vendor.isActive) {
+      return [];
+    }
 
     const mappings = await this.jobVendorRepo.find({
       where: {
-        vendor: { id: user.vendor?.id || user.vendorId },
+        vendor: { id: vendorId },
         isEnabled: true,
         status: 'ACTIVE',
       },
@@ -254,11 +264,6 @@ export class JobsService {
   const jobs = await this.jobRepo.find({
     where: {
       isActive: true,
-      status: In([
-        JobStatus.APPROVED,
-        JobStatus.ON_HOLD,
-        JobStatus.CLOSED,
-      ]),
     },
     relations: ['positions', 'jobVendors', 'jobVendors.vendor'],
     order: { createdAt: 'DESC' },

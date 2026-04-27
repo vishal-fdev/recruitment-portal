@@ -26,6 +26,13 @@ export interface PartnerSlotCandidate {
 export interface PartnerSlotJob {
   id: number;
   title: string;
+  interviewRounds?: Array<{
+    roundName: string;
+    panels?: Array<{
+      name: string;
+      email?: string;
+    }>;
+  }>;
 }
 
 export interface PartnerSlotVendor {

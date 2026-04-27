@@ -1039,13 +1039,26 @@ const DrawerInfo = ({
   candidate?: CandidateRecord | EligibleSlotCandidate | null;
   slot?: PartnerSlot | null;
 }) => {
+  const panelMembers = slot
+    ? (
+        slot.job?.interviewRounds?.find(
+          (round) =>
+            (round.roundName || '').trim().toUpperCase() ===
+            (slot.roundName || '').trim().toUpperCase(),
+        )?.panels || []
+      )
+        .map((panel) => panel.name?.trim())
+        .filter(Boolean)
+        .join(', ')
+    : '';
+
   const data = slot
     ? {
         hrqId: `HRQ${slot.job?.id}`,
         candidateName: slot.candidate?.name,
         role: slot.job?.title,
         status: slot.status.replace(/_/g, ' '),
-        panel: slot.roundName,
+        panel: panelMembers || formatRoundName(slot.roundName),
       }
     : {
         hrqId:

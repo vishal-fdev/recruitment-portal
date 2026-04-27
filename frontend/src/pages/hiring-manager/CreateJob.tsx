@@ -102,6 +102,8 @@ workLocation:'',
 workType:'Onsite',
 
 requestType:'NEW',
+backfillEmployeeId:'',
+backfillEmployeeName:'',
 
 startDate:'',
 endDate:'',
@@ -160,6 +162,139 @@ const [backfillList, setBackfillList] = useState<
   { employeeId: string; employeeName: string }[]
 >([]);
 
+const parseBackfillEntries = (raw?: string) => {
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (item) =>
+            item &&
+            typeof item.employeeId === 'string' &&
+            typeof item.employeeName === 'string',
+        )
+      : [];
+  } catch {
+    return [];
+  }
+};
+
+const mainBackfillEntries = parseBackfillEntries(form.backfillEmployeeId);
+
+const getChildBackfillEntries = (position: ChildPosition) =>
+  parseBackfillEntries(position.backfillEmployeeId);
+
+const resetMainBackfill = () => {
+  setForm((prev) => ({
+    ...prev,
+    requestType: 'NEW',
+    backfillEmployeeId: '',
+    backfillEmployeeName: '',
+  }));
+  setBackfillList([]);
+};
+
+const openMainBackfillModal = () => {
+  const count = Number(form.numberOfPositions) || 1;
+  const existingEntries = parseBackfillEntries(form.backfillEmployeeId);
+
+  setBackfillList(
+    existingEntries.length
+      ? existingEntries
+      : Array.from({ length: count }, () => ({
+          employeeId: '',
+          employeeName: '',
+        })),
+  );
+  setActiveBackfillIndex(-2);
+};
+
+const closeBackfillModal = (options?: { revertMainRequestType?: boolean }) => {
+  if (activeBackfillIndex === -2 && options?.revertMainRequestType) {
+    resetMainBackfill();
+  }
+
+  if (activeBackfillIndex === -1 && options?.revertMainRequestType) {
+    setNewChild((prev) => ({
+      ...prev,
+      requestType: 'NEW',
+      backfillEmployeeId: '',
+      backfillEmployeeName: '',
+    }));
+    setBackfillList([]);
+  }
+
+  if (
+    activeBackfillIndex !== null &&
+    activeBackfillIndex >= 0 &&
+    options?.revertMainRequestType
+  ) {
+    setChildPositions((prev) =>
+      prev.map((position, index) =>
+        index === activeBackfillIndex
+          ? {
+              ...position,
+              requestType: 'NEW',
+              backfillEmployeeId: '',
+              backfillEmployeeName: '',
+            }
+          : position,
+      ),
+    );
+    setBackfillList([]);
+  }
+
+  setActiveBackfillIndex(null);
+};
+
+const openNewChildBackfillModal = () => {
+  const count = Number(newChild.openings) || 1;
+  const existingEntries = parseBackfillEntries(newChild.backfillEmployeeId);
+
+  setBackfillList(
+    existingEntries.length
+      ? existingEntries
+      : Array.from({ length: count }, () => ({
+          employeeId: '',
+          employeeName: '',
+        })),
+  );
+  setActiveBackfillIndex(-1);
+};
+
+const openExistingChildBackfillModal = (index: number) => {
+  const position = childPositions[index];
+  const count = Number(position?.openings) || 1;
+  const existingEntries = position ? getChildBackfillEntries(position) : [];
+
+  setBackfillList(
+    existingEntries.length
+      ? existingEntries
+      : Array.from({ length: count }, () => ({
+          employeeId: '',
+          employeeName: '',
+        })),
+  );
+  setActiveBackfillIndex(index);
+};
+
+const resetExistingChildBackfill = (index: number) => {
+  setChildPositions((prev) =>
+    prev.map((position, positionIndex) =>
+      positionIndex === index
+        ? {
+            ...position,
+            requestType: 'NEW',
+            backfillEmployeeId: '',
+            backfillEmployeeName: '',
+          }
+        : position,
+    ),
+  );
+  setIsSectionSaved(false);
+};
+
 
 /* AUTO SET HM */
 
@@ -199,6 +334,8 @@ useEffect(() => {
         workType: job.workType || 'Onsite',
 
         requestType: job.requestType || 'NEW',
+        backfillEmployeeId: job.backfillEmployeeId || '',
+        backfillEmployeeName: job.backfillEmployeeName || '',
 
         startDate: job.startDate?.split('T')[0] || '',
         endDate: job.endDate?.split('T')[0] || '',
@@ -229,6 +366,24 @@ useEffect(() => {
 
   fetchJob();
 }, [id]);
+
+useEffect(() => {
+  if (activeBackfillIndex === null) return;
+
+  const handleEscape = (event: globalThis.KeyboardEvent) => {
+    if (event.key !== 'Escape') return;
+
+    if (activeBackfillIndex === -2) {
+      closeBackfillModal({ revertMainRequestType: true });
+      return;
+    }
+
+    closeBackfillModal({ revertMainRequestType: true });
+  };
+
+  window.addEventListener('keydown', handleEscape);
+  return () => window.removeEventListener('keydown', handleEscape);
+}, [activeBackfillIndex]);
 
 
 
@@ -407,18 +562,10 @@ if(name==='requestType'){
 
   if (name === 'requestType') {
   if (value === 'BACKFILL') {
-    const count = form.numberOfPositions || 1;
-
-    setBackfillList(
-      Array.from({ length: count }, () => ({
-        employeeId: '',
-        employeeName: ''
-      }))
-    );
-
-    setActiveBackfillIndex(-2);
+    openMainBackfillModal();
   } else {
-    setActiveBackfillIndex(null);
+    closeBackfillModal();
+    resetMainBackfill();
   }
 }
 
@@ -594,8 +741,9 @@ const saveBackfill = () => {
   if(activeBackfillIndex === -2){
     setForm(prev => ({
       ...prev,
-      backfillEmployeeId: backfill.employeeId,
-      backfillEmployeeName: backfill.employeeName
+      requestType: 'BACKFILL',
+      backfillEmployeeId: JSON.stringify(backfillList),
+      backfillEmployeeName: 'MULTIPLE'
     }));
 
     setActiveBackfillIndex(null);
@@ -606,8 +754,9 @@ const saveBackfill = () => {
   if(activeBackfillIndex === -1){
     setNewChild(prev => ({
       ...prev,
-      backfillEmployeeId: backfill.employeeId,
-      backfillEmployeeName: backfill.employeeName
+      requestType: 'BACKFILL',
+      backfillEmployeeId: JSON.stringify(backfillList),
+      backfillEmployeeName: 'MULTIPLE'
     }));
 
     setActiveBackfillIndex(null);
@@ -615,13 +764,14 @@ const saveBackfill = () => {
   }
 
   // ✅ CASE 3: EXISTING CHILD
-  if(activeBackfillIndex !== null){
+  if(activeBackfillIndex !== null && activeBackfillIndex >= 0){
     const updated = [...childPositions];
 
     if(!updated[activeBackfillIndex]) return;
 
-    updated[activeBackfillIndex].backfillEmployeeId = backfill.employeeId;
-    updated[activeBackfillIndex].backfillEmployeeName = backfill.employeeName;
+    updated[activeBackfillIndex].requestType = 'BACKFILL';
+    updated[activeBackfillIndex].backfillEmployeeId = JSON.stringify(backfillList);
+    updated[activeBackfillIndex].backfillEmployeeName = 'MULTIPLE';
 
     setChildPositions(updated);
   }
@@ -1016,6 +1166,57 @@ className="input"
 {errors.requestType && <p className="text-red-500 text-xs">{errors.requestType}</p>}
 </Field>
 
+{form.requestType === 'BACKFILL' && !!mainBackfillEntries.length && (
+  <div className="col-span-2 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h3 className="text-sm font-semibold text-slate-800">
+          Main Position Backfill Details
+        </h3>
+        <p className="mt-1 text-xs text-slate-500">
+          These employee details apply only to the main job position.
+        </p>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={openMainBackfillModal}
+          className="rounded-md border border-emerald-200 bg-white px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={resetMainBackfill}
+          className="rounded-md border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50"
+        >
+          Remove
+        </button>
+      </div>
+    </div>
+
+    <div className="mt-4 space-y-2">
+      {mainBackfillEntries.map((employee, index) => (
+        <div
+          key={`${employee.employeeId}-${index}`}
+          className="rounded-lg border border-white/70 bg-white px-3 py-2 text-sm"
+        >
+          <p className="font-medium text-slate-800">
+            Employee {index + 1}
+          </p>
+          <p className="mt-1 text-slate-600">
+            <span className="font-medium">EMP ID:</span> {employee.employeeId || '-'}
+          </p>
+          <p className="text-slate-600">
+            <span className="font-medium">EMP Name:</span> {employee.employeeName || '-'}
+          </p>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
 <Field label="Deal Name *">
 <input
 name="dealName"
@@ -1097,13 +1298,7 @@ className="input"
             setIsSectionSaved(false);
 
             if(newChild.requestType === 'BACKFILL'){
-              setBackfillList(
-                Array.from({ length: value || 1 }, () => ({
-                  employeeId:'',
-                  employeeName:''
-                }))
-              );
-              setActiveBackfillIndex(-1);
+              openNewChildBackfillModal();
             }
           }}
           className="input"
@@ -1118,20 +1313,20 @@ className="input"
           value={newChild.requestType || 'NEW'}
           onChange={(e)=>{
             const value = e.target.value as 'NEW' | 'BACKFILL';
-            setNewChild({...newChild,requestType:value});
+            setNewChild({
+              ...newChild,
+              requestType:value,
+              ...(value === 'NEW'
+                ? {
+                    backfillEmployeeId: '',
+                    backfillEmployeeName: '',
+                  }
+                : {}),
+            });
             setIsSectionSaved(false);
 
             if(value === 'BACKFILL'){
-              const count = newChild.openings || 1;
-
-              setBackfillList(
-                Array.from({ length: count }, () => ({
-                  employeeId: '',
-                  employeeName: ''
-                }))
-              );
-
-              setActiveBackfillIndex(-1);
+              openNewChildBackfillModal();
             }
           }}
           className="input"
@@ -1166,14 +1361,54 @@ className="input"
             Request Type: <strong>{pos.requestType || 'NEW'}</strong>
           </div>
 
-          <button
-            type="button"
-            onClick={()=>removeChildPosition(index)}
-            className="text-red-500"
-          >
-            Remove
-          </button>
+          <div className="flex items-center gap-3">
+            {pos.requestType === 'BACKFILL' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openExistingChildBackfillModal(index)}
+                  className="text-xs font-medium text-emerald-700"
+                >
+                  Edit Backfill
+                </button>
+                <button
+                  type="button"
+                  onClick={() => resetExistingChildBackfill(index)}
+                  className="text-xs font-medium text-rose-500"
+                >
+                  Remove Backfill
+                </button>
+              </>
+            )}
+          </div>
         </div>
+
+        {pos.requestType === 'BACKFILL' && getChildBackfillEntries(pos).length > 0 && (
+          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+              Backfill Details
+            </p>
+
+            <div className="mt-2 space-y-2">
+              {getChildBackfillEntries(pos).map((employee, employeeIndex) => (
+                <div
+                  key={`${employee.employeeId}-${employeeIndex}`}
+                  className="rounded-md bg-white px-3 py-2 text-sm text-slate-700"
+                >
+                  <p className="font-medium text-slate-800">
+                    Employee {employeeIndex + 1}
+                  </p>
+                  <p className="mt-1">
+                    <span className="font-medium">EMP ID:</span> {employee.employeeId || '-'}
+                  </p>
+                  <p>
+                    <span className="font-medium">EMP Name:</span> {employee.employeeName || '-'}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     ))}
 
@@ -1725,9 +1960,10 @@ className="input w-full"
 <button
 onClick={() => {
 
-  if (activeBackfillIndex === -2) {
+if (activeBackfillIndex === -2) {
   setForm(prev => ({
     ...prev,
+    requestType: 'BACKFILL',
     backfillEmployeeId: JSON.stringify(backfillList),
     backfillEmployeeName: 'MULTIPLE'
   }));
@@ -1736,11 +1972,28 @@ onClick={() => {
 if (activeBackfillIndex === -1) {
   setNewChild(prev => ({
     ...prev,
-    backfillEmployeeId: JSON.stringify(backfillList)
+    requestType: 'BACKFILL',
+    backfillEmployeeId: JSON.stringify(backfillList),
+    backfillEmployeeName: 'MULTIPLE'
   }));
 }
 
-  setActiveBackfillIndex(null);
+if (activeBackfillIndex !== null && activeBackfillIndex >= 0) {
+  setChildPositions((prev) =>
+    prev.map((position, index) =>
+      index === activeBackfillIndex
+        ? {
+            ...position,
+            requestType: 'BACKFILL',
+            backfillEmployeeId: JSON.stringify(backfillList),
+            backfillEmployeeName: 'MULTIPLE',
+          }
+        : position,
+    ),
+  );
+}
+
+  closeBackfillModal();
 
 }}
 disabled={!isBackfillListValid}

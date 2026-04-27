@@ -251,6 +251,8 @@ const formatStatus = (status: string) =>
 const getStatusClass = (status: string) => {
   const map: Record<string, string> = {
     APPROVED: 'bg-green-100 text-green-700',
+    PENDING_APPROVAL: 'bg-orange-100 text-orange-700',
+    REJECTED: 'bg-red-100 text-red-700',
     ON_HOLD: 'bg-yellow-100 text-yellow-700',
     CLOSED: 'bg-gray-200 text-gray-600',
   };

@@ -63,16 +63,46 @@ export class PartnerSlotsService {
     return variants.has(normalizedHm);
   }
 
+  private async getVendorId(user: any) {
+    const directVendorId = String(user?.vendorId || user?.vendor?.id || '').trim();
+    if (directVendorId) {
+      return directVendorId;
+    }
+
+    const normalizedEmail = this.normalizeValue(user?.email);
+    if (!normalizedEmail) {
+      return '';
+    }
+
+    const vendor = await this.vendorRepo
+      .createQueryBuilder('vendor')
+      .where('LOWER(vendor.email) = LOWER(:email)', { email: normalizedEmail })
+      .getOne();
+
+    return vendor?.id || '';
+  }
+
+  private getSlotRelations() {
+    return ['job.interviewRounds'] as const;
+  }
+
   async getSlotsForUser(user: any) {
     if (user.role === 'VENDOR') {
+      const vendorId = await this.getVendorId(user);
+      if (!vendorId) {
+        return [];
+      }
+
       return this.slotRepo.find({
-        where: { vendor: { id: user.vendorId } },
+        where: { vendor: { id: vendorId } },
+        relations: [...this.getSlotRelations()],
         order: { updatedAt: 'DESC' },
       });
     }
 
     if (user.role === 'HIRING_MANAGER') {
       const allSlots = await this.slotRepo.find({
+        relations: [...this.getSlotRelations()],
         order: { updatedAt: 'DESC' },
       });
 
@@ -83,6 +113,7 @@ export class PartnerSlotsService {
     }
 
     return this.slotRepo.find({
+      relations: [...this.getSlotRelations()],
       order: { updatedAt: 'DESC' },
     });
   }
@@ -99,6 +130,7 @@ export class PartnerSlotsService {
 
     const hmEmail = (user.email || '').trim().toLowerCase();
     const slots = await this.slotRepo.find({
+      relations: [...this.getSlotRelations()],
       order: { createdAt: 'DESC' },
     });
     const activeCandidateIds = new Set(
@@ -225,15 +257,21 @@ export class PartnerSlotsService {
       throw new BadRequestException('Only vendors can respond to slots');
     }
 
+    const vendorId = await this.getVendorId(user);
+    if (!vendorId) {
+      throw new BadRequestException('Vendor account is not linked correctly');
+    }
+
     const slot = await this.slotRepo.findOne({
       where: { id: slotId },
+      relations: [...this.getSlotRelations()],
     });
 
     if (!slot) {
       throw new NotFoundException('Slot not found');
     }
 
-    if (slot.vendor.id !== user.vendorId) {
+    if (String(slot.vendor?.id || '').trim() !== vendorId) {
       throw new BadRequestException('Unauthorized slot access');
     }
 
@@ -274,15 +312,21 @@ export class PartnerSlotsService {
       throw new BadRequestException('Only vendors can confirm interview attendance');
     }
 
+    const vendorId = await this.getVendorId(user);
+    if (!vendorId) {
+      throw new BadRequestException('Vendor account is not linked correctly');
+    }
+
     const slot = await this.slotRepo.findOne({
       where: { id: slotId },
+      relations: [...this.getSlotRelations()],
     });
 
     if (!slot) {
       throw new NotFoundException('Slot not found');
     }
 
-    if (slot.vendor.id !== user.vendorId) {
+    if (String(slot.vendor?.id || '').trim() !== vendorId) {
       throw new BadRequestException('Unauthorized slot access');
     }
 
@@ -324,6 +368,7 @@ export class PartnerSlotsService {
         attendanceStatus: SlotAttendanceStatus.ATTENDED,
         hmFeedbackSubmitted: false,
       },
+      relations: [...this.getSlotRelations()],
       order: { updatedAt: 'DESC' },
     });
   }
