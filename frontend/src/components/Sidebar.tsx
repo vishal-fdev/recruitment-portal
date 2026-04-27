@@ -108,7 +108,7 @@ const Sidebar = ({ role, expanded, onHover }: SidebarProps) => {
             expanded ? 'max-w-[180px] opacity-100' : 'max-w-0 opacity-0'
           }`}
         >
-          <p className="text-sm font-semibold tracking-[-0.2px] text-white">Epicenter</p>
+          <p className="text-sm font-semibold tracking-[-0.2px] text-white">Dribble</p>
           <p className="mt-0.5 text-[10px] text-white/30">HPE Recruitment</p>
         </div>
       </div>

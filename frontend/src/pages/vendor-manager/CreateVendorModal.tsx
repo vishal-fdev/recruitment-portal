@@ -1,5 +1,10 @@
-// src/pages/vendor-manager/CreateVendorModal.tsx
 import { useState } from 'react';
+
+const VENDOR_TYPE_OPTIONS = [
+  'Training Vendor',
+  'CWF Vendor',
+  'Project Vendor',
+];
 
 interface Props {
   onClose: () => void;
@@ -24,7 +29,7 @@ const CreateVendorModal = ({ onClose, onCreated }: Props) => {
   const token = localStorage.getItem('token');
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     setForm({
       ...form,
@@ -81,7 +86,13 @@ const res = await fetch(`${API}/vendors`, {
           <Input label="City" name="city" value={form.city} onChange={handleChange} />
           <Input label="Address" name="address" value={form.address} onChange={handleChange} />
           <Input label="Tax ID / PAN" name="taxId" value={form.taxId} onChange={handleChange} />
-          <Input label="Vendor Type" name="vendorType" value={form.vendorType} onChange={handleChange} />
+          <Select
+            label="Vendor Type"
+            name="vendorType"
+            value={form.vendorType}
+            onChange={handleChange}
+            options={VENDOR_TYPE_OPTIONS}
+          />
         </div>
 
         <div className="flex justify-end gap-4 mt-8">
@@ -123,5 +134,32 @@ const Input = ({
       onChange={onChange}
       className="w-full border rounded-md px-3 py-2"
     />
+  </div>
+);
+
+const Select = ({
+  label,
+  name,
+  value,
+  onChange,
+  options,
+}: any) => (
+  <div>
+    <label className="block text-sm font-medium mb-1">
+      {label}
+    </label>
+    <select
+      name={name}
+      value={value}
+      onChange={onChange}
+      className="w-full border rounded-md px-3 py-2"
+    >
+      <option value="">Select vendor type</option>
+      {options.map((option: string) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
   </div>
 );

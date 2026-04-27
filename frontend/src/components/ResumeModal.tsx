@@ -12,23 +12,19 @@ const ResumeModal = ({ candidateId, onClose }: Props) => {
   const [fileType, setFileType] = useState<"pdf" | "docx" | null>(null);
 
   useEffect(() => {
+    let objectUrl: string | null = null;
 
     const fetchResume = async () => {
 
       try {
+        const res = await api.get(`/candidates/${candidateId}/resume`, {
+          responseType: "blob",
+        });
+        const mimeType = res.data.type || "";
+        objectUrl = URL.createObjectURL(res.data);
+        setResumeUrl(objectUrl);
 
-        const res = await api.get(`/candidates/${candidateId}`);
-
-        const resumePath = res.data.resumePath;
-
-        const baseUrl =
-          import.meta.env.VITE_API_URL || "http://localhost:3000";
-
-        const fullUrl = `${baseUrl}${resumePath}`;
-
-        setResumeUrl(fullUrl);
-
-        if (resumePath.toLowerCase().endsWith(".pdf")) {
+        if (mimeType.toLowerCase().includes("pdf")) {
           setFileType("pdf");
         } else {
           setFileType("docx");
@@ -41,6 +37,12 @@ const ResumeModal = ({ candidateId, onClose }: Props) => {
     };
 
     fetchResume();
+
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
 
   }, [candidateId]);
 

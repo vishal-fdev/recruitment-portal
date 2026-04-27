@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Dispatch, KeyboardEvent, SetStateAction } from 'react';
 import api from '../../api/api';
-import { useNavigate } from 'react-router-dom';
-import { useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 interface Panel {
   name: string;
@@ -78,11 +77,13 @@ const SKILL_SUGGESTIONS = [
 const CreateJob = () => {
 
 const navigate = useNavigate();
+const location = useLocation();
 
 
 
 const { id } = useParams(); // jobId for edit
 const isEditMode = !!id;
+const prefetchedJob = (location.state as { job?: any } | null)?.job;
 
 const [loading,setLoading] = useState(false);
 const [jdFiles, setJdFiles] = useState<File[]>([]);
@@ -161,6 +162,45 @@ const [secondarySkillInput, setSecondarySkillInput] = useState('');
 const [backfillList, setBackfillList] = useState<
   { employeeId: string; employeeName: string }[]
 >([]);
+
+const applyJobToForm = (job: any) => {
+  if (!job) return;
+
+  setForm({
+    jobTitle: job.title || '',
+    jobCategory: job.jobCategory || '',
+    businessUnit: 'MS',
+    hiringManager: job.hiringManager || '',
+
+    workLocation: job.location || '',
+    workType: job.workType || 'Onsite',
+
+    requestType: job.requestType || 'NEW',
+    backfillEmployeeId: job.backfillEmployeeId || '',
+    backfillEmployeeName: job.backfillEmployeeName || '',
+
+    startDate: job.startDate?.split('T')[0] || '',
+    endDate: job.endDate?.split('T')[0] || '',
+
+    level: job.level || '',
+    numberOfPositions: job.numberOfPositions || 1,
+
+    region: job.region || '',
+    dealName: job.dealName || '',
+
+    justification: job.justification || '',
+
+    description: job.description || '',
+    primarySkills: job.primarySkills || '',
+    secondarySkills: job.secondarySkills || '',
+    experience: job.experience || ''
+  });
+
+  setChildPositions(job.positions || []);
+  setRounds(job.interviewRounds || []);
+  setShowAdditionalPositions((job.positions || []).length > 0);
+  setIsSectionSaved(true);
+};
 
 const parseBackfillEntries = (raw?: string) => {
   if (!raw) return [];
@@ -317,47 +357,17 @@ setForm(prev=>({...prev,hiringManager:email}));
 },[]);
 
 useEffect(() => {
+  if (!isEditMode || !prefetchedJob) return;
+  applyJobToForm(prefetchedJob);
+}, [isEditMode, prefetchedJob]);
+
+useEffect(() => {
   if (!isEditMode) return;
 
   const fetchJob = async () => {
     try {
       const res = await api.get(`/jobs/${id}`);
-      const job = res.data;
-
-      setForm({
-        jobTitle: job.title || '',
-        jobCategory: job.jobCategory || '',
-        businessUnit: 'MS',
-        hiringManager: job.hiringManager || '',
-
-        workLocation: job.location || '',
-        workType: job.workType || 'Onsite',
-
-        requestType: job.requestType || 'NEW',
-        backfillEmployeeId: job.backfillEmployeeId || '',
-        backfillEmployeeName: job.backfillEmployeeName || '',
-
-        startDate: job.startDate?.split('T')[0] || '',
-        endDate: job.endDate?.split('T')[0] || '',
-
-        level: job.level || '',
-        numberOfPositions: job.numberOfPositions || 1,
-
-        region: job.region || '',
-        dealName: job.dealName || '',
-
-        justification: job.justification || '',
-
-        description: job.description || '',
-        primarySkills: job.primarySkills || '',
-        secondarySkills: job.secondarySkills || '',
-        experience: job.experience || ''
-      });
-
-      setChildPositions(job.positions || []);
-      setRounds(job.interviewRounds || []);
-      setShowAdditionalPositions((job.positions || []).length > 0);
-      setIsSectionSaved(true);
+      applyJobToForm(res.data);
 
     } catch {
       alert('Failed to load job');

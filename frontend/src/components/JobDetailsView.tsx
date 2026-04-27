@@ -2,8 +2,6 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   approveJob,
-  downloadJDByIndex,
-  downloadPSQByIndex,
   getJobDetails,
   rejectJob,
 } from '../services/jobService';
@@ -20,8 +18,6 @@ type BackfillEntry = {
   employeeId?: string;
   employeeName?: string;
 };
-
-const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const JobDetailsView = ({
   backRoute,
@@ -168,19 +164,6 @@ const JobDetailsView = ({
     );
   };
 
-  const jdFiles =
-    job.jdFiles?.length
-      ? job.jdFiles
-      : job.jdFileName
-        ? [{ fileName: job.jdFileName, path: '', mimeType: '' }]
-        : [];
-  const psqFiles =
-    job.psqFiles?.length
-      ? job.psqFiles
-      : job.psqFileName
-        ? [{ fileName: job.psqFileName, path: '', mimeType: '' }]
-        : [];
-
   return (
     <div className="space-y-6">
       <button
@@ -194,7 +177,11 @@ const JobDetailsView = ({
         <h1 className="text-2xl font-semibold">HRQ{job.id}</h1>
         {canResubmit && (
           <button
-            onClick={() => navigate(`/hiring-manager/edit-job/${job.id}`)}
+            onClick={() =>
+              navigate(`/hiring-manager/edit-job/${job.id}`, {
+                state: { job },
+              })
+            }
             className="rounded-[12px] bg-[#01A982] px-4 py-2 text-sm font-semibold text-white"
           >
             Resubmit
@@ -296,20 +283,6 @@ const JobDetailsView = ({
                 </>
               )}
 
-              <div className="flex gap-3 mt-3">
-                <FileButtons
-                  files={jdFiles}
-                  getLink={(index) => downloadJDByIndex(job.id, index)}
-                  emptyLabel="No JD"
-                  labelPrefix="JD"
-                />
-                <FileButtons
-                  files={psqFiles}
-                  getLink={(index) => downloadPSQByIndex(job.id, index)}
-                  emptyLabel="No PSQ"
-                  labelPrefix="PSQ"
-                />
-              </div>
             </div>
 
             {job.positions?.map((position, index) => (
@@ -343,16 +316,6 @@ const JobDetailsView = ({
                   </>
                 )}
 
-                <div className="flex gap-3 mt-3">
-                  <Btn
-                    link={`${apiBaseUrl}/jobs/positions/${position.id}/jd/download`}
-                    label="Download JD"
-                  />
-                  <Btn
-                    link={`${apiBaseUrl}/jobs/positions/${position.id}/psq/download`}
-                    label="Download PSQ"
-                  />
-                </div>
               </div>
             ))}
           </Card>
@@ -470,38 +433,6 @@ const Btn = ({ link, label }: { link: string; label: string }) => (
     {label}
   </a>
 );
-
-const FileButtons = ({
-  files,
-  getLink,
-  emptyLabel,
-  labelPrefix,
-}: {
-  files: { fileName: string }[];
-  getLink: (index: number) => string;
-  emptyLabel: string;
-  labelPrefix: string;
-}) => {
-  if (!files.length) {
-    return <span className="text-sm text-gray-500">{emptyLabel}</span>;
-  }
-
-  return (
-    <div className="flex flex-wrap gap-3">
-      {files.map((file, index) => (
-        <Btn
-          key={`${labelPrefix}-${file.fileName}-${index}`}
-          link={getLink(index)}
-          label={
-            files.length > 1
-              ? `Download ${labelPrefix} ${index + 1}`
-              : `Download ${labelPrefix}`
-          }
-        />
-      ))}
-    </div>
-  );
-};
 
 const TabButton = ({
   label,

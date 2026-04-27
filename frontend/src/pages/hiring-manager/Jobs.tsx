@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/api';
 import { authService } from '../../auth/authService';
+import { downloadJD, downloadPSQ } from '../../services/jobService';
 
 interface Job {
   id: number;
@@ -12,6 +13,10 @@ interface Job {
   status: string;
   numberOfPositions?: number;
   currentNumberOfPositions?: number;
+  jdFileName?: string;
+  psqFileName?: string;
+  jdFiles?: { fileName: string; path: string; mimeType: string }[];
+  psqFiles?: { fileName: string; path: string; mimeType: string }[];
 }
 
 const HMJobs = () => {
@@ -34,6 +39,16 @@ const HMJobs = () => {
   useEffect(() => {
     void fetchJobs();
   }, []);
+
+  const triggerDownload = (link: string) => {
+    const anchor = document.createElement('a');
+    anchor.href = link;
+    anchor.target = '_blank';
+    anchor.rel = 'noreferrer';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+  };
 
   return (
     <div className="space-y-6">
@@ -58,10 +73,17 @@ const HMJobs = () => {
 
         {!loading &&
           jobs.map((job) => (
-            <button
+            <div
               key={job.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => navigate(`/hiring-manager/jobs/${job.id}`)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  navigate(`/hiring-manager/jobs/${job.id}`);
+                }
+              }}
               className="w-full rounded-[24px] border border-black/8 bg-white p-6 text-left shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -81,18 +103,44 @@ const HMJobs = () => {
                   </div>
                 </div>
 
-                {(job.status === 'PENDING_APPROVAL' || job.status === 'REJECTED') && (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    disabled={!((job.jdFiles?.length ?? 0) > 0 || job.jdFileName)}
                     onClick={(event) => {
                       event.stopPropagation();
-                      navigate(`/hiring-manager/edit-job/${job.id}`);
+                      triggerDownload(downloadJD(job.id));
                     }}
-                    className="rounded-[12px] bg-[#01A982] px-4 py-2 text-sm font-semibold text-white"
+                    className="rounded-[12px] bg-gray-800 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
                   >
-                    Resubmit
+                    Download JD
                   </button>
-                )}
+                  <button
+                    type="button"
+                    disabled={!((job.psqFiles?.length ?? 0) > 0 || job.psqFileName)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      triggerDownload(downloadPSQ(job.id));
+                    }}
+                    className="rounded-[12px] bg-gray-800 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+                  >
+                    Download PSQ
+                  </button>
+                  {(job.status === 'PENDING_APPROVAL' || job.status === 'REJECTED') && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        navigate(`/hiring-manager/edit-job/${job.id}`, {
+                          state: { job },
+                        });
+                      }}
+                      className="rounded-[12px] bg-[#01A982] px-4 py-2 text-sm font-semibold text-white"
+                    >
+                      Resubmit
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -101,7 +149,7 @@ const HMJobs = () => {
                 <Info label="Current Positions" value={String(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0)} />
                 <Info label="Status" value={formatStatus(job.status)} />
               </div>
-            </button>
+            </div>
           ))}
 
         {!loading && jobs.length === 0 && (

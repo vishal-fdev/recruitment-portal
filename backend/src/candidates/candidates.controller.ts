@@ -14,12 +14,14 @@ import {
   Param,
   ParseIntPipe,
   Res,
+  NotFoundException,
 } from '@nestjs/common';
 
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { existsSync } from 'fs';
+import { extname, isAbsolute, resolve } from 'path';
 
 import { CandidatesService } from './candidates.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -163,12 +165,27 @@ export class CandidatesController {
     @Req() req: any,
     @Res() res: Response,
   ) {
-    const path =
+    const resumePath =
       await this.service.getResumePathForUser(
         id,
         req.user,
       );
 
-    return res.sendFile(path, { root: '.' });
+    const normalizedResumePath = resumePath.replace(/^[/\\]+/, '');
+    const candidatePaths = [
+      isAbsolute(resumePath) ? resumePath : null,
+      resolve(process.cwd(), normalizedResumePath),
+      resolve(process.cwd(), 'backend', normalizedResumePath),
+      resolve(__dirname, '..', '..', normalizedResumePath),
+    ].filter((value): value is string => Boolean(value));
+
+    const absoluteResumePath =
+      candidatePaths.find((filePath) => existsSync(filePath)) || null;
+
+    if (!absoluteResumePath) {
+      throw new NotFoundException('Resume file not found');
+    }
+
+    return res.sendFile(absoluteResumePath);
   }
 }

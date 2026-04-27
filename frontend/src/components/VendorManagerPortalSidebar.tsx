@@ -75,7 +75,7 @@ const VendorManagerPortalSidebar = ({
           }`}
         >
           <p className="whitespace-nowrap text-[15px] font-semibold tracking-[-0.02em] text-white">
-            VendorSync
+            Dribble
           </p>
           <p className="mt-0.5 whitespace-nowrap text-xs text-white/45">HPE Vendor Portal</p>
         </div>

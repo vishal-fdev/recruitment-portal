@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/api';
 import StageBadge from '../../components/StageBadge';
+import ResumeModal from '../../components/ResumeModal';
 import { authService } from '../../auth/authService';
 import {
   createPartnerSlot,
@@ -85,6 +86,7 @@ const CandidateDetails = () => {
   const [ytjJustification, setYtjJustification] = useState('');
   const [partnerSlotLoading, setPartnerSlotLoading] = useState(false);
   const [showScheduleBox, setShowScheduleBox] = useState(false);
+  const [showResumeModal, setShowResumeModal] = useState(false);
   const [slotForm, setSlotForm] = useState({
     interviewDate: '',
     interviewTime: '',
@@ -400,9 +402,6 @@ const CandidateDetails = () => {
       new Date(b.feedbackDate || 0).getTime() -
       new Date(a.feedbackDate || 0).getTime(),
   );
-
-  const resumeUrl = `${import.meta.env.VITE_API_URL}/candidates/${candidate.id}/resume`;
-
   return (
     <div className="space-y-5">
       <button
@@ -557,15 +556,14 @@ const CandidateDetails = () => {
                   icon: <FileText size={13} />,
                   label: 'Resume',
                   value: (
-                    <a
-                      href={resumeUrl}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => setShowResumeModal(true)}
                       className="inline-flex items-center gap-1 text-slate-700 hover:text-emerald-600"
                     >
                       Resume
                       <FileText size={12} />
-                    </a>
+                    </button>
                   ),
                 },
                 {
@@ -1084,6 +1082,13 @@ const CandidateDetails = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {showResumeModal && (
+        <ResumeModal
+          candidateId={candidate.id}
+          onClose={() => setShowResumeModal(false)}
+        />
       )}
     </div>
   );

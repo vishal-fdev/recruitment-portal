@@ -98,6 +98,20 @@ export class JobsService {
     }
   }
 
+  private queueJobNotifications(job: any) {
+    void Promise.allSettled([
+      this.mailService.sendApprovalEmail(job),
+      this.notifyScreeningPanels(job),
+    ]).then((results) => {
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const label = index === 0 ? 'approval email' : 'panel notifications';
+          console.error(`Failed background ${label}:`, result.reason);
+        }
+      });
+    });
+  }
+
   private parseStoredFiles(value?: string | null): StoredFileMeta[] {
     if (!value) return [];
 
@@ -118,10 +132,31 @@ export class JobsService {
   }
 
   private attachStoredFilesToJob(job: Job) {
+    const jdFiles = this.parseStoredFiles(job.jdFiles);
+    const psqFiles = this.parseStoredFiles(job.psqFiles);
+
     return {
       ...job,
-      jdFiles: this.parseStoredFiles(job.jdFiles),
-      psqFiles: this.parseStoredFiles(job.psqFiles),
+      jdFiles:
+        jdFiles.length || !job.jdPath
+          ? jdFiles
+          : [
+              {
+                path: job.jdPath,
+                fileName: job.jdFileName,
+                mimeType: job.jdMimeType,
+              },
+            ],
+      psqFiles:
+        psqFiles.length || !job.psqPath
+          ? psqFiles
+          : [
+              {
+                path: job.psqPath,
+                fileName: job.psqFileName,
+                mimeType: job.psqMimeType,
+              },
+            ],
     };
   }
 
@@ -363,8 +398,7 @@ export class JobsService {
     }
   }
   const hydratedJob = await this.getJobById(savedJob.id);
-  await this.mailService.sendApprovalEmail(hydratedJob);
-  await this.notifyScreeningPanels(hydratedJob);
+  this.queueJobNotifications(hydratedJob);
   return hydratedJob;
 }
 
@@ -476,8 +510,7 @@ async updateJob(jobId: number, data: any): Promise<Job> {
     }
   }
   const hydratedJob = await this.getJobById(jobId);
-  await this.mailService.sendApprovalEmail(hydratedJob);
-  await this.notifyScreeningPanels(hydratedJob);
+  this.queueJobNotifications(hydratedJob);
   return hydratedJob;
 }
 
@@ -667,7 +700,17 @@ async updateJob(jobId: number, data: any): Promise<Job> {
   async getJD(jobId: number, index = 0) {
     const job = await this.jobRepo.findOne({ where: { id: jobId } });
     const files = job ? this.parseStoredFiles(job.jdFiles) : [];
-    const selectedFile = files[index] || files[0];
+    const effectiveFiles =
+      files.length || !job?.jdPath
+        ? files
+        : [
+            {
+              path: job.jdPath,
+              fileName: job.jdFileName,
+              mimeType: job.jdMimeType,
+            },
+          ];
+    const selectedFile = effectiveFiles[index] || effectiveFiles[0];
 
     if (!job || !selectedFile)
       throw new NotFoundException('JD not found');
@@ -721,7 +764,17 @@ async attachPSQ(jobId: number, files: Express.Multer.File[]) {
 async getPSQ(jobId: number, index = 0) {
   const job = await this.jobRepo.findOne({ where: { id: jobId } });
   const files = job ? this.parseStoredFiles(job.psqFiles) : [];
-  const selectedFile = files[index] || files[0];
+  const effectiveFiles =
+    files.length || !job?.psqPath
+      ? files
+      : [
+          {
+            path: job.psqPath,
+            fileName: job.psqFileName,
+            mimeType: job.psqMimeType,
+          },
+        ];
+  const selectedFile = effectiveFiles[index] || effectiveFiles[0];
 
   if (!job || !selectedFile)
     throw new NotFoundException('PSQ not found');
