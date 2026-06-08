@@ -1,4 +1,9 @@
-// src/pages/vendor-manager-head/RejectModal.tsx
+import {
+  Box,
+  Button,
+  Layer,
+  Text,
+} from 'grommet';
 import api from '../../api/api';
 
 interface Props {
@@ -14,34 +19,23 @@ const RejectModal = ({ jobId, onClose, onRejected }: Props) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white w-[420px] rounded-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">
+    <Layer onClickOutside={onClose} onEsc={onClose} modal responsive={false}>
+      <Box width="420px" pad="24px" gap="20px">
+        <Text size="large" weight={600}>
           Reject Job Requisition
-        </h2>
+        </Text>
 
-        <p className="text-sm text-gray-600 mb-6">
-          This action cannot be undone. The Hiring Manager
-          will be able to edit and resubmit the job.
-        </p>
+        <Text size="small" color="#64748B">
+          This action cannot be undone. The Hiring Manager will be able to edit
+          and resubmit the job.
+        </Text>
 
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border rounded"
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={reject}
-            className="px-4 py-2 bg-red-600 text-white rounded"
-          >
-            Reject
-          </button>
-        </div>
-      </div>
-    </div>
+        <Box direction="row" justify="end" gap="12px">
+          <Button label="Cancel" onClick={onClose} />
+          <Button primary color="status-critical" label="Reject" onClick={reject} />
+        </Box>
+      </Box>
+    </Layer>
   );
 };
 

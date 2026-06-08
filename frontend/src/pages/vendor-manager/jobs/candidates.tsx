@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Button,
+  DataTable,
+  Heading,
+  Text,
+} from 'grommet';
 import api from '../../../api/api';
 
 interface Candidate {
@@ -34,82 +41,67 @@ const JobCandidates = () => {
   }, [id]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">
+    <Box gap="24px">
+      <Box direction="row" justify="between" align="start">
+        <Box gap="4px">
+          <Heading level={2} size="small" margin="none">
             Candidates for Job #{id}
-          </h1>
-          <p className="text-sm text-gray-500">
+          </Heading>
+          <Text size="small" color="#64748B">
             Candidates submitted by vendors
-          </p>
-        </div>
+          </Text>
+        </Box>
 
-        <button
-          onClick={() => navigate(-1)}
-          className="px-4 py-2 border rounded-md text-sm"
-        >
-          ← Back
-        </button>
-      </div>
+        <Button label="<- Back" onClick={() => navigate(-1)} />
+      </Box>
 
-      {/* Table */}
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-green-100">
-            <tr>
-              <th className="px-4 py-3 text-left">Name</th>
-              <th className="px-4 py-3 text-left">Email</th>
-              <th className="px-4 py-3 text-left">Contact</th>
-              <th className="px-4 py-3 text-left">City</th>
-              <th className="px-4 py-3 text-left">Vendor</th>
-              <th className="px-4 py-3 text-left">Experience</th>
-              <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3 text-left">Created On</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={8} className="px-4 py-6 text-center">
-                  Loading...
-                </td>
-              </tr>
-            )}
-
-            {!loading && candidates.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-gray-500">
-                  No candidates submitted yet
-                </td>
-              </tr>
-            )}
-
-            {!loading &&
-              candidates.map((c) => (
-                <tr key={c.id} className="border-t">
-                  <td className="px-4 py-3">{c.name}</td>
-                  <td className="px-4 py-3">{c.email}</td>
-                  <td className="px-4 py-3">{c.phone}</td>
-                  <td className="px-4 py-3">{c.city}</td>
-                  <td className="px-4 py-3">{c.vendor.email}</td>
-                  <td className="px-4 py-3">{c.experience}</td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700">
-                      {c.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {new Date(c.createdAt).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      <Box background="white" round="12px" border={{ color: 'border-weak' }} overflow="hidden">
+        <DataTable
+          data={candidates}
+          columns={[
+            { property: 'name', header: 'Name' },
+            { property: 'email', header: 'Email' },
+            { property: 'phone', header: 'Contact' },
+            { property: 'city', header: 'City' },
+            { property: 'vendor', header: 'Vendor', render: (datum) => datum.vendor.email },
+            { property: 'experience', header: 'Experience' },
+            {
+              property: 'status',
+              header: 'Status',
+              render: (datum) => (
+                <Box
+                  as="span"
+                  pad={{ horizontal: '8px', vertical: '4px' }}
+                  round="8px"
+                  background="#DBEAFE"
+                >
+                  <Text size="xsmall" color="#1D4ED8">
+                    {datum.status}
+                  </Text>
+                </Box>
+              ),
+            },
+            {
+              property: 'createdAt',
+              header: 'Created On',
+              render: (datum) => new Date(datum.createdAt).toLocaleDateString(),
+            },
+          ]}
+        />
+        {loading && (
+          <Box pad="24px" align="center">
+            <Text size="small">Loading...</Text>
+          </Box>
+        )}
+        {!loading && candidates.length === 0 && (
+          <Box pad="24px" align="center">
+            <Text size="small" color="#64748B">
+              No candidates submitted yet
+            </Text>
+          </Box>
+        )}
+      </Box>
+    </Box>
   );
 };
 

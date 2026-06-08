@@ -1,4 +1,5 @@
 // src/App.tsx
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 import Login from './Login';
@@ -51,6 +52,12 @@ import VMJobDetails from './pages/vendor-manager/JobDetails';
 import VendorJobDetails from './pages/vendor/JobDetails';
 
 const App = () => {
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
   return (
     <Routes>
 

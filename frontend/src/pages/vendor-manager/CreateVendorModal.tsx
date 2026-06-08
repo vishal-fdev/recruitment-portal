@@ -1,4 +1,14 @@
 import { useState } from 'react';
+import {
+  Box,
+  Button,
+  FormField,
+  Grid,
+  Layer,
+  Select,
+  Text,
+  TextInput,
+} from 'grommet';
 
 const VENDOR_TYPE_OPTIONS = [
   'Training Vendor',
@@ -28,13 +38,11 @@ const CreateVendorModal = ({ onClose, onCreated }: Props) => {
   const [submitting, setSubmitting] = useState(false);
   const token = localStorage.getItem('token');
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+  const handleFieldChange = (field: keyof typeof form, value: string) => {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
   };
 
   const submit = async () => {
@@ -42,11 +50,9 @@ const CreateVendorModal = ({ onClose, onCreated }: Props) => {
 
     try {
       setSubmitting(true);
+      const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-      const API =
-  import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
-const res = await fetch(`${API}/vendors`, {
+      const res = await fetch(`${API}/vendors`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -70,96 +76,99 @@ const res = await fetch(`${API}/vendors`, {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white w-[700px] rounded-lg p-8 max-h-[90vh] overflow-auto">
-        <h2 className="text-xl font-semibold mb-6">
+    <Layer
+      onClickOutside={onClose}
+      onEsc={onClose}
+      modal
+      responsive={false}
+    >
+      <Box width="700px" pad="32px" gap="24px">
+        <Text size="xlarge" weight={600}>
           Create Vendor Partner
-        </h2>
+        </Text>
 
-        <div className="grid grid-cols-2 gap-6">
-          <Input label="Vendor Name" name="name" value={form.name} onChange={handleChange} />
-          <Input label="Vendor Email" name="email" value={form.email} onChange={handleChange} />
-          <Input label="Contact Person" name="contactPerson" value={form.contactPerson} onChange={handleChange} />
-          <Input label="Phone Number" name="phone" value={form.phone} onChange={handleChange} />
-          <Input label="Country" name="country" value={form.country} onChange={handleChange} />
-          <Input label="State" name="state" value={form.state} onChange={handleChange} />
-          <Input label="City" name="city" value={form.city} onChange={handleChange} />
-          <Input label="Address" name="address" value={form.address} onChange={handleChange} />
-          <Input label="Tax ID / PAN" name="taxId" value={form.taxId} onChange={handleChange} />
-          <Select
-            label="Vendor Type"
-            name="vendorType"
-            value={form.vendorType}
-            onChange={handleChange}
-            options={VENDOR_TYPE_OPTIONS}
+        <Grid columns={['flex', 'flex']} gap="24px">
+          <Field
+            label="Vendor Name"
+            value={form.name}
+            onChange={(value) => handleFieldChange('name', value)}
           />
-        </div>
+          <Field
+            label="Vendor Email"
+            value={form.email}
+            onChange={(value) => handleFieldChange('email', value)}
+          />
+          <Field
+            label="Contact Person"
+            value={form.contactPerson}
+            onChange={(value) => handleFieldChange('contactPerson', value)}
+          />
+          <Field
+            label="Phone Number"
+            value={form.phone}
+            onChange={(value) => handleFieldChange('phone', value)}
+          />
+          <Field
+            label="Country"
+            value={form.country}
+            onChange={(value) => handleFieldChange('country', value)}
+          />
+          <Field
+            label="State"
+            value={form.state}
+            onChange={(value) => handleFieldChange('state', value)}
+          />
+          <Field
+            label="City"
+            value={form.city}
+            onChange={(value) => handleFieldChange('city', value)}
+          />
+          <Field
+            label="Address"
+            value={form.address}
+            onChange={(value) => handleFieldChange('address', value)}
+          />
+          <Field
+            label="Tax ID / PAN"
+            value={form.taxId}
+            onChange={(value) => handleFieldChange('taxId', value)}
+          />
+          <FormField label="Vendor Type" margin="none">
+            <Select
+              options={VENDOR_TYPE_OPTIONS}
+              value={form.vendorType || 'Select vendor type'}
+              onChange={({ option }) => handleFieldChange('vendorType', option)}
+            />
+          </FormField>
+        </Grid>
 
-        <div className="flex justify-end gap-4 mt-8">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border rounded-md text-sm"
-          >
-            Cancel
-          </button>
-
-          <button
-            disabled={submitting}
+        <Box direction="row" justify="end" gap="16px">
+          <Button label="Cancel" onClick={onClose} />
+          <Button
+            primary
+            color="#01A982"
+            label={submitting ? 'Creating...' : 'Create Vendor'}
             onClick={submit}
-            className="px-5 py-2 bg-emerald-600 text-white rounded-md text-sm disabled:opacity-60"
-          >
-            {submitting ? 'Creating…' : 'Create Vendor'}
-          </button>
-        </div>
-      </div>
-    </div>
+            disabled={submitting}
+          />
+        </Box>
+      </Box>
+    </Layer>
   );
 };
 
+const Field = ({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) => (
+  <FormField label={label} margin="none">
+    <TextInput value={value} onChange={(event) => onChange(event.target.value)} />
+  </FormField>
+);
+
 export default CreateVendorModal;
-
-const Input = ({
-  label,
-  name,
-  value,
-  onChange,
-}: any) => (
-  <div>
-    <label className="block text-sm font-medium mb-1">
-      {label}
-    </label>
-    <input
-      name={name}
-      value={value}
-      onChange={onChange}
-      className="w-full border rounded-md px-3 py-2"
-    />
-  </div>
-);
-
-const Select = ({
-  label,
-  name,
-  value,
-  onChange,
-  options,
-}: any) => (
-  <div>
-    <label className="block text-sm font-medium mb-1">
-      {label}
-    </label>
-    <select
-      name={name}
-      value={value}
-      onChange={onChange}
-      className="w-full border rounded-md px-3 py-2"
-    >
-      <option value="">Select vendor type</option>
-      {options.map((option: string) => (
-        <option key={option} value={option}>
-          {option}
-        </option>
-      ))}
-    </select>
-  </div>
-);

@@ -1,100 +1,77 @@
-import { LogOut } from "lucide-react";
-import hpeLogo from "../assets/hpe-logo.png";
+import { Box, Button, Image, Text } from 'grommet';
+import { LogOut } from 'lucide-react';
+import hpeLogo from '../assets/hpe-logo.png';
 
 interface TopbarProps {
   role: string;
   onLogout: () => void;
 }
 
-const Topbar = ({ role, onLogout }: TopbarProps) => {
-
-  /* ================= GET NAME FROM TOKEN ================= */
-
+const Topbar = ({ role: _role, onLogout }: TopbarProps) => {
   const getUserName = () => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) return "User";
+      const token = localStorage.getItem('token');
+      if (!token) return 'User';
 
-      const payload = JSON.parse(atob(token.split(".")[1]));
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (!payload?.email) return 'User';
 
-      if (!payload?.email) return "User";
-
-      const email = payload.email.split("@")[0]; // shanu.saha
-      const firstName = email.split(".")[0]; // shanu
-
+      const email = payload.email.split('@')[0];
+      const firstName = email.split('.')[0];
       return firstName.charAt(0).toUpperCase() + firstName.slice(1);
     } catch {
-      return "User";
+      return 'User';
     }
   };
 
   const userName = getUserName();
 
   return (
-    <header
-      className="
-      sticky top-0 z-40
-      bg-white
-      border-b
-      flex items-center justify-between
-      px-8
-      h-20
-      shadow-sm
-    "
+    <Box
+      as="header"
+      direction="row"
+      align="center"
+      justify="between"
+      pad={{ horizontal: '32px' }}
+      height="80px"
+      background="white"
+      border={{ side: 'bottom', color: 'rgba(17,24,39,0.08)' }}
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 40,
+        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
+      }}
     >
+      <Box direction="row" align="center">
+        <Image src={hpeLogo} alt="HPE" fit="contain" style={{ height: 56, width: 'auto' }} />
+      </Box>
 
-      {/* LEFT LOGO */}
-      <div className="flex items-center">
-        <img
-          src={hpeLogo}
-          alt="HPE"
-          className="
-            h-14
-            w-auto
-            object-contain
-            transition-transform duration-300
-            hover:scale-105
-          "
-        />
-      </div>
-
-      {/* RIGHT */}
-      <div className="flex items-center gap-6">
-
-       
-
-        {/* ✅ BADGE NOW SHOWS NAME INSTEAD OF ROLE */}
-        <span
-          className="
-          text-xs
-          bg-emerald-100
-          text-emerald-700
-          px-4 py-1
-          rounded-full
-          font-medium
-          tracking-wide
-        "
+      <Box direction="row" align="center" gap="24px">
+        <Box
+          round="999px"
+          background="rgba(1,169,130,0.14)"
+          pad={{ horizontal: '16px', vertical: '6px' }}
         >
-          {userName}
-        </span>
+          <Text size="12px" weight={500} color="#047857">
+            {userName}
+          </Text>
+        </Box>
 
-        {/* LOGOUT */}
-        <button
+        <Button
+          plain
           onClick={onLogout}
-          className="
-            flex items-center gap-2
-            text-sm text-gray-600
-            hover:text-red-600
-            transition
-          "
-        >
-          <LogOut size={18} />
-          Logout
-        </button>
-
-      </div>
-
-    </header>
+          label={
+            <Box direction="row" align="center" gap="8px">
+              <LogOut size={18} color="#4B5563" />
+              <Text size="14px" color="#4B5563">
+                Logout
+              </Text>
+            </Box>
+          }
+        />
+      </Box>
+    </Box>
   );
 };
 

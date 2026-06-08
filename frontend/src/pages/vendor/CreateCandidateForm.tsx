@@ -1,9 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import {
+  Box,
+  Button,
+  Card,
+  CardBody,
+  Form,
+  FormField,
+  Grid,
+  Heading,
+  Select,
+  Text,
+  TextInput,
+} from 'grommet';
 import api from '../../api/api';
 import { LOCATION_DATA } from '../../constants/location';
-import './CreateCandidateForm.css';
 
 interface Job {
   id: number;
@@ -17,10 +29,8 @@ interface Job {
 
 const CreateCandidateForm = () => {
   const navigate = useNavigate();
-
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-
   const [form, setForm] = useState({
     jobId: '',
     positionId: '',
@@ -40,16 +50,11 @@ const CreateCandidateForm = () => {
     noticePeriod: '',
     currentOrg: '',
   });
-
   const [states, setStates] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [resume, setResume] = useState<File | null>(null);
-
   const [submitting, setSubmitting] = useState(false);
-
   const [duplicateError, setDuplicateError] = useState('');
-
-  /* ================= LOAD JOBS ================= */
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -61,39 +66,22 @@ const CreateCandidateForm = () => {
       }
     };
 
-    fetchJobs();
+    void fetchJobs();
   }, []);
 
-  /* ================= DUPLICATE CHECK ================= */
-
-  const checkDuplicate = async (
-    email: string,
-    phone: string,
-    aadharNo: string,
-  ) => {
+  const checkDuplicate = async (email: string, phone: string, aadharNo: string) => {
     try {
-
-      const res = await api.get(
-        `/candidates/check-duplicate`,
-        {
-          params: { email, phone, aadharNo },
-        },
-      );
+      const res = await api.get('/candidates/check-duplicate', {
+        params: { email, phone, aadharNo },
+      });
 
       if (res.data.exists) {
-
         if (res.data.field === 'email') {
-          setDuplicateError(
-            'Candidate with this email already exists',
-          );
+          setDuplicateError('Candidate with this email already exists');
         } else if (res.data.field === 'aadharNo') {
-          setDuplicateError(
-            'Candidate with this Aadhaar number already exists',
-          );
+          setDuplicateError('Candidate with this Aadhaar number already exists');
         } else {
-          setDuplicateError(
-            'Candidate with this phone number already exists',
-          );
+          setDuplicateError('Candidate with this phone number already exists');
         }
 
         return true;
@@ -101,46 +89,30 @@ const CreateCandidateForm = () => {
 
       setDuplicateError('');
       return false;
-
     } catch {
       return false;
     }
   };
 
-  /* ================= HANDLERS ================= */
-
-  const handleChange = async (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => {
-
-    const { name, value } = e.target;
-
+  const updateField = async (name: string, value: string) => {
     setForm((prev) => ({
       ...prev,
       [name]: value,
     }));
 
     if (name === 'email' || name === 'phone' || name === 'aadharNo') {
-
       const nextEmail = name === 'email' ? value : form.email;
       const nextPhone = name === 'phone' ? value : form.phone;
       const nextAadhar = name === 'aadharNo' ? value : form.aadharNo;
 
       if (nextEmail || nextPhone || nextAadhar) {
-        await checkDuplicate(
-          nextEmail,
-          nextPhone,
-          nextAadhar,
-        );
+        await checkDuplicate(nextEmail, nextPhone, nextAadhar);
       }
     }
 
     if (name === 'jobId') {
-
       const job = jobs.find((j) => j.id === Number(value));
-
       setSelectedJob(job || null);
-
       setForm((prev) => ({
         ...prev,
         jobId: value,
@@ -149,28 +121,18 @@ const CreateCandidateForm = () => {
     }
 
     if (name === 'country') {
-
-      const stateList = Object.keys(
-        LOCATION_DATA[value] || {},
-      );
-
+      const stateList = Object.keys(LOCATION_DATA[value] || {});
       setStates(stateList);
       setCities([]);
     }
 
     if (name === 'state') {
-
-      const cityList =
-        LOCATION_DATA[form.country]?.[value] || [];
-
+      const cityList = LOCATION_DATA[form.country]?.[value] || [];
       setCities(cityList);
     }
   };
 
-  /* ================= SUBMIT ================= */
-
   const handleSubmit = async (e: React.FormEvent) => {
-
     e.preventDefault();
 
     if (duplicateError) {
@@ -188,23 +150,14 @@ const CreateCandidateForm = () => {
       return;
     }
 
-    if (
-      selectedJob?.positions?.length &&
-      !form.positionId
-    ) {
+    if (selectedJob?.positions?.length && !form.positionId) {
       alert('Please select position level');
       return;
     }
 
     try {
-
       setSubmitting(true);
-
-      const duplicate = await checkDuplicate(
-        form.email,
-        form.phone,
-        form.aadharNo,
-      );
+      const duplicate = await checkDuplicate(form.email, form.phone, form.aadharNo);
 
       if (duplicate) {
         setSubmitting(false);
@@ -212,11 +165,9 @@ const CreateCandidateForm = () => {
       }
 
       const data = new FormData();
-
       Object.entries(form).forEach(([key, value]) => {
         if (value) data.append(key, String(value));
       });
-
       data.append('resume', resume);
 
       await api.post('/candidates', data, {
@@ -226,7 +177,6 @@ const CreateCandidateForm = () => {
       });
 
       navigate('/vendor/candidates', { replace: true });
-
     } catch (error) {
       console.error(error);
       alert('Failed to create candidate');
@@ -235,282 +185,196 @@ const CreateCandidateForm = () => {
     }
   };
 
-  /* ================= UI ================= */
-
   return (
-
-    <div className="w-full space-y-4">
-
-      <button
+    <Box gap="medium">
+      <Button
         type="button"
+        icon={<ArrowLeft size={16} />}
+        label="Back"
+        alignSelf="start"
+        primary
+        color="brand"
         onClick={() => navigate('/vendor/candidates')}
-        className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600"
-      >
-        <ArrowLeft size={16} />
-        Back
-      </button>
+      />
 
-      <div className="bg-white rounded-xl shadow p-8">
+      <Card background="white" round="20px" border={{ color: 'border-weak' }} elevation="xsmall">
+        <CardBody pad="large" gap="medium">
+          <Heading level={2} margin="none">
+            Submit Candidate
+          </Heading>
 
-        <h2 className="text-2xl font-semibold mb-6">
-          Submit Candidate
-        </h2>
+          <Form onSubmit={handleSubmit}>
+            <Grid columns={{ count: 'fit', size: ['medium', 'medium'] }} gap="medium">
+              <FormField label="Select Job *" required>
+                <Select
+                  options={jobs}
+                  labelKey={(job: Job) => `HRQ${job.id} - ${job.title}`}
+                  valueKey={{ key: 'id', reduce: true }}
+                  value={form.jobId ? Number(form.jobId) : undefined}
+                  onChange={({ value }) => void updateField('jobId', String(value))}
+                  placeholder="Select Job"
+                />
+              </FormField>
 
-        <form
-          className="candidate-form"
-          onSubmit={handleSubmit}
-        >
-
-          <div className="form-grid">
-
-            <FormField label="Select Job *">
-              <select
-                name="jobId"
-                value={form.jobId}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select Job</option>
-                {jobs.map((job) => (
-                  <option key={job.id} value={job.id}>
-                    HRQ{job.id} - {job.title}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-
-            {selectedJob?.positions &&
-              selectedJob.positions.length > 0 && (
-                <FormField label="Position Level *">
-                  <select
-                    name="positionId"
-                    value={form.positionId}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">
-                      Select Level
-                    </option>
-
-                    {selectedJob.positions.map((pos) => (
-                      <option
-                        key={pos.id}
-                        value={pos.id}
-                      >
-                        {pos.level}
-                      </option>
-                    ))}
-                  </select>
+              {selectedJob?.positions && selectedJob.positions.length > 0 ? (
+                <FormField label="Position Level *" required>
+                  <Select
+                    options={selectedJob.positions}
+                    labelKey="level"
+                    valueKey={{ key: 'id', reduce: true }}
+                    value={form.positionId ? Number(form.positionId) : undefined}
+                    onChange={({ value }) => void updateField('positionId', String(value))}
+                    placeholder="Select Level"
+                  />
                 </FormField>
+              ) : (
+                <Box />
               )}
 
-            <FormField label="Full Name *">
-              <input
-                name="name"
-                onChange={handleChange}
-                required
+              <Field label="Full Name *">
+                <TextInput value={form.name} onChange={(e) => void updateField('name', e.target.value)} />
+              </Field>
+              <Field label="Phone Number *">
+                <TextInput value={form.phone} onChange={(e) => void updateField('phone', e.target.value)} />
+              </Field>
+              <Field label="Email *">
+                <TextInput
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => void updateField('email', e.target.value)}
+                />
+              </Field>
+              <Field label="Aadhaar No *">
+                <TextInput value={form.aadharNo} onChange={(e) => void updateField('aadharNo', e.target.value)} />
+              </Field>
+              <FormField label="Gender *" required>
+                <Select
+                  options={['Male', 'Female', 'Other']}
+                  value={form.gender || undefined}
+                  onChange={({ value }) => void updateField('gender', value)}
+                  placeholder="Select gender"
+                />
+              </FormField>
+              <Field label="Education *">
+                <TextInput value={form.education} onChange={(e) => void updateField('education', e.target.value)} />
+              </Field>
+              <Field label="Upload Video (SharePoint Link)">
+                <TextInput
+                  type="url"
+                  value={form.videoLink}
+                  onChange={(e) => void updateField('videoLink', e.target.value)}
+                  placeholder="Paste SharePoint video link"
+                />
+              </Field>
+              <Box />
+
+              {duplicateError ? (
+  <Box
+    style={{
+      gridColumn: 'span 2',
+    }}
+  >
+    <Text color="status-critical" size="small">
+      {duplicateError}
+    </Text>
+  </Box>
+) : null}
+
+              <Field label="Primary Skills *">
+                <TextInput
+                  value={form.primarySkills}
+                  onChange={(e) => void updateField('primarySkills', e.target.value)}
+                />
+              </Field>
+              <Field label="Secondary Skills">
+                <TextInput
+                  value={form.secondarySkills}
+                  onChange={(e) => void updateField('secondarySkills', e.target.value)}
+                />
+              </Field>
+              <FormField label="Country *" required>
+                <Select
+                  options={['India']}
+                  value={form.country || undefined}
+                  onChange={({ value }) => void updateField('country', value)}
+                  placeholder="Select country"
+                />
+              </FormField>
+              <FormField label="State *" required>
+                <Select
+                  options={states}
+                  value={form.state || undefined}
+                  onChange={({ value }) => void updateField('state', value)}
+                  placeholder="Select state"
+                />
+              </FormField>
+              <FormField label="City *" required>
+                <Select
+                  options={cities}
+                  value={form.city || undefined}
+                  onChange={({ value }) => void updateField('city', value)}
+                  placeholder="Select city"
+                />
+              </FormField>
+              <Field label="Experience (Years) *">
+                <TextInput
+                  value={form.experience}
+                  onChange={(e) => void updateField('experience', e.target.value)}
+                />
+              </Field>
+              <Field label="Notice Period">
+                <TextInput
+                  value={form.noticePeriod}
+                  onChange={(e) => void updateField('noticePeriod', e.target.value)}
+                />
+              </Field>
+              <Field label="Current Organization *">
+                <TextInput
+                  value={form.currentOrg}
+                  onChange={(e) => void updateField('currentOrg', e.target.value)}
+                />
+              </Field>
+              <FormField label="Resume *" required>
+                <Box gap="xsmall">
+                  <Button
+                    type="button"
+                    label={resume ? resume.name : 'Choose Resume'}
+                    onClick={() => document.getElementById('vendor-resume-upload')?.click()}
+                  />
+                  <input
+                    id="vendor-resume-upload"
+                    type="file"
+                    hidden
+                    onChange={(e) => setResume(e.target.files?.[0] || null)}
+                  />
+                  {resume ? (
+                    <Text size="small" color="text-weak">
+                      {resume.name}
+                    </Text>
+                  ) : null}
+                </Box>
+              </FormField>
+            </Grid>
+
+            <Box direction="row" gap="small" justify="end" margin={{ top: 'large' }}>
+              <Button type="button" label="Cancel" onClick={() => navigate(-1)} disabled={submitting} />
+              <Button
+                type="submit"
+                label={submitting ? 'Submitting...' : 'Submit'}
+                primary
+                color="brand"
+                disabled={submitting}
               />
-            </FormField>
-
-            <FormField label="Phone Number *">
-              <input
-                name="phone"
-                onChange={handleChange}
-                required
-              />
-            </FormField>
-
-            <FormField label="Email *">
-              <input
-                type="email"
-                name="email"
-                onChange={handleChange}
-                required
-              />
-            </FormField>
-
-            <FormField label="Aadhaar No *">
-              <input
-                name="aadharNo"
-                onChange={handleChange}
-                required
-              />
-            </FormField>
-
-            <FormField label="Gender *">
-              <select
-                name="gender"
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            </FormField>
-
-            <FormField label="Education *">
-              <input
-                name="education"
-                onChange={handleChange}
-                required
-              />
-            </FormField>
-
-            <FormField label="Upload Video (SharePoint Link)">
-              <input
-                type="url"
-                name="videoLink"
-                onChange={handleChange}
-                placeholder="Paste SharePoint video link"
-              />
-            </FormField>
-
-            {duplicateError && (
-              <div className="duplicate-error">
-                {duplicateError}
-              </div>
-            )}
-
-            <FormField label="Primary Skills *">
-              <input
-                name="primarySkills"
-                onChange={handleChange}
-                required
-              />
-            </FormField>
-
-            <FormField label="Secondary Skills">
-              <input
-                name="secondarySkills"
-                onChange={handleChange}
-              />
-            </FormField>
-
-            <FormField label="Country *">
-              <select
-                name="country"
-                onChange={handleChange}
-                required
-              >
-                <option value="">
-                  Select country
-                </option>
-                <option value="India">India</option>
-              </select>
-            </FormField>
-
-            <FormField label="State *">
-              <select
-                name="state"
-                onChange={handleChange}
-                required
-              >
-                <option value="">
-                  Select state
-                </option>
-
-                {states.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </FormField>
-
-            <FormField label="City *">
-              <select
-                name="city"
-                onChange={handleChange}
-                required
-              >
-                <option value="">
-                  Select city
-                </option>
-
-                {cities.map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-            </FormField>
-
-            <FormField label="Experience (Years) *">
-              <input
-                name="experience"
-                onChange={handleChange}
-                required
-              />
-            </FormField>
-
-            <FormField label="Notice Period">
-              <input
-                name="noticePeriod"
-                onChange={handleChange}
-              />
-            </FormField>
-
-            <FormField label="Current Organization *">
-              <input
-                name="currentOrg"
-                onChange={handleChange}
-                required
-              />
-            </FormField>
-
-            <FormField label="Resume *">
-              <input
-                type="file"
-                onChange={(e) =>
-                  setResume(
-                    e.target.files?.[0] || null,
-                  )
-                }
-                required
-              />
-            </FormField>
-
-          </div>
-
-          <div className="form-actions">
-
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              disabled={submitting}
-            >
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              className="primary"
-              disabled={submitting}
-            >
-              {submitting
-                ? 'Submitting…'
-                : 'Submit'}
-            </button>
-
-          </div>
-
-        </form>
-
-      </div>
-
-    </div>
+            </Box>
+          </Form>
+        </CardBody>
+      </Card>
+    </Box>
   );
 };
 
-const FormField = ({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) => (
-  <div className="form-field">
-    <label>{label}</label>
-    {children}
-  </div>
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <FormField label={label}>{children}</FormField>
 );
 
 export default CreateCandidateForm;

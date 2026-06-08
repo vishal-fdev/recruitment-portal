@@ -1,5 +1,12 @@
 import { useParams } from 'react-router-dom';
 import { useState } from 'react';
+import {
+  Box,
+  Button,
+  CheckBox,
+  Heading,
+  Text,
+} from 'grommet';
 
 const vendors = [
   { id: 'V-01', name: 'TeamLease' },
@@ -15,7 +22,7 @@ const JobDetails = () => {
     setSelected((prev) =>
       prev.includes(vendorId)
         ? prev.filter((v) => v !== vendorId)
-        : [...prev, vendorId]
+        : [...prev, vendorId],
     );
   };
 
@@ -24,45 +31,42 @@ const JobDetails = () => {
       'Opening job',
       id,
       'to vendors',
-      selected
+      selected,
     );
   };
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <h1 className="text-2xl font-semibold">
-        Manage Job – {id}
-      </h1>
+    <Box width="xlarge" gap="24px">
+      <Heading level={2} size="small" margin="none">
+        Manage Job - {id}
+      </Heading>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-sm font-medium mb-4">
+      <Box background="white" round="12px" border={{ color: 'border-weak' }} pad="24px" gap="16px">
+        <Text size="small" weight={500}>
           Open job to vendors
-        </h2>
+        </Text>
 
-        <div className="space-y-3">
+        <Box gap="12px">
           {vendors.map((v) => (
-            <label
+            <CheckBox
               key={v.id}
-              className="flex items-center gap-3"
-            >
-              <input
-                type="checkbox"
-                checked={selected.includes(v.id)}
-                onChange={() => toggle(v.id)}
-              />
-              <span>{v.name}</span>
-            </label>
+              label={v.name}
+              checked={selected.includes(v.id)}
+              onChange={() => toggle(v.id)}
+            />
           ))}
-        </div>
+        </Box>
 
-        <button
-          onClick={openJob}
-          className="mt-6 bg-emerald-600 text-white px-4 py-2 rounded-md text-sm"
-        >
-          Open Job to Selected Vendors
-        </button>
-      </div>
-    </div>
+        <Box direction="row">
+          <Button
+            primary
+            color="#01A982"
+            label="Open Job to Selected Vendors"
+            onClick={openJob}
+          />
+        </Box>
+      </Box>
+    </Box>
   );
 };
 

@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  Box,
+  Button,
+  Card,
+  CardBody,
+  DataTable,
+  Grid,
+  Heading,
+  Text,
+} from 'grommet';
+import {
   Bar,
   BarChart,
   CartesianGrid,
@@ -23,14 +33,8 @@ type CandidateRecord = {
   name: string;
   status: string;
   createdAt?: string;
-  vendor?: {
-    id?: string;
-    name?: string;
-  };
-  job?: {
-    id: number;
-    title: string;
-  };
+  vendor?: { id?: string; name?: string };
+  job?: { id: number; title: string };
 };
 
 type VendorRecord = {
@@ -76,9 +80,7 @@ const DashboardHome = () => {
       void loadData();
     }, 30000);
 
-    return () => {
-      window.clearInterval(interval);
-    };
+    return () => window.clearInterval(interval);
   }, []);
 
   const stageData = useMemo(
@@ -115,146 +117,137 @@ const DashboardHome = () => {
       ).length;
       const rate = submitted ? Math.round((selected / submitted) * 100) : 0;
 
-      return {
-        id: vendor.id,
-        name: vendor.name,
-        submitted,
-        selected,
-        rate,
-      };
+      return { id: vendor.id, name: vendor.name, submitted, selected, rate };
     })
     .sort((a, b) => b.submitted - a.submitted)
     .slice(0, 4);
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[24px] border border-black/8 bg-white px-10 py-7 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-          <div>
-            <h1 className="mt-1 text-[40px] font-semibold leading-tight tracking-[-0.04em] text-[#0F172A]">
-              Vendor Manager dashboard
-            </h1>
-            <p className="mt-2 text-[15px] text-[#64748B]">
-              Q2 2026 · Live vendor operations · Welcome back
-            </p>
-          </div>
+    <Box gap="24px">
+      <Card round="24px" border={{ color: 'border-weak' }} background="white">
+        <CardBody pad="32px" gap="24px">
+          <Box direction="row" justify="between" align="start">
+            <Box gap="8px">
+              <Heading level={1} margin="none" size="medium">
+                Vendor Manager dashboard
+              </Heading>
+              <Text color="#64748B">Q2 2026 - Live vendor operations - Welcome back</Text>
+            </Box>
 
-          <button
-            type="button"
-            onClick={() => setShowCreateVendor(true)}
-            className="inline-flex items-center justify-center rounded-[14px] bg-[#01A982] px-6 py-3 text-[16px] font-semibold text-white shadow-[0_10px_20px_rgba(1,169,130,0.18)] transition hover:shadow-[0_14px_28px_rgba(1,169,130,0.24)]"
-          >
-            + Create vendor
-          </button>
-        </div>
+            <Button
+              primary
+              color="#01A982"
+              label="+ Create vendor"
+              onClick={() => setShowCreateVendor(true)}
+            />
+          </Box>
 
-        <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <TopCard
-            accent="#01A982"
-            title="ACTIVE JOBS"
-            value={loading ? '...' : activeJobs}
-            helper="Approved & live"
-            helperClassName="text-[#94A3B8]"
-          />
-          <TopCard
-            accent="#3B82F6"
-            title="VENDORS ASSIGNED"
-            value={loading ? '...' : activeVendors}
-            helper="Across all jobs"
-            helperClassName="text-[#01A982]"
-          />
-          <TopCard
-            accent="#7C6CF2"
-            title="CANDIDATES IN POOL"
-            value={loading ? '...' : candidatesInPool}
-            helper={`${weeklySubmissions.reduce((sum, item) => sum + Number(item.count), 0)} this week`}
-            helperClassName="text-[#01A982]"
-          />
-          <TopCard
-            accent="#F59E0B"
-            title="AVG. TIME TO FILL"
-            value={loading ? '...' : `${averageTimeToFill}d`}
-            helper="Live average"
-            helperClassName="text-[#EF4444]"
-          />
-        </div>
-      </section>
+          <Grid columns={['flex', 'flex', 'flex', 'flex']} gap="16px">
+            <TopCard accent="#01A982" title="ACTIVE JOBS" value={loading ? '...' : activeJobs} helper="Approved & live" helperColor="#94A3B8" />
+            <TopCard accent="#3B82F6" title="VENDORS ASSIGNED" value={loading ? '...' : activeVendors} helper="Across all jobs" helperColor="#01A982" />
+            <TopCard
+              accent="#7C6CF2"
+              title="CANDIDATES IN POOL"
+              value={loading ? '...' : candidatesInPool}
+              helper={`${weeklySubmissions.reduce((sum, item) => sum + Number(item.count), 0)} this week`}
+              helperColor="#01A982"
+            />
+            <TopCard accent="#F59E0B" title="AVG. TIME TO FILL" value={loading ? '...' : `${averageTimeToFill}d`} helper="Live average" helperColor="#EF4444" />
+          </Grid>
+        </CardBody>
+      </Card>
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_1fr]">
+      <Grid columns={['flex', 'flex']} gap="24px">
         <DashboardCard title="Candidate stage summary">
           {stageData.length ? (
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_210px]">
-              <div className="h-[300px]">
+            <Grid columns={['flex', '220px']} gap="20px">
+              <Box height="300px">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie
-                      data={stageData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={68}
-                      outerRadius={118}
-                      paddingAngle={3}
-                    >
+                    <Pie data={stageData} dataKey="value" nameKey="name" innerRadius={68} outerRadius={118} paddingAngle={3}>
                       {stageData.map((entry, index) => (
-                        <Cell
-                          key={`${entry.name}-${index}`}
-                          fill={CHART_COLORS[index % CHART_COLORS.length]}
-                        />
+                        <Cell key={`${entry.name}-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip />
                   </PieChart>
                 </ResponsiveContainer>
-              </div>
-              <div className="flex flex-col justify-center gap-3">
+              </Box>
+              <Box justify="center" gap="12px">
                 {stageData.map((entry, index) => (
-                  <div key={entry.name} className="flex items-center gap-3 rounded-[14px] bg-[#F8FAFC] px-3 py-2">
-                    <span
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
-                    />
-                    <span className="flex-1 text-sm text-[#475569]">{entry.name}</span>
-                    <span className="text-sm font-semibold text-[#0F172A]">{entry.value}</span>
-                  </div>
+                  <Box key={entry.name} direction="row" align="center" gap="12px" background="#F8FAFC" round="14px" pad={{ horizontal: '12px', vertical: '8px' }}>
+                    <Box width="12px" height="12px" round="50%" background={CHART_COLORS[index % CHART_COLORS.length]} />
+                    <Box flex>
+  <Text
+    size="small"
+    color="#475569"
+  >
+    {entry.name}
+  </Text>
+</Box>
+                    <Text size="small" weight={600}>
+                      {entry.value}
+                    </Text>
+                  </Box>
                 ))}
-              </div>
-            </div>
+              </Box>
+            </Grid>
           ) : (
             <EmptyState message="No candidate stage data available yet." />
           )}
         </DashboardCard>
 
-        <DashboardCard title="Jobs — assign vendors">
-          <div className="space-y-3">
+        <DashboardCard title="Jobs - assign vendors">
+          <Box gap="12px">
             {assignVendorJobs.length ? (
               assignVendorJobs.map((job) => (
-                <div
+                <Box
                   key={job.id}
+                  direction="row"
+                  align="center"
+                  gap="12px"
+                  justify="between"
+                  background="#F1F5F9"
+                  round="18px"
+                  pad={{ horizontal: '20px', vertical: '16px' }}
                   onClick={() => navigate(`/vendor-manager/jobs/${job.id}`)}
-                  className="grid cursor-pointer grid-cols-[126px_1fr_110px_110px] items-center gap-3 rounded-[18px] bg-[#F1F5F9] px-5 py-4 transition hover:bg-[#EAF2FF]"
                 >
-                  <div className="text-[15px] text-[#7C8699]">{`JOB-${String(job.id).padStart(3, '0')}`}</div>
-                  <div className="truncate text-[16px] font-medium text-[#0F172A]">{job.title}</div>
-                  <div className="truncate text-right text-[15px] text-[#94A3B8]">{job.location || '-'}</div>
-                  <div className="text-right">
-                    <span className={`inline-flex rounded-full px-4 py-2 text-[14px] font-medium ${getJobStatusClass(job.status)}`}>
+                  <Text color="#7C8699">{`JOB-${String(job.id).padStart(3, '0')}`}</Text>
+                  <Box
+  flex
+  overflow="hidden"
+>
+  <Text
+    weight={500}
+    style={{
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+    }}
+  >
+    {job.title}
+  </Text>
+</Box>
+                  <Text color="#94A3B8">{job.location || '-'}</Text>
+                  <Box pad={{ horizontal: '16px', vertical: '8px' }} round="999px" background={jobStatusColors(job.status).background}>
+                    <Text size="small" color={jobStatusColors(job.status).color}>
                       {formatJobStatus(job.status)}
-                    </span>
-                  </div>
-                </div>
+                    </Text>
+                  </Box>
+                </Box>
               ))
             ) : (
               <EmptyState message="No jobs available yet." />
             )}
-          </div>
+          </Box>
         </DashboardCard>
-      </section>
+      </Grid>
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_1fr]">
+      <Grid columns={['flex', 'flex']} gap="24px">
         <DashboardCard title="Weekly profile submissions">
           {weeklySubmissions.length ? (
-            <div className="space-y-4">
-              <div className="h-[300px]">
+            <Box gap="16px">
+              <Box height="300px">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={weeklySubmissions}>
                     <CartesianGrid strokeDasharray="4 4" stroke="#E2E8F0" />
@@ -264,56 +257,47 @@ const DashboardHome = () => {
                     <Bar dataKey="count" fill="#01A982" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
-              <div className="rounded-[14px] bg-[#F8FAFC] px-4 py-3 text-sm text-[#475569]">
-                Total submissions this week:{' '}
-                <span className="font-semibold text-[#0F172A]">
-                  {weeklySubmissions.reduce((sum, item) => sum + Number(item.count), 0)}
-                </span>
-              </div>
-            </div>
+              </Box>
+              <Box background="#F8FAFC" round="14px" pad={{ horizontal: '16px', vertical: '12px' }}>
+                <Text size="small" color="#475569">
+                  Total submissions this week:{' '}
+                  <Text weight={600} color="#0F172A">
+                    {weeklySubmissions.reduce((sum, item) => sum + Number(item.count), 0)}
+                  </Text>
+                </Text>
+              </Box>
+            </Box>
           ) : (
             <EmptyState message="No weekly submission data available yet." />
           )}
         </DashboardCard>
 
         <DashboardCard title="Vendor activity">
-          <div className="overflow-hidden rounded-[18px] border border-black/6">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-[#F1F5F9]">
-                  <HeaderCell>VENDOR</HeaderCell>
-                  <HeaderCell center>SUBMITTED</HeaderCell>
-                  <HeaderCell center>SELECTED</HeaderCell>
-                  <HeaderCell center>RATE</HeaderCell>
-                </tr>
-              </thead>
-              <tbody>
-                {vendorActivity.length ? (
-                  vendorActivity.map((vendor) => (
-                    <tr key={vendor.id} className="border-t border-black/6 bg-white">
-                      <BodyCell>{vendor.name}</BodyCell>
-                      <BodyCell center>{vendor.submitted}</BodyCell>
-                      <BodyCell center>{vendor.selected}</BodyCell>
-                      <BodyCell center>
-                        <span className={`inline-flex rounded-full px-4 py-2 text-[14px] font-medium ${getRateClass(vendor.rate)}`}>
-                          {vendor.rate}%
-                        </span>
-                      </BodyCell>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="py-16 text-center text-sm text-[#94A3B8]">
-                      No vendor activity available yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {vendorActivity.length ? (
+            <DataTable
+              data={vendorActivity}
+              columns={[
+                { property: 'name', header: 'VENDOR' },
+                { property: 'submitted', header: 'SUBMITTED' },
+                { property: 'selected', header: 'SELECTED' },
+                {
+                  property: 'rate',
+                  header: 'RATE',
+                  render: (datum) => (
+                    <Box as="span" pad={{ horizontal: '16px', vertical: '8px' }} round="999px" background={rateColors(datum.rate).background}>
+                      <Text size="small" color={rateColors(datum.rate).color}>
+                        {datum.rate}%
+                      </Text>
+                    </Box>
+                  ),
+                },
+              ]}
+            />
+          ) : (
+            <EmptyState message="No vendor activity available yet." />
+          )}
         </DashboardCard>
-      </section>
+      </Grid>
 
       {showCreateVendor && (
         <CreateVendorModal
@@ -324,7 +308,7 @@ const DashboardHome = () => {
           }}
         />
       )}
-    </div>
+    </Box>
   );
 };
 
@@ -332,23 +316,29 @@ const TopCard = ({
   title,
   value,
   helper,
-  helperClassName,
+  helperColor,
   accent,
 }: {
   title: string;
   value: number | string;
   helper: string;
-  helperClassName: string;
+  helperColor: string;
   accent: string;
 }) => (
-  <div className="overflow-hidden rounded-[18px] border border-black/8 bg-white shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
-    <div className="h-1 w-full" style={{ backgroundColor: accent }} />
-    <div className="px-7 py-5">
-      <div className="text-[14px] font-semibold uppercase tracking-[0.08em] text-[#A0A8B8]">{title}</div>
-      <div className="mt-3 text-[40px] font-semibold leading-none tracking-[-0.04em] text-[#111827]">{value}</div>
-      <div className={`mt-3 text-[15px] ${helperClassName}`}>{helper}</div>
-    </div>
-  </div>
+  <Card round="18px" border={{ color: 'border-weak' }} background="white">
+    <Box height="4px" background={accent} />
+    <CardBody pad="24px" gap="12px">
+      <Text size="small" weight={600} color="#A0A8B8">
+        {title}
+      </Text>
+      <Text size="xxlarge" weight={600}>
+        {value}
+      </Text>
+      <Text size="small" color={helperColor}>
+        {helper}
+      </Text>
+    </CardBody>
+  </Card>
 );
 
 const DashboardCard = ({
@@ -358,47 +348,26 @@ const DashboardCard = ({
   title: string;
   children: React.ReactNode;
 }) => (
-  <div className="rounded-[24px] border border-black/8 bg-white px-7 py-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-    <div className="mb-5">
-      <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#0F172A]">{title}</h2>
-    </div>
-    {children}
-  </div>
-);
-
-const HeaderCell = ({
-  children,
-  center,
-}: {
-  children: React.ReactNode;
-  center?: boolean;
-}) => (
-  <th className={`px-5 py-4 text-[13px] font-semibold uppercase tracking-[0.08em] text-[#6B7280] ${center ? 'text-center' : 'text-left'}`}>
-    {children}
-  </th>
-);
-
-const BodyCell = ({
-  children,
-  center,
-}: {
-  children: React.ReactNode;
-  center?: boolean;
-}) => (
-  <td className={`px-5 py-5 text-[16px] text-[#0F172A] ${center ? 'text-center' : 'text-left'}`}>
-    {children}
-  </td>
+  <Card round="24px" border={{ color: 'border-weak' }} background="white">
+    <CardBody pad="24px" gap="20px">
+      <Heading level={3} size="small" margin="none">
+        {title}
+      </Heading>
+      {children}
+    </CardBody>
+  </Card>
 );
 
 const EmptyState = ({ message }: { message: string }) => (
-  <div className="flex h-[300px] items-center justify-center text-sm text-[#94A3B8]">{message}</div>
+  <Box height="300px" align="center" justify="center">
+    <Text size="small" color="#94A3B8">
+      {message}
+    </Text>
+  </Box>
 );
 
 const formatStageLabel = (value: string) =>
-  value
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 
 const formatJobStatus = (status: string) => {
   switch (status) {
@@ -413,23 +382,23 @@ const formatJobStatus = (status: string) => {
   }
 };
 
-const getJobStatusClass = (status: string) => {
+const jobStatusColors = (status: string) => {
   switch (status) {
     case 'APPROVED':
-      return 'bg-[#DDFBF2] text-[#0F766E]';
+      return { background: '#DDFBF2', color: '#0F766E' };
     case 'ON_HOLD':
-      return 'bg-[#FEF3C7] text-[#B45309]';
+      return { background: '#FEF3C7', color: '#B45309' };
     case 'CLOSED':
-      return 'bg-[#E5E7EB] text-[#6B7280]';
+      return { background: '#E5E7EB', color: '#6B7280' };
     default:
-      return 'bg-[#DBEAFE] text-[#1D4ED8]';
+      return { background: '#DBEAFE', color: '#1D4ED8' };
   }
 };
 
-const getRateClass = (rate: number) => {
-  if (rate >= 20) return 'bg-[#DDFBF2] text-[#0F766E]';
-  if (rate >= 10) return 'bg-[#DBEAFE] text-[#1D4ED8]';
-  return 'bg-[#E5E7EB] text-[#6B7280]';
+const rateColors = (rate: number) => {
+  if (rate >= 20) return { background: '#DDFBF2', color: '#0F766E' };
+  if (rate >= 10) return { background: '#DBEAFE', color: '#1D4ED8' };
+  return { background: '#E5E7EB', color: '#6B7280' };
 };
 
 const getAverageDays = (dates: Array<string | undefined>) => {

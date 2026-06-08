@@ -1,5 +1,22 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
+  Box,
+  Button,
+  Grid,
+  Heading,
+  Layer,
+  Paragraph,
+  RadioButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableRow,
+  Text,
+  TextArea,
+  TextInput,
+} from 'grommet';
+import {
   CalendarDays,
   Filter,
   X,
@@ -461,189 +478,241 @@ const PartnerSlotManagementView = ({ role }: Props) => {
   };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-semibold text-slate-900">
+    <Box gap="24px">
+      <Box>
+        <Heading level={2} margin="none" size="32px" color="#0F172A">
           Interview Management
-        </h1>
-        <p className="mt-2 text-sm text-slate-500">
+        </Heading>
+        <Paragraph margin={{ top: '8px', bottom: '0' }} size="small" color="#64748B">
           Manage screening feedback, panel slots, vendor acceptance, and scheduled interviews.
-        </p>
-      </div>
+        </Paragraph>
+      </Box>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap gap-3">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
-                activeTab === tab.key
-                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                  : 'bg-violet-50 text-violet-600 hover:bg-violet-100'
-              }`}
+      <Box
+        round="24px"
+        border={{ color: '#E5E7EB' }}
+        background="white"
+        pad="16px"
+        elevation="small"
+      >
+        <Box direction="row" wrap gap="12px">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <Button
+                key={tab.key}
+                type="button"
+                label={tab.label}
+                onClick={() => setActiveTab(tab.key)}
+                primary={isActive}
+                color={isActive ? '#10B981' : '#F5F3FF'}
+                style={{
+                  borderRadius: 18,
+                  padding: '12px 16px',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: isActive ? '#FFFFFF' : '#7C3AED',
+                  boxShadow: isActive ? '0 14px 30px rgba(16,185,129,0.18)' : 'none',
+                }}
+              />
+            );
+          })}
+        </Box>
+      </Box>
+
+      <Box
+        round="24px"
+        border={{ color: '#E5E7EB' }}
+        background="white"
+        pad="16px"
+        elevation="small"
+        gap="20px"
+      >
+        <Box direction="row" wrap justify="between" align="center" gap="16px">
+          <Box direction="row" wrap align="center" gap="12px">
+            <Box
+              direction="row"
+              align="center"
+              gap="8px"
+              round="12px"
+              border={{ color: '#E5E7EB' }}
+              background="white"
+              pad={{ horizontal: '16px', vertical: '10px' }}
             >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">
-              Candidate Id
-              <Filter size={14} className="text-emerald-500" />
-            </div>
-            <input
-              type="text"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search records..."
-              className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-300 lg:w-[320px]"
-            />
-          </div>
+              <Text size="small" weight={500} color="#334155">
+                Candidate Id
+              </Text>
+              <Filter size={14} color="#10B981" />
+            </Box>
+            <Box width="320px" style={{ maxWidth: '100%' }}>
+              <TextInput
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                placeholder="Search records..."
+                style={{
+                  borderRadius: 12,
+                  fontSize: 14,
+                  minHeight: 44,
+                }}
+              />
+            </Box>
+          </Box>
 
           {role === 'HIRING_MANAGER' && activeTab === 'awaitingSlots' && (
-            <div className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700">
-              <CalendarDays size={15} />
-              Create panel slots for screened profiles
-            </div>
+            <Box direction="row" align="center" gap="8px">
+              <CalendarDays size={15} color="#047857" />
+              <Text size="small" weight={500} color="#047857">
+                Create panel slots for screened profiles
+              </Text>
+            </Box>
           )}
-        </div>
+        </Box>
 
-        <div className="mt-5 overflow-x-auto rounded-xl border border-gray-200">
+        <Box round="16px" border={{ color: '#E5E7EB' }} overflow="hidden">
           {loading ? (
-            <div className="px-4 py-12 text-center text-sm text-slate-400">
-              Loading interview workflow...
-            </div>
+            <Box pad={{ horizontal: '16px', vertical: '48px' }} align="center">
+              <Text size="small" color="#94A3B8">
+                Loading interview workflow...
+              </Text>
+            </Box>
           ) : role === 'HIRING_MANAGER' && ['feedbackPending', 'awaitingSlots'].includes(activeTab) ? (
-            <table className="min-w-full text-sm">
-              <thead className="bg-[#96f7e4] text-slate-700">
-                <tr>
-                  <HeaderCell>HRQ ID</HeaderCell>
-                  <HeaderCell>Candidate ID</HeaderCell>
-                  <HeaderCell>Candidate Name</HeaderCell>
-                  <HeaderCell>Role</HeaderCell>
-                  <HeaderCell>Experience</HeaderCell>
-                  <HeaderCell>Partner</HeaderCell>
-                  <HeaderCell>Status</HeaderCell>
-                  <HeaderCell>Action</HeaderCell>
-                </tr>
-              </thead>
-              <tbody className="bg-white">
-                {filteredHmCandidates.map((candidate) => (
-                  <tr key={candidate.id} className="border-t border-gray-100 text-slate-700">
-                    <BodyCell>{candidate.hrqId}</BodyCell>
-                    <BodyCell>{`CA${candidate.id}`}</BodyCell>
-                    <BodyCell>{candidate.candidateName}</BodyCell>
-                    <BodyCell>{candidate.role}</BodyCell>
-                    <BodyCell>{candidate.relevantExperience}</BodyCell>
-                    <BodyCell>{candidate.vendorName}</BodyCell>
-                    <BodyCell>
-                      <StatusBadge status={candidate.status} />
-                    </BodyCell>
-                    <BodyCell>
-                      {activeTab === 'feedbackPending' ? (
-                        <button
+            <Box overflow="auto">
+              <Table>
+                <TableHeader background="#96f7e4">
+                  <TableRow>
+                    <HeaderCell>HRQ ID</HeaderCell>
+                    <HeaderCell>Candidate ID</HeaderCell>
+                    <HeaderCell>Candidate Name</HeaderCell>
+                    <HeaderCell>Role</HeaderCell>
+                    <HeaderCell>Experience</HeaderCell>
+                    <HeaderCell>Partner</HeaderCell>
+                    <HeaderCell>Status</HeaderCell>
+                    <HeaderCell>Action</HeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody background="white">
+                  {filteredHmCandidates.map((candidate) => (
+                    <TableRow key={candidate.id} border={{ side: 'top', color: '#F3F4F6' }}>
+                      <BodyCell>{candidate.hrqId}</BodyCell>
+                      <BodyCell>{`CA${candidate.id}`}</BodyCell>
+                      <BodyCell>{candidate.candidateName}</BodyCell>
+                      <BodyCell>{candidate.role}</BodyCell>
+                      <BodyCell>{candidate.relevantExperience}</BodyCell>
+                      <BodyCell>{candidate.vendorName}</BodyCell>
+                      <BodyCell>
+                        <StatusBadge status={candidate.status} />
+                      </BodyCell>
+                      <BodyCell>
+                        <Button
                           type="button"
+                          label={activeTab === 'feedbackPending' ? 'Review' : 'Offer Slot'}
                           onClick={() => setSelectedCandidate(candidate)}
-                          className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-600"
-                        >
-                          Review
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedCandidate(candidate)}
-                          className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-600"
-                        >
-                          Offer Slot
-                        </button>
-                      )}
-                    </BodyCell>
-                  </tr>
-                ))}
-
-                {!filteredHmCandidates.length && (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-400">
-                      No profiles available in this section.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                          primary
+                          color="#10B981"
+                          style={{
+                            borderRadius: 8,
+                            padding: '8px 16px',
+                            fontSize: 12,
+                            fontWeight: 500,
+                          }}
+                        />
+                      </BodyCell>
+                    </TableRow>
+                  ))}
+                  {!filteredHmCandidates.length && (
+                    <TableRow>
+                      <TableCell colSpan={8} pad={{ horizontal: '16px', vertical: '48px' }}>
+                        <Box align="center">
+                          <Text size="small" color="#94A3B8">
+                            No profiles available in this section.
+                          </Text>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
           ) : activeTab === 'feedbackPending' || activeTab === 'awaitingSlots' ? (
-            <table className="min-w-full text-sm">
-              <thead className="bg-[#96f7e4] text-slate-700">
-                <tr>
-                  <HeaderCell>HRQ ID</HeaderCell>
-                  <HeaderCell>Candidate ID</HeaderCell>
-                  <HeaderCell>Candidate Name</HeaderCell>
-                  <HeaderCell>Role</HeaderCell>
-                  <HeaderCell>Experience</HeaderCell>
-                  <HeaderCell>Partner</HeaderCell>
-                  <HeaderCell>Status</HeaderCell>
-                </tr>
-              </thead>
-              <tbody className="bg-white">
-                {filteredCandidates.map((candidate) => (
-                  <tr key={candidate.id} className="border-t border-gray-100 text-slate-700">
-                    <BodyCell>{candidate.job?.id ? `HRQ${candidate.job.id}` : '-'}</BodyCell>
-                    <BodyCell>{`CA${candidate.id}`}</BodyCell>
-                    <BodyCell>{candidate.name}</BodyCell>
-                    <BodyCell>{candidate.job?.title || '-'}</BodyCell>
-                    <BodyCell>{candidate.experience ?? '-'}</BodyCell>
-                    <BodyCell>{candidate.vendor?.name || '-'}</BodyCell>
-                    <BodyCell>
-                      <StatusBadge status={candidate.status} />
-                    </BodyCell>
-                  </tr>
-                ))}
-
-                {!filteredCandidates.length && (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-400">
-                      No profiles available in this section.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <Box overflow="auto">
+              <Table>
+                <TableHeader background="#96f7e4">
+                  <TableRow>
+                    <HeaderCell>HRQ ID</HeaderCell>
+                    <HeaderCell>Candidate ID</HeaderCell>
+                    <HeaderCell>Candidate Name</HeaderCell>
+                    <HeaderCell>Role</HeaderCell>
+                    <HeaderCell>Experience</HeaderCell>
+                    <HeaderCell>Partner</HeaderCell>
+                    <HeaderCell>Status</HeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody background="white">
+                  {filteredCandidates.map((candidate) => (
+                    <TableRow key={candidate.id} border={{ side: 'top', color: '#F3F4F6' }}>
+                      <BodyCell>{candidate.job?.id ? `HRQ${candidate.job.id}` : '-'}</BodyCell>
+                      <BodyCell>{`CA${candidate.id}`}</BodyCell>
+                      <BodyCell>{candidate.name}</BodyCell>
+                      <BodyCell>{candidate.job?.title || '-'}</BodyCell>
+                      <BodyCell>{candidate.experience ?? '-'}</BodyCell>
+                      <BodyCell>{candidate.vendor?.name || '-'}</BodyCell>
+                      <BodyCell>
+                        <StatusBadge status={candidate.status} />
+                      </BodyCell>
+                    </TableRow>
+                  ))}
+                  {!filteredCandidates.length && (
+                    <TableRow>
+                      <TableCell colSpan={7} pad={{ horizontal: '16px', vertical: '48px' }}>
+                        <Box align="center">
+                          <Text size="small" color="#94A3B8">
+                            No profiles available in this section.
+                          </Text>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
           ) : role === 'VENDOR' && ['acceptSlots', 'scheduledInterviews'].includes(activeTab) ? (
-            <div className="grid gap-4 p-4 md:grid-cols-2">
+            <Grid columns={{ count: 'fit', size: ['medium', 'large'] }} gap="16px" pad="16px">
               {filteredSlots.map((slot) => (
-                <div
+                <Box
                   key={slot.id}
-                  className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
+                  round="24px"
+                  border={{ color: '#E5E7EB' }}
+                  background="white"
+                  pad="20px"
+                  elevation="small"
+                  gap="16px"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <Box direction="row" justify="between" align="start" gap="12px">
+                    <Box gap="4px">
+                      <Text
+                        size="xsmall"
+                        weight={600}
+                        color="#94A3B8"
+                        style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}
+                      >
                         {`HRQ${slot.job?.id}`} / {`CA${slot.candidate?.id}`}
-                      </p>
-                      <h3 className="mt-1 text-lg font-semibold text-slate-800">
+                      </Text>
+                      <Text size="large" weight={600} color="#1E293B">
                         {slot.candidate?.name || '-'}
-                      </h3>
-                      <p className="mt-1 text-sm text-slate-500">
+                      </Text>
+                      <Text size="small" color="#64748B">
                         {slot.job?.title || '-'}
-                      </p>
-                    </div>
+                      </Text>
+                    </Box>
                     <StatusBadge status={slot.status} />
-                  </div>
+                  </Box>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <Grid columns={['1/2', '1/2']} gap="12px">
                     <SlotInfo label="Partner" value={slot.vendor?.name || '-'} />
                     <SlotInfo label="Round" value={formatRoundName(slot.roundName)} />
                     <SlotInfo label="Date" value={formatDate(slot.interviewDate)} />
                     <SlotInfo label="Time" value={slot.interviewTime || '-'} />
-                    <SlotInfo
-                      label="Attendance"
-                      value={getHumanStatus(slot.attendanceStatus)}
-                    />
+                    <SlotInfo label="Attendance" value={getHumanStatus(slot.attendanceStatus)} />
                     <SlotInfo
                       label="Vendor Response"
                       value={
@@ -654,86 +723,93 @@ const PartnerSlotManagementView = ({ role }: Props) => {
                             : getHumanStatus(slot.status)
                       }
                     />
-                  </div>
+                  </Grid>
 
                   {slot.vendorJustification && (
-                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-slate-700">
-                      <span className="font-medium">Justification:</span>{' '}
-                      {slot.vendorJustification}
-                    </div>
+                    <Box
+                      round="12px"
+                      border={{ color: '#FCD34D' }}
+                      background="#FFFBEB"
+                      pad={{ horizontal: '12px', vertical: '10px' }}
+                    >
+                      <Text size="small" color="#334155">
+                        <Text weight={600}>Justification:</Text> {slot.vendorJustification}
+                      </Text>
+                    </Box>
                   )}
 
-                  <div className="mt-5">
-                    {renderActionButton(role, activeTab, slot, setSelectedSlot)}
-                  </div>
-                </div>
+                  <Box>{renderActionButton(role, activeTab, slot, setSelectedSlot)}</Box>
+                </Box>
               ))}
 
               {!filteredSlots.length && (
-                <div className="col-span-full px-4 py-12 text-center text-sm text-slate-400">
-                  No records available in this section yet.
-                </div>
+                <Box gridArea={undefined} pad={{ horizontal: '16px', vertical: '48px' }} align="center">
+                  <Text size="small" color="#94A3B8">
+                    No records available in this section yet.
+                  </Text>
+                </Box>
               )}
-            </div>
+            </Grid>
           ) : (
-            <table className="min-w-full text-sm">
-              <thead className="bg-[#96f7e4] text-slate-700">
-                <tr>
-                  <HeaderCell>HRQ ID</HeaderCell>
-                  <HeaderCell>Candidate ID</HeaderCell>
-                  <HeaderCell>Candidate Name</HeaderCell>
-                  <HeaderCell>Role</HeaderCell>
-                  <HeaderCell>Partner</HeaderCell>
-                  <HeaderCell>Interview Date</HeaderCell>
-                  <HeaderCell>Interview Time</HeaderCell>
-                  <HeaderCell>Round Name</HeaderCell>
-                  <HeaderCell>Status</HeaderCell>
-                  <HeaderCell>Attendance</HeaderCell>
-                  <HeaderCell>Justification</HeaderCell>
-                  <HeaderCell>Action</HeaderCell>
-                </tr>
-              </thead>
-              <tbody className="bg-white">
-                {filteredSlots.map((slot) => (
-                  <tr key={slot.id} className="border-t border-gray-100 text-slate-700">
-                    <BodyCell>{`HRQ${slot.job?.id}`}</BodyCell>
-                    <BodyCell>{`CA${slot.candidate?.id}`}</BodyCell>
-                    <BodyCell>{slot.candidate?.name || '-'}</BodyCell>
-                    <BodyCell>{slot.job?.title || '-'}</BodyCell>
-                    <BodyCell>{slot.vendor?.name || '-'}</BodyCell>
-                    <BodyCell>{formatDate(slot.interviewDate)}</BodyCell>
-                    <BodyCell>{slot.interviewTime}</BodyCell>
-                    <BodyCell>{formatRoundName(slot.roundName)}</BodyCell>
-                    <BodyCell>
-                      <StatusBadge status={slot.status} />
-                    </BodyCell>
-                    <BodyCell>
-                      <StatusBadge status={slot.attendanceStatus} />
-                    </BodyCell>
-                    <BodyCell>{slot.vendorJustification || '-'}</BodyCell>
-                    <BodyCell>
-                      {renderActionButton(
-                        role,
-                        activeTab,
-                        slot,
-                        setSelectedSlot,
-                      )}
-                    </BodyCell>
-                  </tr>
-                ))}
+            <Box overflow="auto">
+              <Table>
+                <TableHeader background="#96f7e4">
+                  <TableRow>
+                    <HeaderCell>HRQ ID</HeaderCell>
+                    <HeaderCell>Candidate ID</HeaderCell>
+                    <HeaderCell>Candidate Name</HeaderCell>
+                    <HeaderCell>Role</HeaderCell>
+                    <HeaderCell>Partner</HeaderCell>
+                    <HeaderCell>Interview Date</HeaderCell>
+                    <HeaderCell>Interview Time</HeaderCell>
+                    <HeaderCell>Round Name</HeaderCell>
+                    <HeaderCell>Status</HeaderCell>
+                    <HeaderCell>Attendance</HeaderCell>
+                    <HeaderCell>Justification</HeaderCell>
+                    <HeaderCell>Action</HeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody background="white">
+                  {filteredSlots.map((slot) => (
+                    <TableRow key={slot.id} border={{ side: 'top', color: '#F3F4F6' }}>
+                      <BodyCell>{`HRQ${slot.job?.id}`}</BodyCell>
+                      <BodyCell>{`CA${slot.candidate?.id}`}</BodyCell>
+                      <BodyCell>{slot.candidate?.name || '-'}</BodyCell>
+                      <BodyCell>{slot.job?.title || '-'}</BodyCell>
+                      <BodyCell>{slot.vendor?.name || '-'}</BodyCell>
+                      <BodyCell>{formatDate(slot.interviewDate)}</BodyCell>
+                      <BodyCell>{slot.interviewTime}</BodyCell>
+                      <BodyCell>{formatRoundName(slot.roundName)}</BodyCell>
+                      <BodyCell>
+                        <StatusBadge status={slot.status} />
+                      </BodyCell>
+                      <BodyCell>
+                        <StatusBadge status={slot.attendanceStatus} />
+                      </BodyCell>
+                      <BodyCell>{slot.vendorJustification || '-'}</BodyCell>
+                      <BodyCell>
+                        {renderActionButton(role, activeTab, slot, setSelectedSlot)}
+                      </BodyCell>
+                    </TableRow>
+                  ))}
 
-                {!filteredSlots.length && (
-                  <tr>
-                    <td colSpan={12} className="px-4 py-12 text-center text-sm text-slate-400">
-                      No records available in this section yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  {!filteredSlots.length && (
+                    <TableRow>
+                      <TableCell colSpan={12} pad={{ horizontal: '16px', vertical: '48px' }}>
+                        <Box align="center">
+                          <Text size="small" color="#94A3B8">
+                            No records available in this section yet.
+                          </Text>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Box>
           )}
-        </div>
-      </section>
+        </Box>
+      </Box>
 
       {selectedCandidate &&
         role === 'HIRING_MANAGER' &&
@@ -741,35 +817,38 @@ const PartnerSlotManagementView = ({ role }: Props) => {
           <RightDrawer title="Review Candidate" onClose={closeAllDrawers}>
             <DrawerInfo candidate={selectedCandidate} />
 
-            <label className="mt-6 block text-sm font-medium text-slate-700">
-              Comments
-            </label>
-            <textarea
-              rows={4}
-              value={decisionFeedback}
-              onChange={(event) => setDecisionFeedback(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-emerald-300"
-              placeholder="Enter your comments here..."
-            />
+            <Field label="Comments">
+              <TextArea
+                rows={4}
+                value={decisionFeedback}
+                onChange={(event) => setDecisionFeedback(event.currentTarget.value)}
+                placeholder="Enter your comments here..."
+                style={{ borderRadius: 12, fontSize: 14 }}
+              />
+            </Field>
 
-            <div className="mt-6 flex gap-3">
-              <button
+            <Box direction="row" gap="12px" margin={{ top: '24px' }}>
+              <Button
                 type="button"
                 disabled={submitting}
                 onClick={() => void submitHmProfileDecision('SELECT')}
-                className="flex-1 rounded-lg bg-emerald-500 px-4 py-3 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
-              >
-                Select Profile
-              </button>
-              <button
+                label="Select Profile"
+                primary
+                color="#10B981"
+                fill
+                style={{ borderRadius: 8, padding: '12px 16px', fontSize: 14, fontWeight: 500 }}
+              />
+              <Button
                 type="button"
                 disabled={submitting}
                 onClick={() => void submitHmProfileDecision('REJECT')}
-                className="flex-1 rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-              >
-                Reject Profile
-              </button>
-            </div>
+                label="Reject Profile"
+                primary
+                color="#DC2626"
+                fill
+                style={{ borderRadius: 8, padding: '12px 16px', fontSize: 14, fontWeight: 500 }}
+              />
+            </Box>
           </RightDrawer>
         )}
 
@@ -779,59 +858,62 @@ const PartnerSlotManagementView = ({ role }: Props) => {
           <RightDrawer title="Create Interview Slot" onClose={closeAllDrawers}>
             <DrawerInfo candidate={selectedCandidate} />
 
-            <div className="mt-6 space-y-4">
+            <Box margin={{ top: '24px' }} gap="16px">
               <Field label="Interview Date">
-                <input
+                <TextInput
                   type="date"
                   value={slotForm.interviewDate}
                   onChange={(event) =>
                     setSlotForm((prev) => ({
                       ...prev,
-                      interviewDate: event.target.value,
+                      interviewDate: event.currentTarget.value,
                     }))
                   }
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                  style={{ borderRadius: 12, fontSize: 14 }}
                 />
               </Field>
 
               <Field label="Interview Time">
-                <input
+                <TextInput
                   type="time"
                   value={slotForm.interviewTime}
                   onChange={(event) =>
                     setSlotForm((prev) => ({
                       ...prev,
-                      interviewTime: event.target.value,
+                      interviewTime: event.currentTarget.value,
                     }))
                   }
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                  style={{ borderRadius: 12, fontSize: 14 }}
                 />
               </Field>
 
               <Field label="Comments">
-                <textarea
+                <TextArea
                   rows={4}
                   value={slotForm.hmComment}
                   onChange={(event) =>
                     setSlotForm((prev) => ({
                       ...prev,
-                      hmComment: event.target.value,
+                      hmComment: event.currentTarget.value,
                     }))
                   }
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
                   placeholder="Enter your comment here..."
+                  style={{ borderRadius: 12, fontSize: 14 }}
                 />
               </Field>
-            </div>
+            </Box>
 
-            <button
+            <Button
               type="button"
               disabled={submitting}
               onClick={() => void submitSlot()}
-              className="mt-6 w-full rounded-lg bg-emerald-500 px-4 py-3 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
-            >
-              Create Slot
-            </button>
+              label="Create Slot"
+              primary
+              color="#10B981"
+              fill
+              margin={{ top: '24px' }}
+              style={{ borderRadius: 8, padding: '12px 16px', fontSize: 14, fontWeight: 500 }}
+            />
           </RightDrawer>
         )}
 
@@ -842,37 +924,41 @@ const PartnerSlotManagementView = ({ role }: Props) => {
             <DrawerInfo slot={selectedSlot} />
 
             <Field label="Comments *">
-              <textarea
+              <TextArea
                 rows={4}
                 value={vendorComment}
-                onChange={(event) => setVendorComment(event.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                onChange={(event) => setVendorComment(event.currentTarget.value)}
                 placeholder="Enter your comment here..."
+                style={{ borderRadius: 12, fontSize: 14 }}
               />
             </Field>
 
-            <p className="mt-4 text-sm italic text-slate-400">
+            <Text margin={{ top: '16px' }} size="small" color="#94A3B8" style={{ fontStyle: 'italic' }}>
               Note: Please confirm after scheduling
-            </p>
+            </Text>
 
-            <div className="mt-6 flex gap-3">
-              <button
+            <Box direction="row" gap="12px" margin={{ top: '24px' }}>
+              <Button
                 type="button"
                 disabled={submitting}
                 onClick={() => void submitVendorResponse('ACCEPT')}
-                className="flex-1 rounded-lg bg-emerald-500 px-4 py-3 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
-              >
-                Accept Slot
-              </button>
-              <button
+                label="Accept Slot"
+                primary
+                color="#10B981"
+                fill
+                style={{ borderRadius: 8, padding: '12px 16px', fontSize: 14, fontWeight: 500 }}
+              />
+              <Button
                 type="button"
                 disabled={submitting}
                 onClick={() => void submitVendorResponse('REJECT')}
-                className="flex-1 rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-              >
-                Reject Slot
-              </button>
-            </div>
+                label="Reject Slot"
+                primary
+                color="#DC2626"
+                fill
+                style={{ borderRadius: 8, padding: '12px 16px', fontSize: 14, fontWeight: 500 }}
+              />
+            </Box>
           </RightDrawer>
         )}
 
@@ -882,7 +968,7 @@ const PartnerSlotManagementView = ({ role }: Props) => {
           <RightDrawer title="Update Interview Outcome" onClose={closeAllDrawers}>
             <DrawerInfo slot={selectedSlot} />
 
-            <div className="mt-6 space-y-3">
+            <Box margin={{ top: '24px' }} gap="12px">
               <OptionRow
                 checked={attendanceStatus === 'ATTENDED'}
                 onChange={() => setAttendanceStatus('ATTENDED')}
@@ -908,26 +994,29 @@ const PartnerSlotManagementView = ({ role }: Props) => {
                 onChange={() => setAttendanceStatus('DROPPED')}
                 label="Drop candidature"
               />
-            </div>
+            </Box>
 
             <Field label="Comments">
-              <textarea
+              <TextArea
                 rows={4}
                 value={vendorComment}
-                onChange={(event) => setVendorComment(event.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                onChange={(event) => setVendorComment(event.currentTarget.value)}
                 placeholder="Required for no-show, reschedule, or drop"
+                style={{ borderRadius: 12, fontSize: 14 }}
               />
             </Field>
 
-            <button
+            <Button
               type="button"
               disabled={submitting}
               onClick={() => void submitAttendance()}
-              className="mt-6 w-full rounded-lg bg-emerald-500 px-4 py-3 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
-            >
-              Submit
-            </button>
+              label="Submit"
+              primary
+              color="#10B981"
+              fill
+              margin={{ top: '24px' }}
+              style={{ borderRadius: 8, padding: '12px 16px', fontSize: 14, fontWeight: 500 }}
+            />
           </RightDrawer>
         )}
 
@@ -941,49 +1030,63 @@ const PartnerSlotManagementView = ({ role }: Props) => {
             <DrawerInfo slot={selectedSlot} />
 
             <Field label="Interview Feedback">
-              <textarea
+              <TextArea
                 rows={5}
                 value={decisionFeedback}
-                onChange={(event) => setDecisionFeedback(event.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                onChange={(event) => setDecisionFeedback(event.currentTarget.value)}
                 placeholder="Share the interview feedback here..."
+                style={{ borderRadius: 12, fontSize: 14 }}
               />
             </Field>
 
-            <div className="mt-6 flex gap-3">
-              <button
+            <Box direction="row" gap="12px" margin={{ top: '24px' }}>
+              <Button
                 type="button"
                 disabled={submitting}
                 onClick={() => void submitHmInterviewFeedback('SELECT')}
-                className="flex-1 rounded-lg bg-emerald-500 px-4 py-3 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
-              >
-                Select
-              </button>
-              <button
+                label="Select"
+                primary
+                color="#10B981"
+                fill
+                style={{ borderRadius: 8, padding: '12px 16px', fontSize: 14, fontWeight: 500 }}
+              />
+              <Button
                 type="button"
                 disabled={submitting}
                 onClick={() => void submitHmInterviewFeedback('REJECT')}
-                className="flex-1 rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-              >
-                Reject
-              </button>
-            </div>
+                label="Reject"
+                primary
+                color="#DC2626"
+                fill
+                style={{ borderRadius: 8, padding: '12px 16px', fontSize: 14, fontWeight: 500 }}
+              />
+            </Box>
           </RightDrawer>
         )}
-    </div>
+    </Box>
   );
 };
 
 export default PartnerSlotManagementView;
 
 const HeaderCell = ({ children }: { children: ReactNode }) => (
-  <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wide">
-    {children}
-  </th>
+  <TableCell pad={{ horizontal: '16px', vertical: '16px' }}>
+    <Text
+      size="xsmall"
+      weight={600}
+      style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}
+    >
+      {children}
+    </Text>
+  </TableCell>
 );
 
 const BodyCell = ({ children }: { children: ReactNode }) => (
-  <td className="px-4 py-4 align-middle">{children}</td>
+  <TableCell pad={{ horizontal: '16px', vertical: '16px' }} verticalAlign="middle">
+    <Text size="small" color="#334155">
+      {children}
+    </Text>
+  </TableCell>
 );
 
 const Field = ({
@@ -993,17 +1096,23 @@ const Field = ({
   label: string;
   children: ReactNode;
 }) => (
-  <div className="mt-6">
-    <label className="mb-2 block text-sm font-medium text-slate-700">{label}</label>
+  <Box margin={{ top: '24px' }}>
+    <Text margin={{ bottom: '8px' }} size="small" weight={500} color="#334155">
+      {label}
+    </Text>
     {children}
-  </div>
+  </Box>
 );
 
 const SlotInfo = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div className="rounded-xl bg-slate-50 px-3 py-2">
-    <p className="text-[11px] uppercase tracking-wide text-slate-400">{label}</p>
-    <p className="mt-1 font-medium text-slate-700">{value}</p>
-  </div>
+  <Box round="12px" background="#F8FAFC" pad={{ horizontal: '12px', vertical: '10px' }}>
+    <Text size="11px" color="#94A3B8" style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+      {label}
+    </Text>
+    <Text margin={{ top: '4px' }} size="small" weight={500} color="#334155">
+      {value}
+    </Text>
+  </Box>
 );
 
 const RightDrawer = ({
@@ -1015,21 +1124,32 @@ const RightDrawer = ({
   children: ReactNode;
   onClose: () => void;
 }) => (
-  <div className="fixed inset-0 z-50 bg-black/30">
-    <div className="absolute inset-y-0 right-0 w-full max-w-xl overflow-y-auto bg-white shadow-2xl">
-      <div className="sticky top-0 flex items-center justify-between border-b bg-white px-6 py-5">
-        <h3 className="text-2xl font-semibold text-emerald-700">{title}</h3>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-slate-400 hover:text-slate-700"
-        >
-          <X size={18} />
-        </button>
-      </div>
-      <div className="px-6 py-6">{children}</div>
-    </div>
-  </div>
+  <Layer
+    onEsc={onClose}
+    onClickOutside={onClose}
+    modal
+    position="right"
+    full="vertical"
+    responsive
+  >
+    <Box width="min(100vw, 560px)" fill="vertical" background="white" overflow="auto">
+      <Box
+        direction="row"
+        justify="between"
+        align="center"
+        pad={{ horizontal: '24px', vertical: '20px' }}
+        border={{ side: 'bottom', color: 'border' }}
+        background="white"
+        style={{ position: 'sticky', top: 0, zIndex: 1 }}
+      >
+        <Text size="xlarge" weight={600} color="#047857">
+          {title}
+        </Text>
+        <Button plain icon={<X size={18} />} onClick={onClose} />
+      </Box>
+      <Box pad="24px">{children}</Box>
+    </Box>
+  </Layer>
 );
 
 const DrawerInfo = ({
@@ -1082,24 +1202,34 @@ const DrawerInfo = ({
           ('nextRoundName' in (candidate || {})
             ? (candidate as EligibleSlotCandidate).nextRoundName
             : '-'),
-      };
+  };
 
   return (
-    <div className="rounded-xl bg-slate-50 px-4 py-4">
+    <Box round="12px" background="#F8FAFC" pad="16px">
       <InfoLine label="HRQID" value={data.hrqId || '-'} />
       <InfoLine label="Candidate Name" value={data.candidateName || '-'} />
       <InfoLine label="Role Hired For" value={data.role || '-'} />
       <InfoLine label="Status" value={data.status || '-'} />
       <InfoLine label="Panel Member" value={data.panel || '-'} />
-    </div>
+    </Box>
   );
 };
 
 const InfoLine = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div className="grid grid-cols-[150px_1fr] gap-4 py-2 text-sm">
-    <span className="font-medium text-slate-500">{label}</span>
-    <span className="text-right font-medium text-slate-700">{value}</span>
-  </div>
+  <Box
+    direction="row"
+    justify="between"
+    gap="16px"
+    pad={{ vertical: '8px' }}
+    border={false}
+  >
+    <Text size="small" weight={500} color="#64748B">
+      {label}
+    </Text>
+    <Text size="small" weight={500} color="#334155" textAlign="end">
+      {value}
+    </Text>
+  </Box>
 );
 
 const OptionRow = ({
@@ -1111,19 +1241,34 @@ const OptionRow = ({
   onChange: () => void;
   label: string;
 }) => (
-  <label className="flex items-center gap-3 rounded-xl border border-gray-200 px-3 py-3 text-sm text-slate-700">
-    <input type="radio" checked={checked} onChange={onChange} />
-    <span>{label}</span>
-  </label>
+  <Box
+    as="label"
+    direction="row"
+    align="center"
+    gap="12px"
+    round="12px"
+    border={{ color: 'border' }}
+    pad={{ horizontal: '12px', vertical: '12px' }}
+  >
+    <RadioButton checked={checked} onChange={onChange} name={label} />
+    <Text size="small" color="#334155">
+      {label}
+    </Text>
+  </Box>
 );
 
 const StatusBadge = ({ status }: { status: string }) => {
-  const styles = getStatusStyle(status);
-
   return (
-    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${styles}`}>
-      {getHumanStatus(status)}
-    </span>
+    <Box
+      as="span"
+      round="full"
+      pad={{ horizontal: '12px', vertical: '4px' }}
+      background={getStatusStyle(status).background}
+    >
+      <Text size="xsmall" weight={500} color={getStatusStyle(status).color}>
+        {getHumanStatus(status)}
+      </Text>
+    </Box>
   );
 };
 
@@ -1135,25 +1280,25 @@ const renderActionButton = (
 ) => {
   if (role === 'VENDOR' && activeTab === 'acceptSlots' && slot.status === 'PENDING_VENDOR') {
     return (
-      <button
+      <Button
         type="button"
         onClick={() => setSelectedSlot(slot)}
-        className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-600"
-      >
-        Manage
-      </button>
+        primary
+        color="brand"
+        label="Manage"
+      />
     );
   }
 
   if (role === 'VENDOR' && activeTab === 'scheduledInterviews' && slot.status === 'SCHEDULED') {
     return (
-      <button
+      <Button
         type="button"
         onClick={() => setSelectedSlot(slot)}
-        className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-600"
-      >
-        Manage
-      </button>
+        primary
+        color="brand"
+        label="Manage"
+      />
     );
   }
 
@@ -1165,17 +1310,21 @@ const renderActionButton = (
     !slot.hmFeedbackSubmitted
   ) {
     return (
-      <button
+      <Button
         type="button"
         onClick={() => setSelectedSlot(slot)}
-        className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-600"
-      >
-        Feedback
-      </button>
+        primary
+        color="brand"
+        label="Feedback"
+      />
     );
   }
 
-  return <span className="text-xs text-slate-400">-</span>;
+  return (
+    <Text size="xsmall" color="#94A3B8">
+      -
+    </Text>
+  );
 };
 
 const matchesSearch = (query: string, values: Array<string | number | undefined>) => {
@@ -1226,7 +1375,10 @@ const getHumanStatus = (status: string) => {
 
 const getStatusStyle = (status: string) => {
   if (['SCHEDULED', 'ATTENDED', 'SCREEN_SELECTED', 'TECH_SELECTED', 'OPS_SELECTED'].includes(status)) {
-    return 'bg-emerald-50 text-emerald-700';
+    return {
+      background: '#ECFDF5',
+      color: '#047857',
+    };
   }
   if (
     [
@@ -1238,7 +1390,10 @@ const getStatusStyle = (status: string) => {
       'DROPPED',
     ].includes(status)
   ) {
-    return 'bg-red-50 text-red-700';
+    return {
+      background: '#FEF2F2',
+      color: '#B91C1C',
+    };
   }
   if (
     [
@@ -1250,9 +1405,15 @@ const getStatusStyle = (status: string) => {
       'RESCHEDULE_REQUESTED_BY_PANEL',
     ].includes(status)
   ) {
-    return 'bg-amber-50 text-amber-700';
+    return {
+      background: '#FFFBEB',
+      color: '#B45309',
+    };
   }
-  return 'bg-slate-100 text-slate-700';
+  return {
+    background: '#F1F5F9',
+    color: '#334155',
+  };
 };
 
 const formatRoundName = (roundName?: string) => {

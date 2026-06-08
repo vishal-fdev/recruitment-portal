@@ -1,7 +1,22 @@
 import { useEffect, useState } from 'react';
+import {
+  Box,
+  Button,
+  Card,
+  CardBody,
+  Grid,
+  Heading,
+  Layer,
+  Paragraph,
+  Text,
+  TextArea,
+  TextInput,
+} from 'grommet';
 import { Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/api';
+import ResumeModal from '../../components/ResumeModal';
+import StageBadge from '../../components/StageBadge';
 
 type CandidateStatus =
   | 'SUBMITTED'
@@ -30,6 +45,7 @@ interface Candidate {
   experience?: number;
   dateOfJoining?: string;
   ytjJustification?: string;
+  resumePath?: string | null;
   vendor?: {
     name: string;
   };
@@ -64,7 +80,7 @@ const Candidates = () => {
   const today = new Date().toLocaleDateString('en-CA');
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedResumeUrl, setSelectedResumeUrl] = useState<string | null>(null);
+  const [resumeCandidate, setResumeCandidate] = useState<Candidate | null>(null);
   const [dropCandidate, setDropCandidate] = useState<Candidate | null>(null);
   const [dropJustification, setDropJustification] = useState('');
   const [ytjCandidate, setYtjCandidate] = useState<Candidate | null>(null);
@@ -103,21 +119,13 @@ const Candidates = () => {
     }
   }, [autoPromptedCandidateIds, candidates, finalizeCandidate, today]);
 
-  const openResume = async (candidateId: number, e: React.MouseEvent) => {
+  const openResume = (candidate: Candidate, e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      const response = await api.get(`/candidates/${candidateId}/resume`, { responseType: 'blob' });
-      const blob = new Blob([response.data], { type: response.headers['content-type'] });
-      const fileUrl = URL.createObjectURL(blob);
-      setSelectedResumeUrl(fileUrl);
-    } catch (error) {
-      console.error('Failed to load resume', error);
-    }
+    setResumeCandidate(candidate);
   };
 
   const closeModal = () => {
-    if (selectedResumeUrl) URL.revokeObjectURL(selectedResumeUrl);
-    setSelectedResumeUrl(null);
+    setResumeCandidate(null);
   };
 
   const updateCandidateStatus = async (
@@ -142,107 +150,164 @@ const Candidates = () => {
     }
   };
 
-  const canMarkYtj = (status: CandidateStatus) => ['IDENTIFIED', 'OPS_SELECTED', 'SELECTED'].includes(status);
-  const canFinalize = (candidate: Candidate) => candidate.status === 'YET_TO_JOIN' && candidate.dateOfJoining === today;
+  const canMarkYtj = (status: CandidateStatus) =>
+    ['IDENTIFIED', 'OPS_SELECTED', 'SELECTED'].includes(status);
+  const canFinalize = (candidate: Candidate) =>
+    candidate.status === 'YET_TO_JOIN' && candidate.dateOfJoining === today;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-gray-800">Candidate Pipeline</h1>
+    <Box gap="24px">
+      <Heading level={2} margin="none" size="32px" color="#1F2937">
+        Candidate Pipeline
+      </Heading>
 
-      <div className="space-y-4">
-        {loading && <div className="rounded-[20px] bg-white p-8 shadow">Loading candidates...</div>}
+      <Box gap="16px">
+        {loading && (
+          <Card background="white" round="20px" pad="32px" elevation="small">
+            <Text>Loading candidates...</Text>
+          </Card>
+        )}
 
         {!loading &&
           candidates.map((candidate) => (
-            <div
+            <Card
               key={candidate.id}
+              background="white"
+              round="24px"
+              border={{ color: 'rgba(15,23,42,0.08)' }}
+              elevation="small"
               onClick={() => navigate(`/vendor-manager/candidates/${candidate.id}`)}
-              className="rounded-[24px] border border-black/8 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
+              style={{ cursor: 'pointer' }}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl font-semibold text-[#0F172A]">{candidate.name}</span>
-                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusStyle(candidate.status)}`}>
-                      {STATUS_LABELS[candidate.status] || candidate.status}
-                    </span>
-                  </div>
-                  <p className="text-sm text-[#64748B]">{candidate.email}</p>
-                </div>
+              <CardBody pad="24px" gap="20px">
+                <Box direction="row" justify="between" align="start" gap="16px">
+                  <Box gap="12px">
+                    <Box direction="row" align="center" gap="12px" wrap>
+                      <Text size="xlarge" weight={600} color="#0F172A">
+                        {candidate.name}
+                      </Text>
+                      <StageBadge
+  status={candidate.status}
+/>
+                    </Box>
+                    <Text size="small" color="#64748B">
+                      {candidate.email}
+                    </Text>
+                  </Box>
 
-                <button
-                  type="button"
-                  onClick={(event) => void openResume(candidate.id, event)}
-                  className="rounded-[12px] border border-[#D6DCE5] p-2 text-[#64748B]"
-                >
-                  <Eye size={18} />
-                </button>
-              </div>
+                  <Button
+                    type="button"
+                    plain={false}
+                    onClick={(event) => openResume(candidate, event)}
+                    icon={<Eye size={18} />}
+                    style={{
+                      borderRadius: 12,
+                      border: '1px solid #D6DCE5',
+                      padding: 8,
+                      color: '#64748B',
+                    }}
+                  />
+                </Box>
 
-              <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-5">
-                <Info label="Contact" value={candidate.phone || '-'} />
-                <Info label="Vendor" value={candidate.vendor?.name || '-'} />
-                <Info label="Job" value={candidate.job?.title || '-'} />
-                <Info label="Experience" value={candidate.experience ? `${candidate.experience} yrs` : '-'} />
-                <Info label="DOJ" value={candidate.dateOfJoining || '-'} />
-              </div>
+                <Grid columns={{ count: 'fit', size: ['small', 'medium'] }} gap="16px">
+                  <Info label="Contact" value={candidate.phone || '-'} />
+                  <Info label="Vendor" value={candidate.vendor?.name || '-'} />
+                  <Info label="Job" value={candidate.job?.title || '-'} />
+                  <Info
+                    label="Experience"
+                    value={candidate.experience ? `${candidate.experience} yrs` : '-'}
+                  />
+                  <Info label="DOJ" value={candidate.dateOfJoining || '-'} />
+                </Grid>
 
-              {candidate.status === 'YET_TO_JOIN' && candidate.ytjJustification && (
-                <p className="mt-4 text-sm text-slate-500">{candidate.ytjJustification}</p>
-              )}
+                {candidate.status === 'YET_TO_JOIN' && candidate.ytjJustification && (
+                  <Text size="small" color="#64748B">
+                    {candidate.ytjJustification}
+                  </Text>
+                )}
 
-              <div className="mt-5 flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
-                <ActionButton
-                  disabled={!canMarkYtj(candidate.status) || updatingId === candidate.id}
-                  onClick={() => {
-                    setYtjCandidate(candidate);
-                    setYtjDateOfJoining(candidate.dateOfJoining || '');
-                    setYtjJustification(candidate.ytjJustification || '');
-                  }}
-                >
-                  YTJ
-                </ActionButton>
-                <ActionButton
-                  disabled={!canFinalize(candidate) || updatingId === candidate.id}
-                  onClick={async () => {
-                    await updateCandidateStatus(candidate.id, 'ONBOARDED');
-                  }}
-                >
-                  Onboarded
-                </ActionButton>
-                <ActionButton
-                  danger
-                  disabled={(updatingId === candidate.id) || (!canMarkYtj(candidate.status) && !canFinalize(candidate) && candidate.status !== 'YET_TO_JOIN')}
-                  onClick={() => {
-                    setDropCandidate(candidate);
-                    setDropJustification('');
-                  }}
-                >
-                  Drop
-                </ActionButton>
-              </div>
-            </div>
+                <Box direction="row" wrap gap="8px" onClick={(event) => event.stopPropagation()}>
+                  <ActionButton
+                    disabled={!canMarkYtj(candidate.status) || updatingId === candidate.id}
+                    onClick={() => {
+                      setYtjCandidate(candidate);
+                      setYtjDateOfJoining(candidate.dateOfJoining || '');
+                      setYtjJustification(candidate.ytjJustification || '');
+                    }}
+                  >
+                    YTJ
+                  </ActionButton>
+                  <ActionButton
+                    disabled={!canFinalize(candidate) || updatingId === candidate.id}
+                    onClick={async () => {
+                      await updateCandidateStatus(candidate.id, 'ONBOARDED');
+                    }}
+                  >
+                    Onboarded
+                  </ActionButton>
+                  <ActionButton
+                    danger
+                    disabled={
+                      updatingId === candidate.id ||
+                      (!canMarkYtj(candidate.status) &&
+                        !canFinalize(candidate) &&
+                        candidate.status !== 'YET_TO_JOIN')
+                    }
+                    onClick={() => {
+                      setDropCandidate(candidate);
+                      setDropJustification('');
+                    }}
+                  >
+                    Drop
+                  </ActionButton>
+                </Box>
+              </CardBody>
+            </Card>
           ))}
-      </div>
+      </Box>
 
-      {selectedResumeUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="relative h-[85%] w-[85%] rounded-xl bg-white shadow-lg">
-            <button onClick={closeModal} className="absolute right-4 top-3 text-xl text-gray-600 hover:text-black">×</button>
-            <iframe src={selectedResumeUrl} title="Resume Viewer" className="h-full w-full rounded-xl" />
-          </div>
-        </div>
+      {resumeCandidate && (
+        <ResumeModal
+          candidateId={resumeCandidate.id}
+          resumePath={resumeCandidate.resumePath}
+          onClose={closeModal}
+        />
       )}
 
       {dropCandidate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-[460px] space-y-4 rounded-xl bg-white p-6 shadow-lg">
-            <h2 className="text-lg font-semibold">Drop Candidate</h2>
-            <p className="text-sm text-gray-600">Enter the justification for dropping {dropCandidate.name}.</p>
-            <textarea rows={5} value={dropJustification} onChange={(event) => setDropJustification(event.target.value)} className="w-full rounded border p-3 text-sm" />
-            <div className="flex justify-end gap-2">
-              <button onClick={() => { setDropCandidate(null); setDropJustification(''); }} className="rounded border px-4 py-2 text-sm">Cancel</button>
-              <button
+        <Layer
+          modal
+          onEsc={() => {
+            setDropCandidate(null);
+            setDropJustification('');
+          }}
+          onClickOutside={() => {
+            setDropCandidate(null);
+            setDropJustification('');
+          }}
+        >
+          <Box width="460px" pad="24px" gap="16px" round="16px" background="white">
+            <Heading level={3} margin="none" size="20px">
+              Drop Candidate
+            </Heading>
+            <Paragraph margin="none" size="small" color="#4B5563">
+              Enter the justification for dropping {dropCandidate.name}.
+            </Paragraph>
+            <TextArea
+              rows={5}
+              value={dropJustification}
+              onChange={(event) => setDropJustification(event.currentTarget.value)}
+              style={{ borderRadius: 8, fontSize: 14 }}
+            />
+            <Box direction="row" justify="end" gap="8px">
+              <Button
+                onClick={() => {
+                  setDropCandidate(null);
+                  setDropJustification('');
+                }}
+                label="Cancel"
+              />
+              <Button
                 onClick={async () => {
                   if (dropCandidate.status !== 'YET_TO_JOIN' && !dropJustification.trim()) {
                     alert('Drop justification is required');
@@ -252,87 +317,142 @@ const Candidates = () => {
                   setDropCandidate(null);
                   setDropJustification('');
                 }}
-                className="rounded bg-red-600 px-4 py-2 text-sm text-white"
-              >
-                Confirm Drop
-              </button>
-            </div>
-          </div>
-        </div>
+                label="Confirm Drop"
+                primary
+                color="#DC2626"
+              />
+            </Box>
+          </Box>
+        </Layer>
       )}
 
       {ytjCandidate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-[480px] space-y-4 rounded-xl bg-white p-6 shadow-lg">
-            <h2 className="text-lg font-semibold">Mark Candidate as Yet to Join</h2>
-            <p className="text-sm text-gray-600">Add DOJ and justification for {ytjCandidate.name}.</p>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">DOJ</label>
-              <input type="date" value={ytjDateOfJoining} onChange={(event) => setYtjDateOfJoining(event.target.value)} className="w-full rounded border px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Justification</label>
-              <textarea rows={4} value={ytjJustification} onChange={(event) => setYtjJustification(event.target.value)} className="w-full rounded border p-3 text-sm" />
-            </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => { setYtjCandidate(null); setYtjDateOfJoining(''); setYtjJustification(''); }} className="rounded border px-4 py-2 text-sm">Cancel</button>
-              <button
-                onClick={async () => {
-                  if (!ytjDateOfJoining) return alert('DOJ is required');
-                  if (!ytjJustification.trim()) return alert('Justification is required');
-                  await updateCandidateStatus(ytjCandidate.id, 'YET_TO_JOIN', { dateOfJoining: ytjDateOfJoining, ytjJustification });
+        <Layer
+          modal
+          onEsc={() => {
+            setYtjCandidate(null);
+            setYtjDateOfJoining('');
+            setYtjJustification('');
+          }}
+          onClickOutside={() => {
+            setYtjCandidate(null);
+            setYtjDateOfJoining('');
+            setYtjJustification('');
+          }}
+        >
+          <Box width="480px" pad="24px" gap="16px" round="16px" background="white">
+            <Heading level={3} margin="none" size="20px">
+              Mark Candidate as Yet to Join
+            </Heading>
+            <Paragraph margin="none" size="small" color="#4B5563">
+              Add DOJ and justification for {ytjCandidate.name}.
+            </Paragraph>
+            <Box>
+              <Text margin={{ bottom: '4px' }} size="small" weight={500} color="#374151">
+                DOJ
+              </Text>
+              <TextInput
+                type="date"
+                value={ytjDateOfJoining}
+                onChange={(event) => setYtjDateOfJoining(event.currentTarget.value)}
+                style={{ borderRadius: 8, fontSize: 14 }}
+              />
+            </Box>
+            <Box>
+              <Text margin={{ bottom: '4px' }} size="small" weight={500} color="#374151">
+                Justification
+              </Text>
+              <TextArea
+                rows={4}
+                value={ytjJustification}
+                onChange={(event) => setYtjJustification(event.currentTarget.value)}
+                style={{ borderRadius: 8, fontSize: 14 }}
+              />
+            </Box>
+            <Box direction="row" justify="end" gap="8px">
+              <Button
+                onClick={() => {
                   setYtjCandidate(null);
                   setYtjDateOfJoining('');
                   setYtjJustification('');
                 }}
-                className="rounded bg-emerald-600 px-4 py-2 text-sm text-white"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
+                label="Cancel"
+              />
+              <Button
+                onClick={async () => {
+                  if (!ytjDateOfJoining) return alert('DOJ is required');
+                  if (!ytjJustification.trim()) return alert('Justification is required');
+                  await updateCandidateStatus(ytjCandidate.id, 'YET_TO_JOIN', {
+                    dateOfJoining: ytjDateOfJoining,
+                    ytjJustification,
+                  });
+                  setYtjCandidate(null);
+                  setYtjDateOfJoining('');
+                  setYtjJustification('');
+                }}
+                label="Save"
+                primary
+                color="#059669"
+              />
+            </Box>
+          </Box>
+        </Layer>
       )}
 
       {finalizeCandidate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-[460px] space-y-4 rounded-xl bg-white p-6 shadow-lg">
-            <h2 className="text-lg font-semibold">Finalize Candidate</h2>
-            <p className="text-sm text-gray-600">DOJ matched for {finalizeCandidate.name}. Mark the final outcome.</p>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setFinalizeCandidate(null)} className="rounded border px-4 py-2 text-sm">Close</button>
-              <button
+        <Layer
+          modal
+          onEsc={() => setFinalizeCandidate(null)}
+          onClickOutside={() => setFinalizeCandidate(null)}
+        >
+          <Box width="460px" pad="24px" gap="16px" round="16px" background="white">
+            <Heading level={3} margin="none" size="20px">
+              Finalize Candidate
+            </Heading>
+            <Paragraph margin="none" size="small" color="#4B5563">
+              DOJ matched for {finalizeCandidate.name}. Mark the final outcome.
+            </Paragraph>
+            <Box direction="row" justify="end" gap="8px">
+              <Button
+                onClick={() => setFinalizeCandidate(null)}
+                label="Close"
+              />
+              <Button
                 onClick={async () => {
                   await updateCandidateStatus(finalizeCandidate.id, 'ONBOARDED');
                   setFinalizeCandidate(null);
                 }}
-                className="rounded bg-emerald-600 px-4 py-2 text-sm text-white"
-              >
-                Onboarded
-              </button>
-              <button
+                label="Onboarded"
+                primary
+                color="#059669"
+              />
+              <Button
                 onClick={() => {
                   setDropCandidate(finalizeCandidate);
                   setDropJustification('');
                   setFinalizeCandidate(null);
                 }}
-                className="rounded bg-red-600 px-4 py-2 text-sm text-white"
-              >
-                Drop
-              </button>
-            </div>
-          </div>
-        </div>
+                label="Drop"
+                primary
+                color="#DC2626"
+              />
+            </Box>
+          </Box>
+        </Layer>
       )}
-    </div>
+    </Box>
   );
 };
 
 const Info = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-[16px] bg-[#F8FAFC] px-4 py-3">
-    <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[#94A3B8]">{label}</div>
-    <div className="mt-1 text-sm font-medium text-[#0F172A]">{value}</div>
-  </div>
+  <Box round="16px" background="#F8FAFC" pad={{ horizontal: '16px', vertical: '12px' }}>
+    <Text size="xsmall" weight={600} color="#94A3B8" style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+      {label}
+    </Text>
+    <Text margin={{ top: '4px' }} size="small" weight={500} color="#0F172A">
+      {value}
+    </Text>
+  </Box>
 );
 
 const ActionButton = ({
@@ -346,27 +466,23 @@ const ActionButton = ({
   disabled?: boolean;
   danger?: boolean;
 }) => (
-  <button
+  <Button
     type="button"
     disabled={disabled}
     onClick={onClick}
-    className={`rounded-[12px] px-4 py-2 text-sm font-medium disabled:opacity-50 ${
-      danger ? 'border border-red-300 text-red-600' : 'bg-[#01A982] text-white'
-    }`}
-  >
-    {children}
-  </button>
+    label={children}
+    primary={!danger}
+    color={danger ? undefined : '#01A982'}
+    style={{
+      borderRadius: 12,
+      padding: '8px 16px',
+      fontSize: 14,
+      fontWeight: 500,
+      opacity: disabled ? 0.5 : 1,
+      border: danger ? '1px solid #FCA5A5' : undefined,
+      color: danger ? '#DC2626' : '#FFFFFF',
+    }}
+  />
 );
-
-const getStatusStyle = (status: CandidateStatus) => {
-  if (['SCREEN_REJECTED', 'TECH_REJECTED', 'OPS_REJECTED', 'REJECTED', 'DROPPED'].includes(status)) {
-    return 'bg-red-100 text-red-600';
-  }
-  if (['SCREEN_SELECTED', 'TECH_SELECTED', 'IDENTIFIED', 'OPS_SELECTED', 'SELECTED', 'ONBOARDED'].includes(status)) {
-    return 'bg-green-100 text-green-600';
-  }
-  if (status === 'YET_TO_JOIN') return 'bg-amber-100 text-amber-700';
-  return 'bg-yellow-100 text-yellow-700';
-};
 
 export default Candidates;

@@ -1,4 +1,10 @@
 import { useEffect, useState } from 'react';
+import {
+  Box,
+  Grid,
+  Heading,
+  Text,
+} from 'grommet';
 import { getDashboardStats } from '../../services/dashboardService';
 import type { DashboardStats } from '../../services/dashboardService';
 
@@ -29,20 +35,22 @@ const PanelDashboard = () => {
   }, []);
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-800">Panel Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
+    <Box gap="32px">
+      <Box gap="4px">
+        <Heading level={2} margin="none" size="small">
+          Panel Dashboard
+        </Heading>
+        <Text size="small" color="#64748B">
           View your assigned screening jobs and candidates.
-        </p>
-      </div>
+        </Text>
+      </Box>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <Grid columns={['flex', 'flex', 'flex']} gap="24px">
         <StatCard title="Assigned Jobs" value={stats?.kpis.openJobs ?? 0} />
         <StatCard title="Assigned Candidates" value={stats?.kpis.totalCandidates ?? 0} />
         <StatCard title="In Review" value={stats?.kpis.interviews ?? 0} />
-      </div>
-    </div>
+      </Grid>
+    </Box>
   );
 };
 
@@ -53,10 +61,21 @@ const StatCard = ({
   title: string;
   value: number | string;
 }) => (
-  <div className="rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm">
-    <p className="text-sm text-gray-500">{title}</p>
-    <p className="mt-2 text-3xl font-semibold text-gray-800">{value}</p>
-  </div>
+  <Box
+    round="16px"
+    border={{ color: 'border-weak' }}
+    background="white"
+    pad="24px"
+    align="center"
+    gap="8px"
+  >
+    <Text size="small" color="#64748B">
+      {title}
+    </Text>
+    <Text size="xxlarge" weight={600} color="#1F2937">
+      {value}
+    </Text>
+  </Box>
 );
 
 export default PanelDashboard;

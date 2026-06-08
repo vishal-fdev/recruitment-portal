@@ -1,30 +1,31 @@
-// src/dashboard/dashboard.service.ts
-
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 
-import { Candidate } from '../candidates/candidate.entity';
-import { Job } from '../jobs/job.entity';
-import { Vendor } from '../vendors/vendors.entity';
 import { CandidateStatus } from '../candidates/candidate-status.enum';
+import {
+  CandidateDocument,
+  CandidateDocumentModel,
+} from '../mongodb/schemas/candidate.schema';
+import {
+  JobDocument,
+  JobDocumentModel,
+} from '../mongodb/schemas/job.schema';
+import {
+  VendorDocument,
+  VendorDocumentModel,
+} from '../mongodb/schemas/vendor.schema';
 
 @Injectable()
 export class DashboardService {
   constructor(
-    @InjectRepository(Candidate)
-    private readonly candidateRepo: Repository<Candidate>,
-
-    @InjectRepository(Job)
-    private readonly jobRepo: Repository<Job>,
-
-    @InjectRepository(Vendor)
-    private readonly vendorRepo: Repository<Vendor>,
+    @InjectModel(CandidateDocumentModel.name)
+    private readonly candidateMongoModel: Model<CandidateDocument>,
+    @InjectModel(JobDocumentModel.name)
+    private readonly jobMongoModel: Model<JobDocument>,
+    @InjectModel(VendorDocumentModel.name)
+    private readonly vendorMongoModel: Model<VendorDocument>,
   ) {}
-
-  // ======================================================
-  // MAIN DASHBOARD ENTRY (ROLE AWARE)
-  // ======================================================
 
   async getSummary(user: any) {
     if (user.role === 'VENDOR') {
@@ -46,107 +47,102 @@ export class DashboardService {
     return {};
   }
 
-  // ======================================================
-  // VENDOR DASHBOARD
-  // ======================================================
+  private normalizeEmail(email?: string | null) {
+    return (email || '').trim().toLowerCase();
+  }
+
+  private async findMongoCandidates(filter: Record<string, any> = {}) {
+    return this.candidateMongoModel.find(filter).lean().exec();
+  }
+
+  private async findMongoJobs(filter: Record<string, any> = {}) {
+    return this.jobMongoModel.find(filter).lean().exec();
+  }
+
+  private async findMongoVendors(filter: Record<string, any> = {}) {
+    return this.vendorMongoModel.find(filter).lean().exec();
+  }
+
+  private mapMongoDashboardCandidates(candidates: any[]) {
+    return candidates.map((candidate) => ({
+      ...candidate,
+      status: candidate.status,
+      createdAt: candidate.createdAt ? new Date(candidate.createdAt) : undefined,
+      interviews: Array.isArray(candidate.interviews) ? candidate.interviews : [],
+    })) as any[];
+  }
 
   private async getVendorDashboard(user: any) {
-    const candidates = await this.candidateRepo.find({
-      where: { vendor: { id: user.vendorId } },
-      relations: ['job'],
+    const vendorId = String(user.vendorId || '');
+    const rawCandidates = await this.findMongoCandidates({
+      vendorPostgresId: vendorId,
     });
-
-    const jobs = await this.jobRepo
-      .createQueryBuilder('job')
-      .leftJoin('job.jobVendors', 'jv')
-      .where('jv.vendorId = :vendorId', {
-        vendorId: user.vendorId,
-      })
-      .getMany();
+    const candidates = this.mapMongoDashboardCandidates(rawCandidates);
+    const jobs = await this.findMongoJobs();
+    const assignedJobs = jobs.filter((job) =>
+      ((job as any).jobVendors || []).some(
+        (jv: any) => String(jv?.vendor?.id || '') === vendorId,
+      ),
+    );
 
     return {
       kpis: {
         totalCandidates: candidates.length,
-        openJobs: jobs.filter((j) => j.isActive).length,
-        screening: candidates.filter(
-          (c) => c.status === CandidateStatus.SCREENING,
+        openJobs: assignedJobs.filter((j) => j.isActive).length,
+        screening: candidates.filter((c) => c.status === CandidateStatus.SCREENING).length,
+        selected: candidates.filter((c) =>
+          [
+            CandidateStatus.SELECTED,
+            CandidateStatus.IDENTIFIED,
+            CandidateStatus.YET_TO_JOIN,
+            CandidateStatus.ONBOARDED,
+          ].includes(c.status as CandidateStatus),
         ).length,
-        selected: candidates.filter(
-          (c) =>
-            [
-              CandidateStatus.SELECTED,
-              CandidateStatus.IDENTIFIED,
-              CandidateStatus.YET_TO_JOIN,
-              CandidateStatus.ONBOARDED,
-            ].includes(c.status),
-        ).length,
-        rejected: candidates.filter(
-          (c) => c.status === CandidateStatus.REJECTED,
-        ).length,
+        rejected: candidates.filter((c) => c.status === CandidateStatus.REJECTED).length,
       },
-
       stageSummary: this.buildStageSummary(candidates),
-
-      submissionsByDate: this.buildDailySubmissions(
-        candidates,
-      ),
+      submissionsByDate: this.buildDailySubmissions(candidates),
     };
   }
-
-  // ======================================================
-  // VENDOR MANAGER DASHBOARD (GLOBAL)
-  // ======================================================
 
   private async getVendorManagerDashboard() {
-    const [vendors, jobs, candidates] = await Promise.all([
-      this.vendorRepo.find(),
-      this.jobRepo.find(),
-      this.candidateRepo.find(),
+    const [vendors, jobs, rawCandidates] = await Promise.all([
+      this.findMongoVendors(),
+      this.findMongoJobs(),
+      this.findMongoCandidates(),
     ]);
+    const candidates = this.mapMongoDashboardCandidates(rawCandidates);
 
     return {
       kpis: {
-        activeVendors: vendors.filter((v) => v.isActive)
-          .length,
+        activeVendors: vendors.filter((v) => v.isActive).length,
         activeJobs: jobs.filter((j) => j.isActive).length,
         totalCandidates: candidates.length,
-        screening: candidates.filter(
-          (c) => c.status === CandidateStatus.SCREENING,
+        screening: candidates.filter((c) => c.status === CandidateStatus.SCREENING).length,
+        selected: candidates.filter((c) =>
+          [
+            CandidateStatus.SELECTED,
+            CandidateStatus.IDENTIFIED,
+            CandidateStatus.YET_TO_JOIN,
+            CandidateStatus.ONBOARDED,
+          ].includes(c.status as CandidateStatus),
         ).length,
-        selected: candidates.filter(
-          (c) =>
-            [
-              CandidateStatus.SELECTED,
-              CandidateStatus.IDENTIFIED,
-              CandidateStatus.YET_TO_JOIN,
-              CandidateStatus.ONBOARDED,
-            ].includes(c.status),
-        ).length,
-        rejected: candidates.filter(
-          (c) => c.status === CandidateStatus.REJECTED,
-        ).length,
+        rejected: candidates.filter((c) => c.status === CandidateStatus.REJECTED).length,
       },
-
       stageSummary: this.buildStageSummary(candidates),
-
-      submissionsByDate: this.buildWeeklySubmissions(
-        candidates,
-      ),
+      submissionsByDate: this.buildWeeklySubmissions(candidates),
     };
   }
 
-  // ======================================================
-  // HIRING MANAGER DASHBOARD
-  // ======================================================
-
   private async getHiringManagerDashboard(_user: any) {
-    const [jobs, candidates] = await Promise.all([
-      this.jobRepo.find(),
-      this.candidateRepo.find(),
+    const [jobs, rawCandidates] = await Promise.all([
+      this.findMongoJobs(),
+      this.findMongoCandidates(),
     ]);
+    const candidates = this.mapMongoDashboardCandidates(rawCandidates);
 
     const interviews = candidates.reduce(
-      (total, candidate) => total + (candidate.interviews?.length || 0),
+      (total, candidate) => total + ((candidate.interviews || []).length || 0),
       0,
     );
 
@@ -155,54 +151,43 @@ export class DashboardService {
         openJobs: jobs.filter((j) => j.isActive).length,
         totalCandidates: candidates.length,
         interviews,
-        screening: candidates.filter(
-          (c) => c.status === CandidateStatus.SCREENING,
+        screening: candidates.filter((c) => c.status === CandidateStatus.SCREENING).length,
+        selected: candidates.filter((c) =>
+          [
+            CandidateStatus.SELECTED,
+            CandidateStatus.IDENTIFIED,
+            CandidateStatus.YET_TO_JOIN,
+            CandidateStatus.ONBOARDED,
+          ].includes(c.status as CandidateStatus),
         ).length,
-        selected: candidates.filter(
-          (c) =>
-            [
-              CandidateStatus.SELECTED,
-              CandidateStatus.IDENTIFIED,
-              CandidateStatus.YET_TO_JOIN,
-              CandidateStatus.ONBOARDED,
-            ].includes(c.status),
-        ).length,
-        rejected: candidates.filter(
-          (c) => c.status === CandidateStatus.REJECTED,
-        ).length,
+        rejected: candidates.filter((c) => c.status === CandidateStatus.REJECTED).length,
       },
-
       stageSummary: this.buildStageSummary(candidates),
-
-      submissionsByDate: this.buildWeeklySubmissions(
-        candidates,
-      ),
+      submissionsByDate: this.buildWeeklySubmissions(candidates),
     };
   }
 
   private async getPanelDashboard(user: any) {
-    const panelEmail = (user.email || '').trim().toLowerCase();
-    const jobs = await this.jobRepo.find({
-      relations: ['interviewRounds', 'interviewRounds.panels'],
-    });
+    const panelEmail = this.normalizeEmail(user.email);
+    const jobs = await this.findMongoJobs();
 
     const assignedJobs = jobs.filter((job) =>
-      (job.interviewRounds || []).some(
-        (round) =>
-          (round.roundName || '').trim().toUpperCase() === 'SCREENING' &&
-          (round.panels || []).some(
-            (panel) => (panel.email || '').trim().toLowerCase() === panelEmail,
+      ((job as any).interviewRounds || []).some(
+        (round: any) =>
+          String(round?.roundName || '').trim().toUpperCase() === 'SCREENING' &&
+          (Array.isArray(round?.panels) ? round.panels : []).some(
+            (panel: any) => this.normalizeEmail(panel?.email) === panelEmail,
           ),
       ),
     );
 
-    const jobIds = assignedJobs.map((job) => job.id);
-    const candidates = jobIds.length
-      ? await this.candidateRepo.find({
-          where: jobIds.map((jobId) => ({ job: { id: jobId } })),
-          relations: ['job'],
+    const jobIds = assignedJobs.map((job) => Number((job as any).postgresId ?? job.id));
+    const rawCandidates = jobIds.length
+      ? await this.findMongoCandidates({
+          jobPostgresId: { $in: jobIds },
         })
       : [];
+    const candidates = this.mapMongoDashboardCandidates(rawCandidates);
 
     return {
       kpis: {
@@ -217,75 +202,56 @@ export class DashboardService {
     };
   }
 
-  // ======================================================
-  // HELPERS
-  // ======================================================
-
-  private buildStageSummary(candidates: Candidate[]) {
+  private buildStageSummary(candidates: any[]) {
     const summary: Record<string, number> = {};
 
     Object.values(CandidateStatus).forEach((status) => {
       summary[status] = 0;
     });
 
-    for (const c of candidates) {
-      summary[c.status] =
-        (summary[c.status] || 0) + 1;
+    for (const candidate of candidates) {
+      summary[candidate.status] = (summary[candidate.status] || 0) + 1;
     }
 
     return summary;
   }
 
-  private buildDailySubmissions(
-    candidates: Candidate[],
-  ) {
+  private buildDailySubmissions(candidates: any[]) {
     const map: Record<string, number> = {};
 
-    candidates.forEach((c) => {
-      if (!c.createdAt) return;
+    candidates.forEach((candidate) => {
+      if (!candidate.createdAt) return;
 
-      const date = c.createdAt
-        .toISOString()
-        .split('T')[0];
-
+      const date = candidate.createdAt.toISOString().split('T')[0];
       map[date] = (map[date] || 0) + 1;
     });
 
     return Object.keys(map)
       .sort()
-      .map((d) => ({
-        label: d,
-        count: map[d],
+      .map((date) => ({
+        label: date,
+        count: map[date],
       }));
   }
 
-  private buildWeeklySubmissions(
-    candidates: Candidate[],
-  ) {
-    const days = [
-      'Sun',
-      'Mon',
-      'Tue',
-      'Wed',
-      'Thu',
-      'Fri',
-      'Sat',
-    ];
-
+  private buildWeeklySubmissions(candidates: any[]) {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const counts: Record<string, number> = {};
 
-    days.forEach((d) => (counts[d] = 0));
+    days.forEach((day) => {
+      counts[day] = 0;
+    });
 
-    candidates.forEach((c) => {
-      if (!c.createdAt) return;
+    candidates.forEach((candidate) => {
+      if (!candidate.createdAt) return;
 
-      const day = days[c.createdAt.getDay()];
+      const day = days[candidate.createdAt.getDay()];
       counts[day]++;
     });
 
-    return days.map((d) => ({
-      label: d,
-      count: counts[d],
+    return days.map((day) => ({
+      label: day,
+      count: counts[day],
     }));
   }
 }

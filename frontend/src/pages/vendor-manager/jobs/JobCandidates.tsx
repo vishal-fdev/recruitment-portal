@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import {
+  Box,
+  DataTable,
+  Heading,
+  Text,
+} from 'grommet';
 import api from '../../../api/api';
 
 interface Candidate {
@@ -26,63 +32,48 @@ const JobCandidates = () => {
   }, [jobId]);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">
+    <Box gap="24px">
+      <Heading level={2} size="small" margin="none">
         Candidates for Job #{jobId}
-      </h1>
+      </Heading>
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left">Name</th>
-              <th className="px-4 py-3 text-left">Vendor</th>
-              <th className="px-4 py-3 text-left">Email</th>
-              <th className="px-4 py-3 text-left">Phone</th>
-              <th className="px-4 py-3 text-left">Status</th>
-            </tr>
-          </thead>
+      <Box background="white" round="12px" border={{ color: 'border-weak' }} overflow="hidden">
+        <DataTable
+          data={candidates}
+          columns={[
+            { property: 'name', header: 'Name' },
+            { property: 'vendor', header: 'Vendor', render: (datum) => datum.vendor.email },
+            { property: 'email', header: 'Email' },
+            { property: 'phone', header: 'Phone' },
+            {
+              property: 'status',
+              header: 'Status',
+              render: (datum) => (
+                <Box as="span" pad={{ horizontal: '8px', vertical: '4px' }} round="8px" background="#DBEAFE">
+                  <Text size="xsmall" color="#1D4ED8">
+                    {datum.status}
+                  </Text>
+                </Box>
+              ),
+            },
+          ]}
+        />
 
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={5} className="text-center py-6">
-                  Loading...
-                </td>
-              </tr>
-            )}
+        {loading && (
+          <Box pad="24px" align="center">
+            <Text size="small">Loading...</Text>
+          </Box>
+        )}
 
-            {!loading &&
-              candidates.map((c) => (
-                <tr key={c.id} className="border-t">
-                  <td className="px-4 py-3">{c.name}</td>
-                  <td className="px-4 py-3">
-                    {c.vendor.email}
-                  </td>
-                  <td className="px-4 py-3">{c.email}</td>
-                  <td className="px-4 py-3">{c.phone}</td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
-                      {c.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-
-            {!loading && candidates.length === 0 && (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="text-center py-6 text-gray-500"
-                >
-                  No candidates submitted yet
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+        {!loading && candidates.length === 0 && (
+          <Box pad="24px" align="center">
+            <Text size="small" color="#64748B">
+              No candidates submitted yet
+            </Text>
+          </Box>
+        )}
+      </Box>
+    </Box>
   );
 };
 

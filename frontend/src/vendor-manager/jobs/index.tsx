@@ -1,13 +1,14 @@
+import { Box, Heading, Text } from 'grommet';
+
 export default function JobsPage() {
   return (
-    <div>
-      <h2 className="text-lg font-semibold mb-4">
+    <Box gap="16px">
+      <Heading level={2} size="small" margin="none">
         Jobs
-      </h2>
-
-      <p className="text-gray-600">
-        Vendor Manager – Job list will appear here.
-      </p>
-    </div>
+      </Heading>
+      <Text color="#64748B">
+        Vendor Manager - Job list will appear here.
+      </Text>
+    </Box>
   );
 }

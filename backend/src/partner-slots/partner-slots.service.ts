@@ -3,13 +3,26 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Candidate } from '../candidates/candidate.entity';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+
 import { CandidateStatus } from '../candidates/candidate-status.enum';
-import { InterviewRound } from '../jobs/interview-round.entity';
-import { Job } from '../jobs/job.entity';
-import { Vendor } from '../vendors/vendors.entity';
+import {
+  CandidateDocument,
+  CandidateDocumentModel,
+} from '../mongodb/schemas/candidate.schema';
+import {
+  JobDocument,
+  JobDocumentModel,
+} from '../mongodb/schemas/job.schema';
+import {
+  PartnerSlotDocument,
+  PartnerSlotDocumentModel,
+} from '../mongodb/schemas/partner-slot.schema';
+import {
+  VendorDocument,
+  VendorDocumentModel,
+} from '../mongodb/schemas/vendor.schema';
 import {
   PartnerSlot,
   PartnerSlotStatus,
@@ -19,20 +32,14 @@ import {
 @Injectable()
 export class PartnerSlotsService {
   constructor(
-    @InjectRepository(PartnerSlot)
-    private readonly slotRepo: Repository<PartnerSlot>,
-
-    @InjectRepository(Candidate)
-    private readonly candidateRepo: Repository<Candidate>,
-
-    @InjectRepository(Job)
-    private readonly jobRepo: Repository<Job>,
-
-    @InjectRepository(Vendor)
-    private readonly vendorRepo: Repository<Vendor>,
-
-    @InjectRepository(InterviewRound)
-    private readonly roundRepo: Repository<InterviewRound>,
+    @InjectModel(PartnerSlotDocumentModel.name)
+    private readonly partnerSlotMongoModel: Model<PartnerSlotDocument>,
+    @InjectModel(CandidateDocumentModel.name)
+    private readonly candidateMongoModel: Model<CandidateDocument>,
+    @InjectModel(JobDocumentModel.name)
+    private readonly jobMongoModel: Model<JobDocument>,
+    @InjectModel(VendorDocumentModel.name)
+    private readonly vendorMongoModel: Model<VendorDocument>,
   ) {}
 
   private normalizeValue(value?: string | null) {
@@ -48,9 +55,7 @@ export class PartnerSlotsService {
       .join(' ')
       .trim();
 
-    return new Set(
-      [normalizedEmail, localPart, humanizedLocal].filter(Boolean),
-    );
+    return new Set([normalizedEmail, localPart, humanizedLocal].filter(Boolean));
   }
 
   private isHiringManagerMatch(jobHiringManager?: string | null, userEmail?: string | null) {
@@ -61,6 +66,115 @@ export class PartnerSlotsService {
 
     const variants = this.getEmailDisplayVariants(userEmail);
     return variants.has(normalizedHm);
+  }
+
+  private serializeForMongo<T>(value: T): T {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  private mapMongoVendor(doc: any) {
+    if (!doc) return null;
+
+    return {
+      id: doc.postgresId,
+      name: doc.name,
+      email: doc.email,
+      isActive: doc.isActive,
+      createdAt: doc.createdAt ? new Date(doc.createdAt) : null,
+      profile: doc.profile || null,
+      escalations: Array.isArray(doc.escalations) ? doc.escalations : [],
+      engagements: Array.isArray(doc.engagements) ? doc.engagements : [],
+      sows: Array.isArray(doc.sows) ? doc.sows : [],
+    };
+  }
+
+  private mapMongoJob(doc: any) {
+    if (!doc) return null;
+
+    return {
+      id: Number(doc.postgresId),
+      title: doc.title,
+      location: doc.location,
+      experience: doc.experience,
+      department: doc.department ?? null,
+      jobCategory: doc.jobCategory ?? null,
+      workType: doc.workType ?? null,
+      region: doc.region ?? null,
+      dealName: doc.dealName ?? null,
+      hiringManager: doc.hiringManager ?? null,
+      justification: doc.justification ?? null,
+      employmentType: doc.employmentType ?? null,
+      budget: doc.budget ?? null,
+      startDate: doc.startDate ?? null,
+      endDate: doc.endDate ?? null,
+      level: doc.level ?? null,
+      numberOfPositions: doc.numberOfPositions ?? null,
+      currentNumberOfPositions: doc.currentNumberOfPositions ?? null,
+      requestType: doc.requestType ?? null,
+      backfillEmployeeId: doc.backfillEmployeeId ?? null,
+      backfillEmployeeName: doc.backfillEmployeeName ?? null,
+      description: doc.description ?? null,
+      status: doc.status,
+      isActive: doc.isActive,
+      positions: Array.isArray(doc.positions) ? doc.positions : [],
+      interviewRounds: Array.isArray(doc.interviewRounds) ? doc.interviewRounds : [],
+      jobVendors: Array.isArray(doc.jobVendors) ? doc.jobVendors : [],
+      candidates: Array.isArray(doc.candidates) ? doc.candidates : [],
+      createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date(),
+    };
+  }
+
+  private mapMongoCandidate(doc: any) {
+    if (!doc) return null;
+
+    return {
+      id: Number(doc.postgresId),
+      name: doc.name,
+      email: doc.email,
+      phone: doc.phone,
+      aadharNo: doc.aadharNo ?? null,
+      gender: doc.gender ?? null,
+      education: doc.education ?? null,
+      videoLink: doc.videoLink ?? null,
+      primarySkills: doc.primarySkills ?? null,
+      secondarySkills: doc.secondarySkills ?? null,
+      country: doc.country ?? null,
+      state: doc.state ?? null,
+      city: doc.city ?? null,
+      experience: Number(doc.experience ?? 0),
+      noticePeriod: Number(doc.noticePeriod ?? 0),
+      currentOrg: doc.currentOrg,
+      resumePath: doc.resumePath,
+      status: doc.status,
+      dropJustification: doc.dropJustification ?? null,
+      ytjJustification: doc.ytjJustification ?? null,
+      dateOfJoining: doc.dateOfJoining ?? null,
+      createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date(),
+      vendor: doc.vendorSnapshot || null,
+      job: doc.jobSnapshot || null,
+      position: doc.positionSnapshot || null,
+      interviews: Array.isArray(doc.interviews) ? doc.interviews : [],
+    };
+  }
+
+  private mapMongoSlots(slots: any[]) {
+    return slots.map((slot) => ({
+      id: Number(slot.postgresId),
+      roundName: slot.roundName,
+      interviewDate: slot.interviewDate,
+      interviewTime: slot.interviewTime,
+      hmComment: slot.hmComment,
+      status: slot.status,
+      vendorJustification: slot.vendorJustification,
+      attendanceStatus: slot.attendanceStatus,
+      attendanceComment: slot.attendanceComment,
+      hmFeedbackSubmitted: slot.hmFeedbackSubmitted,
+      createdAt: slot.createdAt ? new Date(slot.createdAt) : undefined,
+      updatedAt: slot.updatedAt ? new Date(slot.updatedAt) : undefined,
+      candidate: slot.candidateSnapshot || null,
+      job: slot.jobSnapshot || null,
+      vendor: slot.vendorSnapshot || null,
+    })) as unknown as PartnerSlot[];
   }
 
   private async getVendorId(user: any) {
@@ -74,16 +188,36 @@ export class PartnerSlotsService {
       return '';
     }
 
-    const vendor = await this.vendorRepo
-      .createQueryBuilder('vendor')
-      .where('LOWER(vendor.email) = LOWER(:email)', { email: normalizedEmail })
-      .getOne();
+    const vendor = await this.vendorMongoModel
+      .findOne({ email: { $regex: `^${normalizedEmail}$`, $options: 'i' } })
+      .lean()
+      .exec();
 
-    return vendor?.id || '';
+    return vendor?.postgresId || '';
   }
 
-  private getSlotRelations() {
-    return ['job.interviewRounds'] as const;
+  private async getNextSlotId() {
+    const docs = await this.partnerSlotMongoModel
+      .find({}, { postgresId: 1 })
+      .sort({ postgresId: -1 })
+      .limit(1)
+      .lean()
+      .exec();
+    return Number(docs[0]?.postgresId || 0) + 1;
+  }
+
+  private getNextRound(candidate: any) {
+    const orderedRounds = [...(candidate.job?.interviewRounds || [])].sort(
+      (a: any, b: any) => Number(a.id) - Number(b.id),
+    );
+    const completedRoundIds = new Set(
+      (candidate.interviews || []).map((interview: any) => Number(interview.round?.id)),
+    );
+
+    return (
+      orderedRounds.find((round: any) => !completedRoundIds.has(Number(round.id))) ||
+      orderedRounds[0]
+    );
   }
 
   async getSlotsForUser(user: any) {
@@ -93,29 +227,25 @@ export class PartnerSlotsService {
         return [];
       }
 
-      return this.slotRepo.find({
-        where: { vendor: { id: vendorId } },
-        relations: [...this.getSlotRelations()],
-        order: { updatedAt: 'DESC' },
-      });
+      const slots = await this.partnerSlotMongoModel
+        .find({ vendorPostgresId: vendorId })
+        .sort({ updatedAt: -1 })
+        .lean()
+        .exec();
+      return this.mapMongoSlots(slots);
     }
 
-    if (user.role === 'HIRING_MANAGER') {
-      const allSlots = await this.slotRepo.find({
-        relations: [...this.getSlotRelations()],
-        order: { updatedAt: 'DESC' },
-      });
+    const slots = this.mapMongoSlots(
+      await this.partnerSlotMongoModel.find().sort({ updatedAt: -1 }).lean().exec(),
+    );
 
-      return allSlots.filter(
-        (slot) =>
-          this.isHiringManagerMatch(slot.job?.hiringManager, user.email),
+    if (user.role === 'HIRING_MANAGER') {
+      return slots.filter((slot) =>
+        this.isHiringManagerMatch((slot.job as any)?.hiringManager, user.email),
       );
     }
 
-    return this.slotRepo.find({
-      relations: [...this.getSlotRelations()],
-      order: { updatedAt: 'DESC' },
-    });
+    return slots;
   }
 
   async getEligibleCandidates(user: any) {
@@ -123,22 +253,20 @@ export class PartnerSlotsService {
       throw new BadRequestException('Only hiring managers can view this list');
     }
 
-    const candidates = await this.candidateRepo.find({
-      relations: ['vendor', 'job', 'job.interviewRounds', 'interviews', 'interviews.round'],
-      order: { createdAt: 'DESC' },
-    });
+    const candidates = (await this.candidateMongoModel.find().sort({ createdAt: -1 }).lean().exec())
+      .map((doc) => this.mapMongoCandidate(doc))
+      .filter(Boolean) as any[];
 
     const hmEmail = (user.email || '').trim().toLowerCase();
-    const slots = await this.slotRepo.find({
-      relations: [...this.getSlotRelations()],
-      order: { createdAt: 'DESC' },
-    });
+    const slots = await this.partnerSlotMongoModel.find().sort({ createdAt: -1 }).lean().exec();
     const activeCandidateIds = new Set(
       slots
         .filter((slot) =>
-          [PartnerSlotStatus.PENDING_VENDOR, PartnerSlotStatus.SCHEDULED].includes(slot.status),
+          [PartnerSlotStatus.PENDING_VENDOR, PartnerSlotStatus.SCHEDULED].includes(
+            slot.status as PartnerSlotStatus,
+          ),
         )
-        .map((slot) => slot.candidate?.id),
+        .map((slot) => Number(slot.candidatePostgresId)),
     );
 
     return candidates
@@ -185,12 +313,12 @@ export class PartnerSlotsService {
       throw new BadRequestException('Only hiring managers can create slots');
     }
 
-    const candidate = await this.candidateRepo.findOne({
-      where: { id: Number(body.candidateId) },
-      relations: ['vendor', 'job', 'job.interviewRounds', 'interviews', 'interviews.round'],
-    });
+    const candidateDoc = await this.candidateMongoModel
+      .findOne({ postgresId: Number(body.candidateId) })
+      .exec();
+    const candidate = this.mapMongoCandidate(candidateDoc?.toObject());
 
-    if (!candidate || !candidate.job || !candidate.vendor) {
+    if (!candidateDoc || !candidate || !candidate.job || !candidate.vendor) {
       throw new NotFoundException('Candidate not found');
     }
 
@@ -209,28 +337,32 @@ export class PartnerSlotsService {
       );
     }
 
-    const existingActiveSlot = await this.slotRepo.findOne({
-      where: {
-        candidate: { id: candidate.id },
-      },
-      order: { createdAt: 'DESC' },
-    });
+    const existingActiveSlot = await this.partnerSlotMongoModel
+      .findOne({ candidatePostgresId: candidate.id })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
 
     if (
       existingActiveSlot &&
       [PartnerSlotStatus.PENDING_VENDOR, PartnerSlotStatus.SCHEDULED].includes(
-        existingActiveSlot.status,
+        existingActiveSlot.status as PartnerSlotStatus,
       )
     ) {
       throw new BadRequestException('An active slot already exists for this candidate');
     }
 
     const nextRound = this.getNextRound(candidate);
+    const slotId = await this.getNextSlotId();
 
-    const slot = this.slotRepo.create({
-      candidate,
-      job: candidate.job,
-      vendor: candidate.vendor,
+    await this.partnerSlotMongoModel.create({
+      postgresId: slotId,
+      candidatePostgresId: candidate.id,
+      jobPostgresId: candidate.job.id,
+      vendorPostgresId: candidate.vendor.id,
+      candidateSnapshot: this.serializeForMongo(candidate),
+      jobSnapshot: this.serializeForMongo(candidate.job),
+      vendorSnapshot: this.serializeForMongo(candidate.vendor),
       roundName: nextRound?.roundName || 'SCREENING',
       interviewDate: body.interviewDate,
       interviewTime: body.interviewTime,
@@ -242,7 +374,8 @@ export class PartnerSlotsService {
       hmFeedbackSubmitted: false,
     });
 
-    return this.slotRepo.save(slot);
+    const saved = await this.partnerSlotMongoModel.findOne({ postgresId: slotId }).lean().exec();
+    return this.mapMongoSlots(saved ? [saved] : [])[0];
   }
 
   async respondToSlot(
@@ -262,16 +395,13 @@ export class PartnerSlotsService {
       throw new BadRequestException('Vendor account is not linked correctly');
     }
 
-    const slot = await this.slotRepo.findOne({
-      where: { id: slotId },
-      relations: [...this.getSlotRelations()],
-    });
+    const slot = await this.partnerSlotMongoModel.findOne({ postgresId: slotId }).exec();
 
     if (!slot) {
       throw new NotFoundException('Slot not found');
     }
 
-    if (String(slot.vendor?.id || '').trim() !== vendorId) {
+    if (String(slot.vendorPostgresId || '').trim() !== vendorId) {
       throw new BadRequestException('Unauthorized slot access');
     }
 
@@ -292,7 +422,8 @@ export class PartnerSlotsService {
       slot.vendorJustification = null;
     }
 
-    return this.slotRepo.save(slot);
+    await slot.save();
+    return this.mapMongoSlots([slot.toObject()])[0];
   }
 
   async submitAttendance(
@@ -317,16 +448,13 @@ export class PartnerSlotsService {
       throw new BadRequestException('Vendor account is not linked correctly');
     }
 
-    const slot = await this.slotRepo.findOne({
-      where: { id: slotId },
-      relations: [...this.getSlotRelations()],
-    });
+    const slot = await this.partnerSlotMongoModel.findOne({ postgresId: slotId }).exec();
 
     if (!slot) {
       throw new NotFoundException('Slot not found');
     }
 
-    if (String(slot.vendor?.id || '').trim() !== vendorId) {
+    if (String(slot.vendorPostgresId || '').trim() !== vendorId) {
       throw new BadRequestException('Unauthorized slot access');
     }
 
@@ -352,45 +480,52 @@ export class PartnerSlotsService {
     slot.hmFeedbackSubmitted = false;
 
     if (body.attendanceStatus === SlotAttendanceStatus.DROPPED) {
-      slot.candidate.status = CandidateStatus.DROPPED;
-      slot.candidate.dropJustification = body.comment?.trim() || null;
-      await this.candidateRepo.save(slot.candidate);
+      const candidate = await this.candidateMongoModel
+        .findOne({ postgresId: slot.candidatePostgresId })
+        .exec();
+      if (candidate) {
+        candidate.status = CandidateStatus.DROPPED;
+        candidate.dropJustification = body.comment?.trim() || null;
+        await candidate.save();
+        slot.candidateSnapshot = this.serializeForMongo(this.mapMongoCandidate(candidate.toObject()));
+      }
     }
 
-    return this.slotRepo.save(slot);
+    await slot.save();
+    return this.mapMongoSlots([slot.toObject()])[0];
   }
 
   async getLatestAttendedSlotAwaitingHmFeedback(candidateId: number) {
-    return this.slotRepo.findOne({
-      where: {
-        candidate: { id: candidateId },
+    const slot = await this.partnerSlotMongoModel
+      .findOne({
+        candidatePostgresId: candidateId,
         status: PartnerSlotStatus.CLOSED,
         attendanceStatus: SlotAttendanceStatus.ATTENDED,
         hmFeedbackSubmitted: false,
-      },
-      relations: [...this.getSlotRelations()],
-      order: { updatedAt: 'DESC' },
-    });
+      })
+      .sort({ updatedAt: -1 })
+      .lean()
+      .exec();
+
+    return slot ? this.mapMongoSlots([slot])[0] : null;
   }
 
   async markHmFeedbackSubmitted(candidateId: number) {
-    const slot = await this.getLatestAttendedSlotAwaitingHmFeedback(candidateId);
+    const slot = await this.partnerSlotMongoModel
+      .findOne({
+        candidatePostgresId: candidateId,
+        status: PartnerSlotStatus.CLOSED,
+        attendanceStatus: SlotAttendanceStatus.ATTENDED,
+        hmFeedbackSubmitted: false,
+      })
+      .sort({ updatedAt: -1 })
+      .exec();
+
     if (!slot) {
       return;
     }
 
     slot.hmFeedbackSubmitted = true;
-    await this.slotRepo.save(slot);
-  }
-
-  private getNextRound(candidate: Candidate) {
-    const orderedRounds = [...(candidate.job?.interviewRounds || [])].sort(
-      (a, b) => a.id - b.id,
-    );
-    const completedRoundIds = new Set(
-      (candidate.interviews || []).map((interview) => interview.round?.id),
-    );
-
-    return orderedRounds.find((round) => !completedRoundIds.has(round.id)) || orderedRounds[0];
+    await slot.save();
   }
 }

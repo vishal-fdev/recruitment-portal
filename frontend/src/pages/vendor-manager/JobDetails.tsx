@@ -1,7 +1,17 @@
-// src/pages/vendor-manager-head/JobDetails.tsx
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Button,
+  Card,
+  CardBody,
+  Grid,
+  Heading,
+  Tabs,
+  Tab,
+  Text,
+  TextArea,
+} from 'grommet';
 import {
   getJobDetails,
   approveJob,
@@ -20,7 +30,6 @@ const JobDetails = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('DETAILS');
 
-  // ✅ Role detection
   const role = localStorage.getItem('role');
 
   const canAddCalibration =
@@ -28,25 +37,19 @@ const JobDetails = () => {
     role === 'VENDOR_MANAGER' ||
     role === 'VENDOR_MANAGER_HEAD';
 
-  // Calibration state (frontend only for now)
   const [calibrationNotes, setCalibrationNotes] = useState('');
   const [isEditingCalibration, setIsEditingCalibration] = useState(false);
 
   useEffect(() => {
-    if (id) loadJob(Number(id));
+    if (id) void loadJob(Number(id));
   }, [id]);
 
   const loadJob = async (jobId: number) => {
     try {
       const data = await getJobDetails(jobId);
-
-      // Sort interview rounds by ID
       if (data.interviewRounds) {
-        data.interviewRounds = [...data.interviewRounds].sort(
-          (a, b) => a.id - b.id
-        );
+        data.interviewRounds = [...data.interviewRounds].sort((a, b) => a.id - b.id);
       }
-
       setJob(data);
     } catch (err) {
       console.error('Failed to fetch job');
@@ -72,292 +75,261 @@ const JobDetails = () => {
   };
 
   const handleSaveCalibration = () => {
-    // 🔥 Later connect to backend
     console.log('Calibration saved:', calibrationNotes);
     setIsEditingCalibration(false);
   };
 
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'APPROVED':
-        return 'bg-gray-300 text-black';
-      case 'REJECTED':
-        return 'bg-gray-400 text-black';
-      case 'PENDING_APPROVAL':
-        return 'bg-gray-200 text-black';
-      default:
-        return 'bg-gray-200 text-black';
-    }
-  };
-
-  if (loading) return <div>Loading...</div>;
-  if (!job) return <div>Job not found.</div>;
+  if (loading) return <Text>Loading...</Text>;
+  if (!job) return <Text>Job not found.</Text>;
 
   return (
-    <div className="space-y-6">
-
-      {/* BACK BUTTON */}
-      <button
+    <Box gap="24px">
+      <Button
+        label="<- Back"
         onClick={() => navigate('/vendor-manager/jobs')}
-        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
-      >
-        ← Back
-      </button>
+        primary
+        color="#16A34A"
+        alignSelf="start"
+      />
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">
+      <Box direction="row" justify="between" align="center">
+        <Heading level={2} size="small" margin="none">
           HRQ{job.id}
-        </h1>
-
-        <span
-          className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusStyle(
-            job.status,
-          )}`}
+        </Heading>
+        <Box
+          pad={{ horizontal: '16px', vertical: '8px' }}
+          round="999px"
+          background={getStatusStyle(job.status).background}
         >
-          {job.status}
-        </span>
-      </div>
+          <Text size="small" weight={500} color={getStatusStyle(job.status).color}>
+            {job.status}
+          </Text>
+        </Box>
+      </Box>
 
-      {/* APPROVAL BUTTONS */}
       {job.status === 'PENDING_APPROVAL' && (
-        <div className="flex gap-4">
-          <button
+        <Box direction="row" gap="16px">
+          <Button
+            label="Approve"
             onClick={handleApprove}
             disabled={actionLoading}
-            className="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800"
-          >
-            Approve
-          </button>
+            primary
+            color="black"
+          />
 
-          <button
+          <Button
+            label="Reject"
             onClick={handleReject}
             disabled={actionLoading}
-            className="px-6 py-2 border border-black text-black rounded-md hover:bg-gray-100"
-          >
-            Reject
-          </button>
-        </div>
+          />
+        </Box>
       )}
 
-      {/* TAB BAR */}
-      <div className="bg-gray-200 rounded-lg flex overflow-hidden text-sm font-medium">
-        <TabButton
-          label="Details"
-          active={activeTab === 'DETAILS'}
-          onClick={() => setActiveTab('DETAILS')}
-        />
-        <TabButton
-          label="Interview Rounds"
-          active={activeTab === 'INTERVIEWS'}
-          onClick={() => setActiveTab('INTERVIEWS')}
-        />
-        <TabButton
-          label="Calibration"
-          active={activeTab === 'CALIBRATION'}
-          onClick={() => setActiveTab('CALIBRATION')}
-        />
-      </div>
+      <Tabs
+        activeIndex={tabIndexFromType(activeTab)}
+        onActive={(index) => setActiveTab(tabTypeFromIndex(index))}
+      >
+        <Tab title="Details" />
+        <Tab title="Interview Rounds" />
+        <Tab title="Calibration" />
+      </Tabs>
 
-      {/* ================= DETAILS TAB ================= */}
       {activeTab === 'DETAILS' && (
-        <div className="space-y-6">
+        <Box gap="24px">
+          <Grid columns={['flex', 'flex']} gap="24px">
+            <InfoCard title="Hiring Information">
+              <InfoRow label="HRQ ID" value={`HRQ${job.id}`} />
+              <InfoRow label="Role Hired For" value={job.title} />
+              <InfoRow label="Business" value={job.department || '-'} />
+              <InfoRow label="Request Assigned Date" value={job.startDate || '-'} />
+            </InfoCard>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <InfoCard title="Job Information">
+              <InfoRow label="Location" value={job.location} />
+              <InfoRow label="Experience" value={job.experience} />
+              <InfoRow label="Employment Type" value={job.employmentType || '-'} />
+              <InfoRow label="Budget" value={job.budget || '-'} />
+              <InfoRow label="Start Date" value={job.startDate || '-'} />
+              <InfoRow label="End Date" value={job.endDate || '-'} />
+            </InfoCard>
+          </Grid>
 
-            <div className="bg-white rounded-xl shadow border border-gray-200">
-              <div className="px-6 py-4 border-b font-medium text-gray-700">
-                Hiring Information
-              </div>
-
-              <div className="p-6 space-y-4 text-sm">
-                <InfoRow label="HRQ ID" value={`HRQ${job.id}`} />
-                <InfoRow label="Role Hired For" value={job.title} />
-                <InfoRow label="Business" value={job.department || '-'} />
-                <InfoRow label="Request Assigned Date" value={job.startDate || '-'} />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow border border-gray-200">
-              <div className="px-6 py-4 border-b font-medium text-gray-700">
-                Job Information
-              </div>
-
-              <div className="p-6 space-y-4 text-sm">
-                <InfoRow label="Location" value={job.location} />
-                <InfoRow label="Experience" value={job.experience} />
-                <InfoRow label="Employment Type" value={job.employmentType || '-'} />
-                <InfoRow label="Budget" value={job.budget || '-'} />
-                <InfoRow label="Start Date" value={job.startDate || '-'} />
-                <InfoRow label="End Date" value={job.endDate || '-'} />
-              </div>
-            </div>
-
-          </div>
-
-          <div className="bg-white rounded-xl shadow border border-gray-200">
-            <div className="px-6 py-4 border-b font-medium text-gray-700">
-              Job Description
-            </div>
-
-            <div className="p-6 text-sm text-gray-700 whitespace-pre-line">
+          <InfoCard title="Job Description">
+            <Text size="small" color="#475569">
               {job.description || 'No description provided.'}
-            </div>
-          </div>
-
-        </div>
+            </Text>
+          </InfoCard>
+        </Box>
       )}
 
-      {/* ================= INTERVIEW TAB ================= */}
       {activeTab === 'INTERVIEWS' && (
-        <div className="space-y-4">
+        <Box gap="16px">
           {job.interviewRounds && job.interviewRounds.length > 0 ? (
             job.interviewRounds.map((round, index) => (
-              <div
-                key={round.id}
-                className="bg-white rounded-xl shadow border border-gray-200 p-6"
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-sm font-semibold">
-                    {index + 1}
-                  </div>
-
-                  <div>
-                    <div className="font-medium">
-                      {round.roundName}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {round.mode || 'N/A'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-sm text-gray-600 mb-2">
-                  Panel Members
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {round.panels.map((panel) => (
-                    <span
-                      key={panel.id}
-                      className="px-3 py-1 bg-gray-200 rounded-full text-xs"
+              <Card key={round.id} round="16px" border={{ color: 'border-weak' }} background="white">
+                <CardBody pad="24px" gap="16px">
+                  <Box direction="row" gap="16px" align="center">
+                    <Box
+                      width="32px"
+                      height="32px"
+                      round="50%"
+                      background="#D1D5DB"
+                      align="center"
+                      justify="center"
                     >
-                      {panel.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
+                      <Text size="small" weight={600}>
+                        {index + 1}
+                      </Text>
+                    </Box>
+                    <Box>
+                      <Text weight={500}>{round.roundName}</Text>
+                      <Text size="xsmall" color="#64748B">
+                        {round.mode || 'N/A'}
+                      </Text>
+                    </Box>
+                  </Box>
+
+                  <Text size="small" color="#64748B">
+                    Panel Members
+                  </Text>
+
+                  <Box direction="row" wrap gap="8px">
+                    {round.panels.map((panel) => (
+                      <Box
+                        key={panel.id}
+                        pad={{ horizontal: '12px', vertical: '6px' }}
+                        background="#E5E7EB"
+                        round="999px"
+                      >
+                        <Text size="xsmall">{panel.name}</Text>
+                      </Box>
+                    ))}
+                  </Box>
+                </CardBody>
+              </Card>
             ))
           ) : (
-            <div className="bg-white rounded-xl shadow border border-gray-200 p-10 text-center text-gray-500">
-              No interview rounds configured.
-            </div>
+            <Card round="16px" border={{ color: 'border-weak' }} background="white">
+              <CardBody pad="40px" align="center">
+                <Text color="#64748B">No interview rounds configured.</Text>
+              </CardBody>
+            </Card>
           )}
-        </div>
+        </Box>
       )}
 
-      {/* ================= CALIBRATION TAB ================= */}
       {activeTab === 'CALIBRATION' && (
-        <div className="bg-white rounded-xl shadow border border-gray-200 p-8">
+        <Card round="16px" border={{ color: 'border-weak' }} background="white">
+          <CardBody pad="32px">
+            {!calibrationNotes && !isEditingCalibration && (
+              <Box align="center" gap="16px">
+                <Text size="large" weight={500} color="#64748B">
+                  No Calibration Information
+                </Text>
+                <Text size="small" color="#64748B" textAlign="center">
+                  No calibration sessions have been scheduled or conducted yet for this hiring request.
+                </Text>
 
-          {!calibrationNotes && !isEditingCalibration && (
-            <div className="text-center text-gray-500 space-y-4">
-              <div className="text-lg font-medium">
-                No Calibration Information
-              </div>
-              <div className="text-sm">
-                No calibration sessions have been scheduled or conducted yet for this hiring request.
-              </div>
+                {canAddCalibration && (
+                  <Button
+                    primary
+                    color="black"
+                    label="Add Calibration Pointers"
+                    onClick={() => setIsEditingCalibration(true)}
+                  />
+                )}
+              </Box>
+            )}
 
-              {canAddCalibration && (
-                <button
-                  onClick={() => setIsEditingCalibration(true)}
-                  className="px-5 py-2 bg-black text-white rounded-md hover:bg-gray-800"
-                >
-                  Add Calibration Pointers
-                </button>
-              )}
-            </div>
-          )}
+            {isEditingCalibration && (
+              <Box gap="16px">
+                <TextArea
+                  value={calibrationNotes}
+                  onChange={(e) => setCalibrationNotes(e.target.value)}
+                  rows={5}
+                  resize={false}
+                />
 
-          {isEditingCalibration && (
-            <div className="space-y-4">
-              <textarea
-                value={calibrationNotes}
-                onChange={(e) => setCalibrationNotes(e.target.value)}
-                rows={5}
-                className="w-full border border-gray-300 rounded-md p-3 text-sm"
-                placeholder="Enter calibration pointers..."
-              />
+                <Box direction="row" gap="12px">
+                  <Button primary color="black" label="Save" onClick={handleSaveCalibration} />
+                  <Button label="Cancel" onClick={() => setIsEditingCalibration(false)} />
+                </Box>
+              </Box>
+            )}
 
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSaveCalibration}
-                  className="px-5 py-2 bg-black text-white rounded-md hover:bg-gray-800"
-                >
-                  Save
-                </button>
+            {calibrationNotes && !isEditingCalibration && (
+              <Box gap="16px">
+                <Text size="small" color="#475569">
+                  {calibrationNotes}
+                </Text>
 
-                <button
-                  onClick={() => setIsEditingCalibration(false)}
-                  className="px-5 py-2 border border-gray-400 rounded-md"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
-          {calibrationNotes && !isEditingCalibration && (
-            <div className="space-y-4">
-              <div className="whitespace-pre-line text-sm text-gray-700">
-                {calibrationNotes}
-              </div>
-
-              {canAddCalibration && (
-                <button
-                  onClick={() => setIsEditingCalibration(true)}
-                  className="px-5 py-2 border border-gray-400 rounded-md text-sm"
-                >
-                  Edit Calibration
-                </button>
-              )}
-            </div>
-          )}
-
-        </div>
+                {canAddCalibration && (
+                  <Button label="Edit Calibration" onClick={() => setIsEditingCalibration(true)} alignSelf="start" />
+                )}
+              </Box>
+            )}
+          </CardBody>
+        </Card>
       )}
-
-    </div>
+    </Box>
   );
 };
 
-export default JobDetails;
+const tabIndexFromType = (type: TabType) => {
+  switch (type) {
+    case 'DETAILS':
+      return 0;
+    case 'INTERVIEWS':
+      return 1;
+    case 'CALIBRATION':
+      return 2;
+  }
+};
 
-/* TAB BUTTON */
+const tabTypeFromIndex = (index: number): TabType => {
+  switch (index) {
+    case 1:
+      return 'INTERVIEWS';
+    case 2:
+      return 'CALIBRATION';
+    default:
+      return 'DETAILS';
+  }
+};
 
-const TabButton = ({
-  label,
-  active,
-  onClick,
+const getStatusStyle = (status: string) => {
+  switch (status) {
+    case 'APPROVED':
+      return { background: '#D1D5DB', color: '#111827' };
+    case 'REJECTED':
+      return { background: '#9CA3AF', color: '#111827' };
+    case 'PENDING_APPROVAL':
+      return { background: '#E5E7EB', color: '#111827' };
+    default:
+      return { background: '#E5E7EB', color: '#111827' };
+  }
+};
+
+const InfoCard = ({
+  title,
+  children,
 }: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
+  title: string;
+  children: React.ReactNode;
 }) => (
-  <button
-    onClick={onClick}
-    className={`flex-1 py-3 transition ${
-      active
-        ? 'bg-white text-black'
-        : 'text-gray-600 hover:bg-gray-300'
-    }`}
-  >
-    {label}
-  </button>
+  <Card round="16px" border={{ color: 'border-weak' }} background="white">
+    <CardBody>
+      <Box pad={{ horizontal: '24px', vertical: '16px' }} border={{ side: 'bottom', color: 'border-weak' }}>
+        <Text weight={500} color="#475569">
+          {title}
+        </Text>
+      </Box>
+      <Box pad="24px" gap="16px">
+        {children}
+      </Box>
+    </CardBody>
+  </Card>
 );
-
-/* INFO ROW */
 
 const InfoRow = ({
   label,
@@ -366,8 +338,14 @@ const InfoRow = ({
   label: string;
   value: string;
 }) => (
-  <div className="flex justify-between">
-    <span className="text-gray-600">{label}</span>
-    <span className="font-medium">{value}</span>
-  </div>
+  <Box direction="row" justify="between" gap="16px">
+    <Text size="small" color="#64748B">
+      {label}
+    </Text>
+    <Text size="small" weight={500} textAlign="end">
+      {value}
+    </Text>
+  </Box>
 );
+
+export default JobDetails;

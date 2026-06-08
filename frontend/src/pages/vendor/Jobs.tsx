@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Button,
+  DataTable,
+  Heading,
+  Layer,
+  Paragraph,
+  Text,
+} from 'grommet';
 import api from '../../api/api';
+import StageBadge from '../../components/StageBadge';
 
 interface Job {
   id: number;
@@ -18,62 +28,58 @@ interface Job {
   jdFileName?: string;
 }
 
+type JobRow = Job & {
+  hrqId: string;
+  totalPositions: number;
+  currentPositions: number;
+};
+
 const Jobs = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const [downloadError, setDownloadError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadJobs();
+    void loadJobs();
   }, []);
 
   const loadJobs = async () => {
     try {
       const res = await api.get('/jobs');
-
-      const sorted = (res.data || []).sort(
-        (a: Job, b: Job) => b.id - a.id,
-      );
-
+      const sorted = (res.data || []).sort((a: Job, b: Job) => b.id - a.id);
       setJobs(sorted);
     } catch (err) {
-      console.error('Failed to load jobs');
+      console.error('Failed to load jobs', err);
       setJobs([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownload = async (
-    e: React.MouseEvent,
-    jobId: number,
-    fileName?: string,
-  ) => {
+  const handleDownload = async (e: React.MouseEvent, jobId: number, fileName?: string) => {
     e.stopPropagation();
+    try {
+      const response = await api.get(`/jobs/${jobId}/jd/download`, {
+        responseType: 'blob',
+      });
 
-    const response = await api.get(`/jobs/${jobId}/jd/download`, {
-      responseType: 'blob',
-    });
-
-    const blob = new Blob([response.data]);
-    const url = window.URL.createObjectURL(blob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName || `JOB-${jobId}.pdf`;
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    window.URL.revokeObjectURL(url);
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName || `JOB-${jobId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download JD', error);
+      setDownloadError('Unable to download JD right now.');
+    }
   };
 
-  const submitCandidate = (
-    e: React.MouseEvent,
-    jobId: number,
-  ) => {
+  const submitCandidate = (e: React.MouseEvent, jobId: number) => {
     e.stopPropagation();
     navigate(`/vendor/candidates/create?jobId=${jobId}`);
   };
@@ -82,227 +88,140 @@ const Jobs = () => {
     navigate(`/vendor/jobs/${jobId}`);
   };
 
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'APPROVED':
-        return 'bg-green-100 text-green-700';
-      case 'PENDING_APPROVAL':
-        return 'bg-yellow-200 text-yellow-800';
-      case 'REJECTED':
-        return 'bg-red-200 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-600';
-    }
-  };
+  const rows: JobRow[] = jobs.map((job) => {
+    const additionalTotal =
+      job.positions?.reduce((sum, position) => sum + Number(position.openings || 0), 0) || 0;
+    const additionalCurrent =
+      job.positions?.reduce(
+        (sum, position) => sum + Number(position.currentOpenings ?? position.openings ?? 0),
+        0,
+      ) || 0;
+
+    return {
+      ...job,
+      hrqId: `HRQ${job.id}`,
+      totalPositions: Number(job.numberOfPositions || 0) + additionalTotal,
+      currentPositions:
+        Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0) + additionalCurrent,
+    };
+  });
 
   return (
-    <div className="space-y-8">
-
-      {/* HEADER */}
-
-      <div>
-        <h1 className="text-2xl font-semibold text-black">
+    <Box gap="large">
+      <Box gap="xsmall">
+        <Heading level={2} margin="none" color="text-strong">
           Available Job Requisitions
-        </h1>
-
-        <p className="text-gray-500 mt-1">
+        </Heading>
+        <Paragraph margin="none" color="text-paragraph">
           View jobs assigned to you and submit candidates
-        </p>
-      </div>
+        </Paragraph>
+      </Box>
 
-      {/* TABLE */}
+      <Box
+        background="white"
+        round="20px"
+        border={{ color: 'border-weak' }}
+        overflow="auto"
+        pad="none"
+        elevation="xsmall"
+      >
+        <DataTable
+          data={rows}
+          step={20}
+          sortable
+          columns={[
+            {
+              property: 'hrqId',
+              header: <Text weight="bold">HRQID</Text>,
+              render: (datum) => <Text weight="bold">{datum.hrqId}</Text>,
+              align: 'center',
+            },
+            {
+              property: 'title',
+              header: <Text weight="bold">Role Hired For</Text>,
+              align: 'center',
+            },
+            {
+              property: 'location',
+              header: <Text weight="bold">Location</Text>,
+              align: 'center',
+            },
+            {
+              property: 'experience',
+              header: <Text weight="bold">Experience</Text>,
+              align: 'center',
+            },
+            {
+              property: 'totalPositions',
+              header: <Text weight="bold">Total Positions</Text>,
+              align: 'center',
+            },
+            {
+              property: 'currentPositions',
+              header: <Text weight="bold">Current Positions</Text>,
+              align: 'center',
+            },
+            {
+              property: 'status',
+              header: <Text weight="bold">Status</Text>,
+              render: (datum) => <StageBadge status={datum.status} />,
+              align: 'center',
+            },
+            {
+              property: 'jd',
+              header: <Text weight="bold">JD</Text>,
+              render: (datum) =>
+                datum.jdFileName ? (
+                  <Button
+                    label="Download JD"
+                    plain
+                    color="brand"
+                    onClick={(event) => void handleDownload(event, datum.id, datum.jdFileName)}
+                  />
+                ) : (
+                  <Text color="text-weak">-</Text>
+                ),
+              align: 'center',
+            },
+            {
+              property: 'action',
+              header: <Text weight="bold">Action</Text>,
+              render: (datum) => (
+                <Button
+                  label="Submit Candidates"
+                  primary
+                  color="brand"
+                  onClick={(event) => submitCandidate(event, datum.id)}
+                />
+              ),
+              align: 'center',
+            },
+          ]}
+          onClickRow={({ datum }) => openJobDetails(datum.id)}
+          fill
+          pin
+        />
+      </Box>
 
-      <div className="bg-white rounded-xl shadow border border-gray-200 overflow-x-auto">
-
-        <table className="w-full text-sm text-gray-800">
-
-          <thead className="bg-gray-100 border-b border-gray-200">
-
-            <tr>
-              <th className="px-6 py-4 text-center font-semibold">
-                HRQID
-              </th>
-
-              <th className="px-6 py-4 text-center font-semibold">
-                Role Hired For
-              </th>
-
-              <th className="px-6 py-4 text-center font-semibold">
-                Location
-              </th>
-
-              <th className="px-6 py-4 text-center font-semibold">
-                Experience
-              </th>
-
-              <th className="px-6 py-4 text-center font-semibold">
-                Total Positions
-              </th>
-
-              <th className="px-6 py-4 text-center font-semibold">
-                Current Positions
-              </th>
-
-              <th className="px-6 py-4 text-center font-semibold">
-                Status
-              </th>
-
-              <th className="px-6 py-4 text-center font-semibold">
-                JD
-              </th>
-
-              <th className="px-6 py-4 text-center font-semibold">
-                Action
-              </th>
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            {loading && (
-              <tr>
-                <td colSpan={9} className="py-10 text-center text-gray-500">
-                  Loading...
-                </td>
-              </tr>
-            )}
-
-            {!loading && jobs.length === 0 && (
-              <tr>
-                <td colSpan={9} className="py-10 text-center text-gray-500">
-                  No jobs assigned to you.
-                </td>
-              </tr>
-            )}
-
-            {!loading &&
-              jobs.map((job) => {
-                const additionalTotal =
-                  job.positions?.reduce(
-                    (sum, position) => sum + Number(position.openings || 0),
-                    0,
-                  ) || 0;
-                const additionalCurrent =
-                  job.positions?.reduce(
-                    (sum, position) =>
-                      sum +
-                      Number(
-                        position.currentOpenings ?? position.openings ?? 0,
-                      ),
-                    0,
-                  ) || 0;
-                const totalPositions =
-                  Number(job.numberOfPositions || 0) + additionalTotal;
-                const currentPositions =
-                  Number(
-                    job.currentNumberOfPositions ?? job.numberOfPositions ?? 0,
-                  ) + additionalCurrent;
-
-                return (
-                  <tr
-                    key={job.id}
-                    className="border-t hover:bg-gray-50 transition cursor-pointer"
-                    onClick={() => openJobDetails(job.id)}
-                  >
-
-                    {/* HRQID */}
-
-                    <td className="px-6 py-4 text-center font-semibold">
-                      HRQ{job.id}
-                    </td>
-
-                    {/* ROLE */}
-
-                    <td className="px-6 py-4 text-center">
-                      {job.title}
-                    </td>
-
-                    {/* LOCATION */}
-
-                    <td className="px-6 py-4 text-center">
-                      {job.location}
-                    </td>
-
-                    {/* EXPERIENCE */}
-
-                    <td className="px-6 py-4 text-center">
-                      {job.experience}
-                    </td>
-
-                    {/* POSITIONS */}
-
-                    <td className="px-6 py-4 text-center">
-                      {totalPositions}
-                    </td>
-
-                    <td className="px-6 py-4 text-center">
-                      {currentPositions}
-                    </td>
-
-                    {/* STATUS */}
-
-                    <td className="px-6 py-4 text-center">
-
-                      <span
-                        className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusStyle(
-                          job.status,
-                        )}`}
-                      >
-                        {job.status.replace('_', ' ')}
-                      </span>
-
-                    </td>
-
-                    {/* JD DOWNLOAD */}
-
-                    <td className="px-6 py-4 text-center">
-
-                      {job.jdFileName ? (
-
-                        <button
-                          onClick={(e) =>
-                            handleDownload(e, job.id, job.jdFileName)
-                          }
-                          className="text-blue-600 font-medium hover:underline"
-                        >
-                          Download JD
-                        </button>
-
-                      ) : (
-
-                        <span className="text-gray-400">—</span>
-
-                      )}
-
-                    </td>
-
-                    {/* ACTION */}
-
-                    <td className="px-6 py-4 text-center">
-
-                      <button
-                        onClick={(e) =>
-                          submitCandidate(e, job.id)
-                        }
-                        className="bg-emerald-600 text-white px-4 py-2 rounded-md text-sm hover:bg-emerald-700 transition"
-                      >
-                        Submit Candidates
-                      </button>
-
-                    </td>
-
-                  </tr>
-                );
-              })}
-
-          </tbody>
-
-        </table>
-
-      </div>
-
-    </div>
+      {downloadError ? (
+        <Layer
+          onEsc={() => setDownloadError('')}
+          onClickOutside={() => setDownloadError('')}
+          modal
+          responsive={false}
+        >
+          <Box pad="medium" gap="medium" width="medium">
+            <Heading level={4} margin="none">
+              Download Error
+            </Heading>
+            <Text>{downloadError}</Text>
+            <Box direction="row" justify="end">
+              <Button primary label="OK" onClick={() => setDownloadError('')} />
+            </Box>
+          </Box>
+        </Layer>
+      ) : null}
+    </Box>
   );
 };
 

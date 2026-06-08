@@ -3,286 +3,262 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { randomUUID } from 'crypto';
+import {
+  VendorDocument,
+  VendorDocumentModel,
+} from '../mongodb/schemas/vendor.schema';
+import { UserRole } from '../users/user.entity';
+import { UsersService } from '../users/users.service';
 import { Vendor } from './vendors.entity';
-import { VendorProfile } from './vendor-profile.entity';
-import { VendorEscalation } from './vendor-escalation.entity';
-import { VendorEngagement } from './vendor-engagement.entity';
-import { VendorSOW } from './vendor-sow.entity';
-import { User, UserRole } from '../users/user.entity';
 
 @Injectable()
 export class VendorsService {
-
   constructor(
-    @InjectRepository(Vendor)
-    private readonly vendorRepo: Repository<Vendor>,
-
-    @InjectRepository(VendorProfile)
-    private readonly profileRepo: Repository<VendorProfile>,
-
-    @InjectRepository(VendorEscalation)
-    private readonly escalationRepo: Repository<VendorEscalation>,
-
-    @InjectRepository(VendorEngagement)
-    private readonly engagementRepo: Repository<VendorEngagement>,
-
-    @InjectRepository(VendorSOW)
-    private readonly sowRepo: Repository<VendorSOW>,
-
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
+    @InjectModel(VendorDocumentModel.name)
+    private readonly vendorMongoModel: Model<VendorDocument>,
+    private readonly usersService: UsersService,
   ) {}
 
-  /* ================= GET ALL ================= */
-
   async getAll() {
-    return this.vendorRepo.find({
-      order: { createdAt: 'DESC' },
-    });
+    const docs = await this.vendorMongoModel
+      .find()
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+
+    return docs.map((doc) => this.mapMongoVendor(doc));
   }
 
-  /* ================= GET BY ID ================= */
-
   async getVendorById(id: string) {
+    const doc = await this.vendorMongoModel
+      .findOne({ postgresId: id })
+      .lean()
+      .exec();
 
-    const vendor = await this.vendorRepo.findOne({
-      where: { id },
-      relations: [
-        'escalations',
-        'engagements',
-        'sows',
-      ],
-    });
-
-    if (!vendor) {
+    if (!doc) {
       throw new NotFoundException('Vendor not found');
     }
 
-    return vendor;
+    return this.mapMongoVendor(doc);
   }
 
-  /* ================= CREATE ================= */
-
   async createVendor(body: any) {
-
-    if (!body.email) {
+    const normalizedEmail = this.normalizeEmail(body.email);
+    if (!normalizedEmail) {
       throw new BadRequestException('Email is required');
     }
 
-    const existingUser = await this.userRepo.findOne({
-      where: { email: body.email },
-    });
+    const existingVendor = await this.vendorMongoModel
+      .findOne({ email: new RegExp(`^${this.escapeRegex(normalizedEmail)}$`, 'i') })
+      .lean()
+      .exec();
 
+    if (existingVendor) {
+      throw new BadRequestException('Vendor with this email already exists');
+    }
+
+    const existingUser = await this.usersService.findByEmail(normalizedEmail);
     if (existingUser) {
-      throw new BadRequestException(
-        'User with this email already exists',
-      );
+      throw new BadRequestException('User with this email already exists');
     }
 
-    const vendor = this.vendorRepo.create({
+    const vendorDoc = await this.vendorMongoModel.create({
+      postgresId: randomUUID(),
       name: body.name,
-      email: body.email,
+      email: normalizedEmail,
       isActive: true,
+      profile:
+        body.contactPerson || body.phone || body.country || body.state || body.city || body.address || body.taxId || body.vendorType
+          ? {
+              id: 1,
+              contactPerson: body.contactPerson || '',
+              phone: body.phone || '',
+              country: body.country || '',
+              state: body.state || '',
+              city: body.city || '',
+              address: body.address || '',
+              taxId: body.taxId || '',
+              vendorType: body.vendorType || '',
+            }
+          : null,
+      escalations: [],
+      engagements: [],
+      sows: [],
     });
 
-    const savedVendor = await this.vendorRepo.save(vendor);
-
-    /* Create Vendor Profile */
-
-    if (body.contactPerson || body.phone) {
-
-      const profile = this.profileRepo.create({
-        contactPerson: body.contactPerson,
-        phone: body.phone,
-        country: body.country,
-        state: body.state,
-        city: body.city,
-        address: body.address,
-        taxId: body.taxId,
-        vendorType: body.vendorType,
-        vendor: savedVendor,
-      });
-
-      await this.profileRepo.save(profile);
-    }
-
-    /* Create Vendor Login User */
-
-    const user = this.userRepo.create({
-      email: body.email,
-      role: UserRole.VENDOR,
-      isActive: true,
-      vendor: savedVendor,
-    });
-
-    await this.userRepo.save(user);
-
-    return savedVendor;
+    await this.usersService.linkVendorUser(normalizedEmail, vendorDoc.toObject());
+    return this.mapMongoVendor(vendorDoc.toObject());
   }
 
-  /* ================= TOGGLE ================= */
-
   async toggleStatus(id: string) {
-
-    const vendor = await this.vendorRepo.findOneBy({ id });
-
-    if (!vendor) {
+    const vendorDoc = await this.vendorMongoModel.findOne({ postgresId: id }).exec();
+    if (!vendorDoc) {
       throw new NotFoundException('Vendor not found');
     }
 
-    vendor.isActive = !vendor.isActive;
-
-    await this.vendorRepo.save(vendor);
+    vendorDoc.isActive = !vendorDoc.isActive;
+    await vendorDoc.save();
+    await this.usersService.linkVendorUser(vendorDoc.email, vendorDoc.toObject());
 
     return {
       success: true,
-      isActive: vendor.isActive,
+      isActive: vendorDoc.isActive,
     };
   }
 
-  /* ================= ESCALATIONS ================= */
-
   async getEscalations(vendorId: string) {
-
-    return this.escalationRepo.find({
-      where: { vendor: { id: vendorId } },
-      order: { id: 'DESC' },
-    });
-
+    const vendorDoc = await this.findVendorDoc(vendorId);
+    return this.sortDescById(vendorDoc.escalations || []);
   }
 
-  async createEscalation(
-    vendorId: string,
-    body: any,
-    role: UserRole,
-  ) {
+  async createEscalation(vendorId: string, body: any, role: UserRole) {
+    const vendorDoc = await this.findVendorDoc(vendorId);
+    const escalations = Array.isArray(vendorDoc.escalations) ? [...vendorDoc.escalations] : [];
 
-    const vendor = await this.vendorRepo.findOneBy({ id: vendorId });
-
-    if (!vendor) {
-      throw new NotFoundException('Vendor not found');
-    }
-
-    const approvalStatus =
-      role === UserRole.VENDOR ? 'Pending' : 'Approved';
-
-    const escalation = this.escalationRepo.create({
+    const escalation = {
+      id: this.getNextNumericId(escalations),
       ...body,
-      approvalStatus,
-      vendor,
-    });
+      approvalStatus: role === UserRole.VENDOR ? 'Pending' : 'Approved',
+      vendor: { id: vendorDoc.postgresId },
+    };
 
-    return this.escalationRepo.save(escalation);
+    escalations.unshift(escalation);
+    vendorDoc.escalations = escalations;
+    await vendorDoc.save();
+    return escalation;
   }
 
   async updateEscalation(id: string, body: any) {
-
-    const escalation = await this.escalationRepo.findOneBy({ id });
-
-    if (!escalation) {
-      throw new NotFoundException('Escalation not found');
-    }
-
-    Object.assign(escalation, body);
-
-    return this.escalationRepo.save(escalation);
+    const { vendorDoc, item } = await this.findNestedRecord('escalations', Number(id), 'Escalation');
+    Object.assign(item, body);
+    await vendorDoc.save();
+    return item;
   }
 
   async approveEscalation(id: string) {
-
-    const escalation = await this.escalationRepo.findOneBy({ id });
-
-    if (!escalation) {
-      throw new NotFoundException('Escalation not found');
-    }
-
-    escalation.approvalStatus = 'Approved';
-
-    return this.escalationRepo.save(escalation);
+    const { vendorDoc, item } = await this.findNestedRecord('escalations', Number(id), 'Escalation');
+    item.approvalStatus = 'Approved';
+    await vendorDoc.save();
+    return item;
   }
 
-  /* ================= ENGAGEMENT ================= */
-
   async getEngagements(vendorId: string) {
-
-    return this.engagementRepo.find({
-      where: { vendor: { id: vendorId } },
-      order: { id: 'DESC' },
-    });
-
+    const vendorDoc = await this.findVendorDoc(vendorId);
+    return this.sortDescById(vendorDoc.engagements || []);
   }
 
   async createEngagement(vendorId: string, body: any) {
+    const vendorDoc = await this.findVendorDoc(vendorId);
+    const engagements = Array.isArray(vendorDoc.engagements) ? [...vendorDoc.engagements] : [];
 
-    const vendor = await this.vendorRepo.findOneBy({ id: vendorId });
-
-    if (!vendor) {
-      throw new NotFoundException('Vendor not found');
-    }
-
-    const engagement = this.engagementRepo.create({
+    const engagement = {
+      id: this.getNextNumericId(engagements),
       ...body,
-      vendor,
-    });
+      vendor: { id: vendorDoc.postgresId },
+    };
 
-    return this.engagementRepo.save(engagement);
+    engagements.unshift(engagement);
+    vendorDoc.engagements = engagements;
+    await vendorDoc.save();
+    return engagement;
   }
 
   async updateEngagement(id: number, body: any) {
-
-    const engagement = await this.engagementRepo.findOneBy({ id });
-
-    if (!engagement) {
-      throw new NotFoundException('Engagement not found');
-    }
-
-    Object.assign(engagement, body);
-
-    return this.engagementRepo.save(engagement);
+    const { vendorDoc, item } = await this.findNestedRecord('engagements', Number(id), 'Engagement');
+    Object.assign(item, body);
+    await vendorDoc.save();
+    return item;
   }
 
-  /* ================= SOW ================= */
-
   async getSOWs(vendorId: string) {
-
-    return this.sowRepo.find({
-      where: { vendor: { id: vendorId } },
-      order: { id: 'DESC' },
-    });
-
+    const vendorDoc = await this.findVendorDoc(vendorId);
+    return this.sortDescById(vendorDoc.sows || []);
   }
 
   async createSOW(vendorId: string, body: any) {
+    const vendorDoc = await this.findVendorDoc(vendorId);
+    const sows = Array.isArray(vendorDoc.sows) ? [...vendorDoc.sows] : [];
 
-    const vendor = await this.vendorRepo.findOneBy({ id: vendorId });
-
-    if (!vendor) {
-      throw new NotFoundException('Vendor not found');
-    }
-
-    const sow = this.sowRepo.create({
+    const sow = {
+      id: this.getNextNumericId(sows),
       ...body,
-      vendor,
-    });
+      vendor: { id: vendorDoc.postgresId },
+    };
 
-    return this.sowRepo.save(sow);
+    sows.unshift(sow);
+    vendorDoc.sows = sows;
+    await vendorDoc.save();
+    return sow;
   }
 
   async updateSOW(id: number, body: any) {
-
-    const sow = await this.sowRepo.findOneBy({ id });
-
-    if (!sow) {
-      throw new NotFoundException('SOW not found');
-    }
-
-    Object.assign(sow, body);
-
-    return this.sowRepo.save(sow);
+    const { vendorDoc, item } = await this.findNestedRecord('sows', Number(id), 'SOW');
+    Object.assign(item, body);
+    await vendorDoc.save();
+    return item;
   }
 
+  private async findVendorDoc(vendorId: string) {
+    const vendorDoc = await this.vendorMongoModel.findOne({ postgresId: vendorId }).exec();
+    if (!vendorDoc) {
+      throw new NotFoundException('Vendor not found');
+    }
+    return vendorDoc;
+  }
+
+  private async findNestedRecord(
+    key: 'escalations' | 'engagements' | 'sows',
+    id: number,
+    label: string,
+  ) {
+    const vendorDoc = await this.vendorMongoModel
+      .findOne({ [`${key}.id`]: id })
+      .exec();
+
+    if (!vendorDoc) {
+      throw new NotFoundException(`${label} not found`);
+    }
+
+    const collection = Array.isArray(vendorDoc[key]) ? vendorDoc[key] : [];
+    const item = collection.find((entry: any) => Number(entry?.id) === Number(id));
+
+    if (!item) {
+      throw new NotFoundException(`${label} not found`);
+    }
+
+    return { vendorDoc, item };
+  }
+
+  private getNextNumericId(items: any[]) {
+    return items.reduce((max, item) => Math.max(max, Number(item?.id || 0)), 0) + 1;
+  }
+
+  private sortDescById(items: any[]) {
+    return [...items].sort((a, b) => Number(b?.id || 0) - Number(a?.id || 0));
+  }
+
+  private mapMongoVendor(doc: any): Vendor {
+    const vendor = new Vendor();
+    vendor.id = doc.postgresId;
+    vendor.name = doc.name;
+    vendor.email = doc.email;
+    vendor.isActive = doc.isActive;
+    vendor.createdAt = doc.createdAt ? new Date(doc.createdAt) : new Date();
+    vendor.profile = (doc.profile as any) || null;
+    vendor.escalations = (doc.escalations as any) || [];
+    vendor.engagements = (doc.engagements as any) || [];
+    vendor.sows = (doc.sows as any) || [];
+    return vendor;
+  }
+
+  private normalizeEmail(email?: string | null) {
+    return (email || '').trim().toLowerCase();
+  }
+
+  private escapeRegex(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
 }

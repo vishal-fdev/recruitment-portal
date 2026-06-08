@@ -1,6 +1,21 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
+  Anchor,
+  Box,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  Grid,
+  Heading,
+  Layer,
+  Paragraph,
+  Text,
+  TextArea,
+  TextInput,
+} from 'grommet';
+import {
   Briefcase,
   Building2,
   CalendarDays,
@@ -59,10 +74,10 @@ const LEGACY_FLOW_MAP: Partial<Record<CandidateStatus, CandidateStatus>> = {
 };
 
 const ROUND_COLORS = [
-  'bg-emerald-500',
-  'bg-cyan-500',
-  'bg-teal-500',
-  'bg-sky-500',
+  '#10B981',
+  '#06B6D4',
+  '#14B8A6',
+  '#0EA5E9',
 ];
 
 const CandidateDetails = () => {
@@ -162,7 +177,11 @@ const CandidateDetails = () => {
   };
 
   if (!candidate) {
-    return <div className="p-6">Loading...</div>;
+    return (
+      <Box pad="24px">
+        <Text>Loading...</Text>
+      </Box>
+    );
   }
 
   const normalizedStatus =
@@ -403,91 +422,50 @@ const CandidateDetails = () => {
       new Date(a.feedbackDate || 0).getTime(),
   );
   return (
-    <div className="space-y-5">
-      <button
+    <Box gap="medium">
+      <Button
+        label="Back"
+        primary
+        color="brand"
         onClick={() => navigate(backRoute)}
-        className="inline-flex items-center rounded-md bg-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-600"
-      >
-        Back
-      </button>
+        alignSelf="start"
+      />
 
-      <section className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
-        <div className="border-b border-emerald-100 px-5 py-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-lg font-semibold text-slate-800">
-                Candidate Details
-              </h1>
-            </div>
+      <Card round="24px" border={{ color: '#B8F6E6' }} background="white" overflow="hidden">
+        <CardHeader pad={{ horizontal: '20px', vertical: '16px' }} border={{ side: 'bottom', color: '#B8F6E6' }}>
+          <Box direction="row" justify="between" align="start" width="100%">
+            <Heading level={3} margin="none" size="20px">
+              Candidate Details
+            </Heading>
             <StageBadge status={candidate.status} />
-          </div>
-        </div>
-
-        <div className="space-y-5 px-5 py-4">
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
+          </Box>
+        </CardHeader>
+        <CardBody pad="20px" gap="medium">
+          <Grid columns={{ count: 'fit', size: '220px' }} gap="medium">
             <InfoColumn
               items={[
-                {
-                  icon: <User size={13} />,
-                  label: 'Candidate Name',
-                  value: candidate.name,
-                },
-                {
-                  icon: <Mail size={13} />,
-                  label: 'Email',
-                  value: candidate.email,
-                },
-                {
-                  icon: <Phone size={13} />,
-                  label: 'Phone',
-                  value: candidate.phone,
-                },
-                {
-                  icon: <IdCard size={13} />,
-                  label: 'Aadhaar No',
-                  value: candidate.aadharNo || '-',
-                },
+                { icon: <User size={13} />, label: 'Candidate Name', value: candidate.name },
+                { icon: <Mail size={13} />, label: 'Email', value: candidate.email },
+                { icon: <Phone size={13} />, label: 'Phone', value: candidate.phone },
+                { icon: <IdCard size={13} />, label: 'Aadhaar No', value: candidate.aadharNo || '-' },
               ]}
             />
-
             <InfoColumn
               items={[
-                {
-                  icon: <MapPin size={13} />,
-                  label: 'Location',
-                  value: candidateLocation || '-',
-                },
-                {
-                  icon: <IdCard size={13} />,
-                  label: 'Candidate ID',
-                  value: `CA${candidate.id}`,
-                },
-                {
-                  icon: <Building2 size={13} />,
-                  label: 'Current Organization',
-                  value: candidate.currentOrg || '-',
-                },
-                {
-                  icon: <Briefcase size={13} />,
-                  label: 'Education',
-                  value: candidate.education || '-',
-                },
+                { icon: <MapPin size={13} />, label: 'Location', value: candidateLocation || '-' },
+                { icon: <IdCard size={13} />, label: 'Candidate ID', value: `CA${candidate.id}` },
+                { icon: <Building2 size={13} />, label: 'Current Organization', value: candidate.currentOrg || '-' },
+                { icon: <Briefcase size={13} />, label: 'Education', value: candidate.education || '-' },
               ]}
             />
-
             <InfoColumn
               items={[
-                {
-                  icon: <Calendar size={13} />,
-                  label: 'Last Working Date',
-                  value: formatDate(candidate.lastWorkingDay),
-                },
+                { icon: <Calendar size={13} />, label: 'Last Working Date', value: formatDate(candidate.lastWorkingDay) },
                 {
                   icon: <Clock3 size={13} />,
                   label: 'Notice Period',
                   value:
-                    candidate.noticePeriod !== undefined &&
-                    candidate.noticePeriod !== null
+                    candidate.noticePeriod !== undefined && candidate.noticePeriod !== null
                       ? `${candidate.noticePeriod} days`
                       : '-',
                 },
@@ -495,623 +473,530 @@ const CandidateDetails = () => {
                   icon: <Briefcase size={13} />,
                   label: 'Experience',
                   value:
-                    candidate.experience !== undefined &&
-                    candidate.experience !== null
+                    candidate.experience !== undefined && candidate.experience !== null
                       ? `${candidate.experience} years`
                       : '-',
                 },
-                {
-                  icon: <User size={13} />,
-                  label: 'Gender',
-                  value: candidate.gender || '-',
-                },
+                { icon: <User size={13} />, label: 'Gender', value: candidate.gender || '-' },
               ]}
             />
-
             <InfoColumn
               items={[
-                {
-                  icon: <User size={13} />,
-                  label: 'Currently Working',
-                  value: candidate.currentlyWorking ?? '-',
-                },
-                {
-                  icon: <Users size={13} />,
-                  label: 'Diversity',
-                  value: candidate.diversity ?? '-',
-                },
-                {
-                  icon: <Calendar size={13} />,
-                  label: 'Date of Joining',
-                  value: formatDate(candidate.dateOfJoining),
-                },
+                { icon: <User size={13} />, label: 'Currently Working', value: candidate.currentlyWorking ?? '-' },
+                { icon: <Users size={13} />, label: 'Diversity', value: candidate.diversity ?? '-' },
+                { icon: <Calendar size={13} />, label: 'Date of Joining', value: formatDate(candidate.dateOfJoining) },
                 {
                   icon: <Link2 size={13} />,
                   label: 'Video Profile',
                   value: candidate.videoLink ? (
-                    <a
+                    <Anchor
                       href={candidate.videoLink}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-slate-700 hover:text-emerald-600"
-                    >
-                      Open Video
-                      <Link2 size={12} />
-                    </a>
+                      color="#334155"
+                      label={
+                        <Box direction="row" gap="xsmall" align="center">
+                          <Text size="small">Open Video</Text>
+                          <Link2 size={12} />
+                        </Box>
+                      }
+                    />
                   ) : (
                     '-'
                   ),
                 },
               ]}
             />
-
             <InfoColumn
               items={[
-                {
-                  icon: <IdCard size={13} />,
-                  label: 'Employee ID',
-                  value: candidate.employeeId ?? '-',
-                },
+                { icon: <IdCard size={13} />, label: 'Employee ID', value: candidate.employeeId ?? '-' },
                 {
                   icon: <FileText size={13} />,
                   label: 'Resume',
                   value: (
-                    <button
-                      type="button"
+                    <Button
+                      plain
                       onClick={() => setShowResumeModal(true)}
-                      className="inline-flex items-center gap-1 text-slate-700 hover:text-emerald-600"
-                    >
-                      Resume
-                      <FileText size={12} />
-                    </button>
+                      label={
+                        <Box direction="row" gap="xsmall" align="center">
+                          <Text size="small" color="#334155">
+                            Resume
+                          </Text>
+                          <FileText size={12} />
+                        </Box>
+                      }
+                    />
                   ),
                 },
-                {
-                  icon: <Calendar size={13} />,
-                  label: 'Resume Upload Date',
-                  value: formatDate(candidate.createdAt),
-                },
+                { icon: <Calendar size={13} />, label: 'Resume Upload Date', value: formatDate(candidate.createdAt) },
               ]}
             />
-          </div>
+          </Grid>
 
-          <div className="grid grid-cols-1 gap-6 border-t border-emerald-100 pt-3 lg:grid-cols-2">
-            <SkillSection title="Primary Skills" skills={candidate.primarySkills} />
-            <SkillSection title="Secondary Skills" skills={candidate.secondarySkills} />
-          </div>
-        </div>
-      </section>
+          <Box border={{ side: 'top', color: '#B8F6E6' }} pad={{ top: '12px' }}>
+            <Grid columns={{ count: 'fit', size: '320px' }} gap="large">
+              <SkillSection title="Primary Skills" skills={candidate.primarySkills} />
+              <SkillSection title="Secondary Skills" skills={candidate.secondarySkills} />
+            </Grid>
+          </Box>
+        </CardBody>
+      </Card>
 
-      <section className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
-        <div className="border-b border-emerald-100 bg-emerald-50/50 px-5 py-3">
-          <h2 className="text-sm font-semibold text-slate-800">
+      <Card round="24px" border={{ color: '#B8F6E6' }} background="white" overflow="hidden">
+        <CardHeader pad={{ horizontal: '20px', vertical: '12px' }} background="#F0FFF9" border={{ side: 'bottom', color: '#B8F6E6' }}>
+          <Heading level={4} margin="none" size="16px">
             Interview History
-          </h2>
-        </div>
-
-        <div className="space-y-4 px-4 py-4">
-          <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 text-sm text-slate-700">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-semibold text-white">
-                  {candidate.job?.id ? `HRQ${candidate.job.id}` : '-'}
-                </span>
-                <span className="font-medium text-slate-800">
+          </Heading>
+        </CardHeader>
+        <CardBody pad="16px" gap="medium">
+          <Box round="20px" border={{ color: '#B8F6E6' }} background="#F0FFF9" pad="16px" gap="small">
+            <Box direction="row" wrap justify="between" align="center" gap="small">
+              <Box direction="row" wrap gap="small" align="center">
+                <Box as="span" round="full" background="#34D399" pad={{ horizontal: '12px', vertical: '4px' }}>
+                  <Text size="xsmall" weight={600} color="white">
+                    {candidate.job?.id ? `HRQ${candidate.job.id}` : '-'}
+                  </Text>
+                </Box>
+                <Text weight={500} color="#0F172A">
                   {candidate.job?.title || '-'}
-                </span>
-              </div>
-              <span className="text-xs text-slate-500">
+                </Text>
+              </Box>
+              <Text size="xsmall" color="#64748B">
                 {interviewHistory.length} interview rounds
-              </span>
-            </div>
-
-            <div className="mt-2 flex flex-wrap gap-5 text-xs text-slate-600">
-              <span>HRQ Status: {candidate.job?.status || '-'}</span>
-              <span>Partner: {candidate.vendor?.name || '-'}</span>
-            </div>
-          </div>
+              </Text>
+            </Box>
+            <Box direction="row" wrap gap="medium">
+              <Text size="xsmall" color="#475569">HRQ Status: {candidate.job?.status || '-'}</Text>
+              <Text size="xsmall" color="#475569">Partner: {candidate.vendor?.name || '-'}</Text>
+            </Box>
+          </Box>
 
           {interviewHistory.length ? (
             interviewHistory.map((interview, index) => (
-              <article
-                key={interview.id}
-                className="rounded-xl border border-emerald-100 bg-white px-4 py-4 shadow-sm"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
-                        ROUND_COLORS[index % ROUND_COLORS.length]
-                      }`}
-                    >
-                      {interviewHistory.length - index}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-800">
+              <Card key={interview.id} round="20px" border={{ color: '#B8F6E6' }} background="white">
+                <CardBody pad="16px" gap="medium">
+                  <Box direction="row" wrap justify="between" align="start" gap="small">
+                    <Box direction="row" gap="small" align="center">
+                      <Box
+                        width="24px"
+                        height="24px"
+                        round="full"
+                        align="center"
+                        justify="center"
+                        background={ROUND_COLORS[index % ROUND_COLORS.length]}
+                      >
+                        <Text size="xsmall" weight={700} color="white">
+                          {interviewHistory.length - index}
+                        </Text>
+                      </Box>
+                      <Heading level={5} margin="none" size="16px">
                         {formatRoundName(interview.round?.roundName)}
-                      </h3>
-                    </div>
-                  </div>
+                      </Heading>
+                    </Box>
+                    <Box gap="xsmall">
+                      <TinyStatus label="Slot" value="Selected" />
+                      <TinyStatus
+                        label="Decision"
+                        value={interview.decision === 'SELECT' ? 'Selected' : 'Rejected'}
+                      />
+                    </Box>
+                  </Box>
 
-                  <div className="space-y-1 text-right text-xs">
-                    <TinyStatus label="Slot" value="Selected" />
-                    <TinyStatus
-                      label="Decision"
-                      value={interview.decision === 'SELECT' ? 'Selected' : 'Rejected'}
-                    />
-                  </div>
-                </div>
+                  <Grid columns={{ count: 'fit', size: '160px' }} gap="medium">
+                    <MiniInfo icon={<Users size={12} />} label="Panel Members" value={interview.panelMembers || '-'} />
+                    <MiniInfo icon={<Calendar size={12} />} label="Interview Date/Time" value={formatDateTime(interview.feedbackDate)} />
+                    <MiniInfo icon={<Briefcase size={12} />} label="Interview Mode" value={interview.round?.mode || '-'} />
+                    <MiniInfo icon={<User size={12} />} label="Feedback Given By" value={candidate.job?.hiringManager || 'Hiring Manager'} />
+                    <MiniInfo icon={<Calendar size={12} />} label="Feedback Date/Time" value={formatDateTime(interview.feedbackDate)} />
+                    <MiniInfo icon={<Clock3 size={12} />} label="TAT (in days)" value={getTatDays(candidate.createdAt, interview.feedbackDate)} />
+                  </Grid>
 
-                <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 text-sm xl:grid-cols-6">
-                  <MiniInfo
-                    icon={<Users size={12} />}
-                    label="Panel Members"
-                    value={interview.panelMembers || '-'}
-                  />
-                  <MiniInfo
-                    icon={<Calendar size={12} />}
-                    label="Interview Date/Time"
-                    value={formatDateTime(interview.feedbackDate)}
-                  />
-                  <MiniInfo
-                    icon={<Briefcase size={12} />}
-                    label="Interview Mode"
-                    value={interview.round?.mode || '-'}
-                  />
-                  <MiniInfo
-                    icon={<User size={12} />}
-                    label="Feedback Given By"
-                    value={candidate.job?.hiringManager || 'Hiring Manager'}
-                  />
-                  <MiniInfo
-                    icon={<Calendar size={12} />}
-                    label="Feedback Date/Time"
-                    value={formatDateTime(interview.feedbackDate)}
-                  />
-                  <MiniInfo
-                    icon={<Clock3 size={12} />}
-                    label="TAT (in days)"
-                    value={getTatDays(candidate.createdAt, interview.feedbackDate)}
-                  />
-                </div>
-
-                <div className="mt-4 rounded-lg border border-emerald-300 bg-emerald-50/60 px-3 py-2 text-xs text-slate-700">
-                  <span className="font-semibold text-emerald-700">
-                    INTERVIEW COMMENTS:
-                  </span>{' '}
-                  {interview.feedback || 'No feedback shared yet.'}
-                </div>
-              </article>
+                  <Box round="12px" border={{ color: '#6EE7B7' }} background="#F0FFF9" pad={{ horizontal: '12px', vertical: '10px' }}>
+                    <Text size="xsmall" color="#334155">
+                      <Text weight={600} color="#047857">
+                        INTERVIEW COMMENTS:
+                      </Text>{' '}
+                      {interview.feedback || 'No feedback shared yet.'}
+                    </Text>
+                  </Box>
+                </CardBody>
+              </Card>
             ))
           ) : (
-            <div className="rounded-xl border border-dashed border-emerald-200 bg-white px-4 py-10 text-center text-sm text-slate-400">
-              No interview history available yet.
-            </div>
+            <Box round="20px" border={{ color: '#B8F6E6', style: 'dashed' }} pad={{ vertical: '40px', horizontal: '16px' }} align="center">
+              <Text size="small" color="#94A3B8">
+                No interview history available yet.
+              </Text>
+            </Box>
           )}
-        </div>
-      </section>
+        </CardBody>
+      </Card>
 
       {candidate.status === 'DROPPED' && (
-        <section className="rounded-2xl border border-rose-100 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-800">
-            Drop Justification
-          </h2>
-          <p className="mt-3 text-sm text-slate-700">
-            {candidate.dropJustification || '-'}
-          </p>
-        </section>
+        <Card round="24px" border={{ color: '#FECACA' }} background="white">
+          <CardBody pad="20px" gap="small">
+            <Heading level={4} margin="none" size="16px">
+              Drop Justification
+            </Heading>
+            <Paragraph margin="none" size="small" color="#334155">
+              {candidate.dropJustification || '-'}
+            </Paragraph>
+          </CardBody>
+        </Card>
       )}
 
       {candidate.status === 'YET_TO_JOIN' && candidate.ytjJustification && (
-        <section className="rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-800">
-            Yet To Join Details
-          </h2>
-          <div className="mt-3 space-y-2 text-sm text-slate-700">
-            <p>
-              <span className="font-medium">DOJ:</span>{' '}
-              {formatDate(candidate.dateOfJoining)}
-            </p>
-            <p>
-              <span className="font-medium">Justification:</span>{' '}
-              {candidate.ytjJustification}
-            </p>
-          </div>
-        </section>
+        <Card round="24px" border={{ color: '#FDE68A' }} background="white">
+          <CardBody pad="20px" gap="small">
+            <Heading level={4} margin="none" size="16px">
+              Yet To Join Details
+            </Heading>
+            <Text size="small" color="#334155">
+              <Text weight={600}>DOJ:</Text> {formatDate(candidate.dateOfJoining)}
+            </Text>
+            <Text size="small" color="#334155">
+              <Text weight={600}>Justification:</Text> {candidate.ytjJustification}
+            </Text>
+          </CardBody>
+        </Card>
       )}
 
       {isHiringManagerView && ['SCREEN_SELECTED', 'TECH_SELECTED'].includes(normalizedStatus) && (
-        <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-800">
-                Interview Scheduling
-              </h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Schedule the next interview round for this candidate.
-              </p>
-            </div>
+        <Card round="24px" border={{ color: '#B8F6E6' }} background="white">
+          <CardBody pad="20px" gap="medium">
+            <Box direction="row" wrap justify="between" align="start" gap="medium">
+              <Box>
+                <Heading level={4} margin="none" size="16px">
+                  Interview Scheduling
+                </Heading>
+                <Paragraph margin={{ top: '6px', bottom: 'none' }} size="small" color="#475569">
+                  Schedule the next interview round for this candidate.
+                </Paragraph>
+              </Box>
+              {canScheduleInterview && (
+                <Button
+                  primary
+                  color="brand"
+                  icon={<CalendarDays size={16} />}
+                  label="Schedule Interview"
+                  onClick={() => setShowScheduleBox(true)}
+                />
+              )}
+            </Box>
 
-            {canScheduleInterview && (
-              <button
-                type="button"
-                onClick={() => setShowScheduleBox(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600"
-              >
-                <CalendarDays size={16} />
-                Schedule Interview
-              </button>
+            {!canScheduleInterview && !hasAttendedInterviewAwaitingHmFeedback && interviewGateMessage && (
+              <Text size="small" color="#475569">
+                {interviewGateMessage}
+              </Text>
             )}
-          </div>
 
-          {!canScheduleInterview && !hasAttendedInterviewAwaitingHmFeedback && interviewGateMessage && (
-            <p className="mt-4 text-sm text-slate-600">{interviewGateMessage}</p>
-          )}
+            {hasOpenInterviewSlot && latestSlot && (
+              <Box round="20px" border={{ color: '#A7F3D0' }} background="#F0FFF9" pad="16px">
+                <Grid columns={{ count: 'fit', size: '160px' }} gap="small">
+                  <SlotInfo label="Round" value={formatRoundName(latestSlot.roundName)} />
+                  <SlotInfo label="Interview Date" value={formatDate(latestSlot.interviewDate)} />
+                  <SlotInfo label="Interview Time" value={latestSlot.interviewTime || '-'} />
+                  <SlotInfo
+                    label="Vendor Response"
+                    value={
+                      latestSlot.status === 'PENDING_VENDOR'
+                        ? 'Awaiting vendor'
+                        : latestSlot.status === 'SCHEDULED'
+                          ? 'Accepted'
+                          : latestSlot.status
+                    }
+                  />
+                </Grid>
+              </Box>
+            )}
 
-          {hasOpenInterviewSlot && latestSlot && (
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm text-slate-700">
-              <div className="grid gap-3 md:grid-cols-4">
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                    Round
-                  </p>
-                  <p className="font-medium text-slate-800">
-                    {formatRoundName(latestSlot.roundName)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                    Interview Date
-                  </p>
-                  <p className="font-medium text-slate-800">
-                    {formatDate(latestSlot.interviewDate)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                    Interview Time
-                  </p>
-                  <p className="font-medium text-slate-800">
-                    {latestSlot.interviewTime || '-'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                    Vendor Response
-                  </p>
-                  <p className="font-medium text-slate-800">
-                    {latestSlot.status === 'PENDING_VENDOR'
-                      ? 'Awaiting vendor'
-                      : latestSlot.status === 'SCHEDULED'
-                        ? 'Accepted'
-                        : latestSlot.status}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+            {hasAttendedInterviewAwaitingHmFeedback && latestSlot && (
+              <Box round="20px" border={{ color: '#A5F3FC' }} background="#ECFEFF" pad="16px" gap="xsmall">
+                <Text size="small" weight={600} color="#0F172A">
+                  The {formatRoundName(latestSlot.roundName).toLowerCase()} interview has been marked as attended.
+                </Text>
+                <Text size="small" color="#475569">
+                  You can now submit the next stage decision for this candidate.
+                </Text>
+              </Box>
+            )}
 
-          {hasAttendedInterviewAwaitingHmFeedback && latestSlot && (
-            <div className="mt-4 rounded-xl border border-cyan-200 bg-cyan-50/70 px-4 py-3 text-sm text-slate-700">
-              <p className="font-medium text-slate-800">
-                The {formatRoundName(latestSlot.roundName).toLowerCase()} interview has been marked as attended.
-              </p>
-              <p className="mt-1">
-                You can now submit the next stage decision for this candidate.
-              </p>
-            </div>
-          )}
-
-          {!hasOpenInterviewSlot && latestSlot?.status === 'REJECTED' && (
-            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-slate-700">
-              <p className="font-medium text-slate-800">Last slot was rejected by vendor.</p>
-              <p className="mt-1">
-                <span className="font-medium">Justification:</span>{' '}
-                {latestSlot.vendorJustification || '-'}
-              </p>
-            </div>
-          )}
-        </section>
+            {!hasOpenInterviewSlot && latestSlot?.status === 'REJECTED' && (
+              <Box round="20px" border={{ color: '#FDE68A' }} background="#FFFBEB" pad="16px" gap="xsmall">
+                <Text size="small" weight={600} color="#0F172A">
+                  Last slot was rejected by vendor.
+                </Text>
+                <Text size="small" color="#475569">
+                  <Text weight={600}>Justification:</Text> {latestSlot.vendorJustification || '-'}
+                </Text>
+              </Box>
+            )}
+          </CardBody>
+        </Card>
       )}
 
       {(canHmEdit || canVmFinalize) && (
-        <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-800">
-            Candidate Action
-          </h2>
+        <Card round="24px" border={{ color: '#B8F6E6' }} background="white">
+          <CardBody pad="20px" gap="medium">
+            <Heading level={4} margin="none" size="16px">
+              Candidate Action
+            </Heading>
 
-          {canHmEdit && (
-            <div className="mt-4 space-y-4">
-              <p className="text-sm text-slate-600">
-                Update candidate status from <strong>{candidate.status}</strong>
-              </p>
+            {canHmEdit && (
+              <Box gap="medium">
+                <Text size="small" color="#475569">
+                  Update candidate status from <Text weight={600}>{candidate.status}</Text>
+                </Text>
 
-              <div className="flex flex-wrap gap-3">
-                <button
-                  disabled={loading}
-                  onClick={() => {
-                    setPendingHmDecision('SELECT');
-                    setShowRejectBox(true);
-                  }}
-                  className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
-                >
-                  {hmSelectLabel}
-                </button>
-                <button
-                  disabled={loading}
-                  onClick={() => {
-                    setPendingHmDecision('REJECT');
-                    setShowRejectBox(true);
-                  }}
-                  className="rounded-lg bg-rose-500 px-5 py-2 text-sm font-medium text-white hover:bg-rose-600 disabled:opacity-60"
-                >
-                  {hmRejectLabel}
-                </button>
-              </div>
-
-              {showRejectBox && (
-                <div className="space-y-3">
-                  <textarea
-                    rows={4}
-                    placeholder="Enter feedback / justification..."
-                    value={feedback}
-                    onChange={(event) => setFeedback(event.target.value)}
-                    className="w-full rounded-xl border border-emerald-200 p-3 text-sm outline-none ring-0"
-                  />
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      disabled={loading}
-                      onClick={() => {
-                        setShowRejectBox(false);
-                        setPendingHmDecision(null);
-                        setFeedback('');
-                      }}
-                      className="rounded-lg border border-slate-200 px-5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      disabled={loading || !pendingHmDecision}
-                      onClick={() =>
-                        pendingHmDecision
-                          ? void submitHmDecision(pendingHmDecision)
-                          : undefined
-                      }
-                      className={`rounded-lg px-5 py-2 text-sm font-medium text-white disabled:opacity-60 ${
-                        pendingHmDecision === 'REJECT'
-                          ? 'bg-rose-600 hover:bg-rose-700'
-                          : 'bg-emerald-600 hover:bg-emerald-700'
-                      }`}
-                    >
-                      {pendingHmDecision === 'REJECT'
-                        ? `Confirm ${hmRejectLabel}`
-                        : `Confirm ${hmSelectLabel}`}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {isHiringManagerView && hmSlotGateMessage && (
-            <p className="mt-4 text-sm text-amber-600">{hmSlotGateMessage}</p>
-          )}
-
-          {canVmFinalize && (
-            <div className="mt-4 space-y-4">
-              <p className="text-sm text-slate-600">
-                Finalize candidate from <strong>{candidate.status}</strong>
-              </p>
-
-              <div className="flex flex-wrap gap-3">
-                {['IDENTIFIED', 'OPS_SELECTED', 'SELECTED'].includes(candidate.status) && (
-                  <button
+                <Box direction="row" wrap gap="small">
+                  <Button
+                    primary
+                    color="brand"
                     disabled={loading}
-                    onClick={() => setShowYtjBox(true)}
-                    className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
-                  >
-                    Yet To Join
-                  </button>
-                )}
+                    label={hmSelectLabel}
+                    onClick={() => {
+                      setPendingHmDecision('SELECT');
+                      setShowRejectBox(true);
+                    }}
+                  />
+                  <Button
+                    primary
+                    color="status-critical"
+                    disabled={loading}
+                    label={hmRejectLabel}
+                    onClick={() => {
+                      setPendingHmDecision('REJECT');
+                      setShowRejectBox(true);
+                    }}
+                  />
+                </Box>
 
-                {candidate.status === 'YET_TO_JOIN' &&
-                  candidate.dateOfJoining === today && (
+                {showRejectBox && (
+                  <Box gap="small">
+                    <TextArea
+                      rows={4}
+                      placeholder="Enter feedback / justification..."
+                      value={feedback}
+                      onChange={(event) => setFeedback(event.currentTarget.value)}
+                    />
+                    <Box direction="row" wrap gap="small">
+                      <Button
+                        label="Cancel"
+                        onClick={() => {
+                          setShowRejectBox(false);
+                          setPendingHmDecision(null);
+                          setFeedback('');
+                        }}
+                      />
+                      <Button
+                        primary
+                        color={pendingHmDecision === 'REJECT' ? 'status-critical' : 'brand'}
+                        disabled={loading || !pendingHmDecision}
+                        label={
+                          pendingHmDecision === 'REJECT'
+                            ? `Confirm ${hmRejectLabel}`
+                            : `Confirm ${hmSelectLabel}`
+                        }
+                        onClick={() =>
+                          pendingHmDecision
+                            ? void submitHmDecision(pendingHmDecision)
+                            : undefined
+                        }
+                      />
+                    </Box>
+                  </Box>
+                )}
+              </Box>
+            )}
+
+            {isHiringManagerView && hmSlotGateMessage && (
+              <Text size="small" color="status-warning">
+                {hmSlotGateMessage}
+              </Text>
+            )}
+
+            {canVmFinalize && (
+              <Box gap="medium">
+                <Text size="small" color="#475569">
+                  Finalize candidate from <Text weight={600}>{candidate.status}</Text>
+                </Text>
+
+                <Box direction="row" wrap gap="small">
+                  {['IDENTIFIED', 'OPS_SELECTED', 'SELECTED'].includes(candidate.status) && (
+                    <Button
+                      primary
+                      color="brand"
+                      disabled={loading}
+                      label="Yet To Join"
+                      onClick={() => setShowYtjBox(true)}
+                    />
+                  )}
+
+                  {candidate.status === 'YET_TO_JOIN' && candidate.dateOfJoining === today && (
                     <>
-                      <button
+                      <Button
+                        primary
+                        color="brand"
                         disabled={loading}
+                        label="Onboarded"
                         onClick={() => void submitVendorManagerDecision('ONBOARDED')}
-                        className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
-                      >
-                        Onboarded
-                      </button>
-                      <button
+                      />
+                      <Button
+                        primary
+                        color="status-critical"
                         disabled={loading}
+                        label="Drop"
                         onClick={() => setShowDropBox(true)}
-                        className="rounded-lg bg-rose-500 px-5 py-2 text-sm font-medium text-white hover:bg-rose-600 disabled:opacity-60"
-                      >
-                        Drop
-                      </button>
+                      />
                     </>
                   )}
-              </div>
+                </Box>
 
-              {showYtjBox && (
-                <div className="space-y-3">
-                  <input
-                    type="date"
-                    value={ytjDateOfJoining}
-                    onChange={(event) => setYtjDateOfJoining(event.target.value)}
-                    className="w-full rounded-xl border border-emerald-200 p-3 text-sm outline-none ring-0"
-                  />
-                  <textarea
-                    rows={4}
-                    placeholder="Enter YTJ justification..."
-                    value={ytjJustification}
-                    onChange={(event) => setYtjJustification(event.target.value)}
-                    className="w-full rounded-xl border border-emerald-200 p-3 text-sm outline-none ring-0"
-                  />
-                  <button
-                    disabled={loading}
-                    onClick={() => void submitVendorManagerDecision('YET_TO_JOIN')}
-                    className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
-                  >
-                    Save YTJ
-                  </button>
-                </div>
-              )}
+                {showYtjBox && (
+                  <Box gap="small">
+                    <TextInput
+                      type="date"
+                      value={ytjDateOfJoining}
+                      onChange={(event) => setYtjDateOfJoining(event.currentTarget.value)}
+                    />
+                    <TextArea
+                      rows={4}
+                      placeholder="Enter YTJ justification..."
+                      value={ytjJustification}
+                      onChange={(event) => setYtjJustification(event.currentTarget.value)}
+                    />
+                    <Button
+                      primary
+                      color="brand"
+                      disabled={loading}
+                      label="Save YTJ"
+                      onClick={() => void submitVendorManagerDecision('YET_TO_JOIN')}
+                      alignSelf="start"
+                    />
+                  </Box>
+                )}
 
-              {showDropBox && (
-                <div className="space-y-3">
-                  <textarea
-                    rows={4}
-                    placeholder={
-                      candidate.status === 'YET_TO_JOIN'
-                        ? 'Enter drop note (optional)...'
-                        : 'Enter drop justification...'
-                    }
-                    value={feedback}
-                    onChange={(event) => setFeedback(event.target.value)}
-                    className="w-full rounded-xl border border-emerald-200 p-3 text-sm outline-none ring-0"
-                  />
-                  <button
-                    disabled={loading}
-                    onClick={() => void submitVendorManagerDecision('DROPPED')}
-                    className="rounded-lg bg-rose-600 px-5 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-60"
-                  >
-                    Confirm Drop
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
+                {showDropBox && (
+                  <Box gap="small">
+                    <TextArea
+                      rows={4}
+                      placeholder={
+                        candidate.status === 'YET_TO_JOIN'
+                          ? 'Enter drop note (optional)...'
+                          : 'Enter drop justification...'
+                      }
+                      value={feedback}
+                      onChange={(event) => setFeedback(event.currentTarget.value)}
+                    />
+                    <Button
+                      primary
+                      color="status-critical"
+                      disabled={loading}
+                      label="Confirm Drop"
+                      onClick={() => void submitVendorManagerDecision('DROPPED')}
+                      alignSelf="start"
+                    />
+                  </Box>
+                )}
+              </Box>
+            )}
+          </CardBody>
+        </Card>
       )}
 
       {showScheduleBox && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-800">
+        <Layer onEsc={() => setShowScheduleBox(false)} onClickOutside={() => setShowScheduleBox(false)} modal responsive>
+          <Box width="large" pad="24px" gap="medium">
+            <Box direction="row" justify="between" align="start" gap="small">
+              <Box>
+                <Heading level={3} margin="none" size="20px">
                   Schedule Interview
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                </Heading>
+                <Paragraph margin={{ top: '6px', bottom: 'none' }} size="small" color="#64748B">
                   Set the interview date and time for {candidate.name}.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowScheduleBox(false)}
-                className="text-slate-400 hover:text-slate-700"
-              >
-                x
-              </button>
-            </div>
+                </Paragraph>
+              </Box>
+              <Button plain label="×" onClick={() => setShowScheduleBox(false)} />
+            </Box>
 
-            <div className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Interview Date
-                </label>
-                <input
+            <Box gap="medium">
+              <Field label="Interview Date">
+                <TextInput
                   type="date"
                   value={slotForm.interviewDate}
                   onChange={(event) =>
-                    setSlotForm((prev) => ({
-                      ...prev,
-                      interviewDate: event.target.value,
-                    }))
+                    setSlotForm((prev) => ({ ...prev, interviewDate: event.currentTarget.value }))
                   }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Interview Time
-                </label>
-                <input
+              <Field label="Interview Time">
+                <TextInput
                   type="time"
                   value={slotForm.interviewTime}
                   onChange={(event) =>
-                    setSlotForm((prev) => ({
-                      ...prev,
-                      interviewTime: event.target.value,
-                    }))
+                    setSlotForm((prev) => ({ ...prev, interviewTime: event.currentTarget.value }))
                   }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Comments
-                </label>
-                <textarea
+              <Field label="Comments">
+                <TextArea
                   rows={4}
                   value={slotForm.hmComment}
                   onChange={(event) =>
-                    setSlotForm((prev) => ({
-                      ...prev,
-                      hmComment: event.target.value,
-                    }))
+                    setSlotForm((prev) => ({ ...prev, hmComment: event.currentTarget.value }))
                   }
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                   placeholder="Optional hiring manager note..."
                 />
-              </div>
-            </div>
+              </Field>
+            </Box>
 
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowScheduleBox(false)}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
+            <Box direction="row" justify="end" gap="small">
+              <Button label="Cancel" onClick={() => setShowScheduleBox(false)} />
+              <Button
+                primary
+                color="brand"
                 disabled={partnerSlotLoading}
+                label="Submit"
                 onClick={() => void submitScheduleInterview()}
-                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-60"
-              >
-                Submit
-              </button>
-            </div>
-          </div>
-        </div>
+              />
+            </Box>
+          </Box>
+        </Layer>
       )}
 
       {showResumeModal && (
         <ResumeModal
           candidateId={candidate.id}
+          resumePath={candidate.resumePath}
           onClose={() => setShowResumeModal(false)}
         />
       )}
-    </div>
+    </Box>
   );
 };
 
 export default CandidateDetails;
 
 const InfoColumn = ({ items }: { items: Array<{ icon: ReactNode; label: string; value: ReactNode }> }) => (
-  <div className="space-y-3">
+  <Box gap="12px">
     {items.map((item) => (
-      <div key={item.label} className="flex items-start gap-2">
-        <span className="mt-0.5 text-emerald-400">{item.icon}</span>
-        <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-wide text-slate-400">
+      <Box key={item.label} direction="row" align="start" gap="8px">
+        <Box margin={{ top: '2px' }} style={{ color: '#34D399' }}>
+          {item.icon}
+        </Box>
+        <Box>
+          <Text size="10px" style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }} color="#94A3B8">
             {item.label}
-          </p>
-          <div className="text-sm font-medium text-slate-700">
+          </Text>
+          <Text size="small" weight={500} color="#334155">
             {item.value || '-'}
-          </div>
-        </div>
-      </div>
+          </Text>
+        </Box>
+      </Box>
     ))}
-  </div>
+  </Box>
 );
 
 const SkillSection = ({
@@ -1121,24 +1006,35 @@ const SkillSection = ({
   title: string;
   skills?: string;
 }) => (
-  <div>
-    <p className="mb-2 text-xs font-medium text-slate-500">{title}</p>
-    <div className="flex flex-wrap gap-2">
+  <Box>
+    <Text size="xsmall" weight={500} color="#64748B" margin={{ bottom: '8px' }}>
+      {title}
+    </Text>
+    <Box direction="row" wrap gap="8px">
       {(skills || '')
         .split(',')
         .map((skill) => skill.trim())
         .filter(Boolean)
         .map((skill) => (
-          <span
+          <Box
             key={skill}
-            className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700"
+            round="6px"
+            border={{ color: '#A7F3D0' }}
+            background="#ECFDF5"
+            pad={{ horizontal: '8px', vertical: '4px' }}
           >
-            {skill}
-          </span>
+            <Text size="11px" weight={500} color="#047857">
+              {skill}
+            </Text>
+          </Box>
         ))}
-      {!skills && <span className="text-sm text-slate-400">-</span>}
-    </div>
-  </div>
+      {!skills && (
+        <Text size="small" color="#94A3B8">
+          -
+        </Text>
+      )}
+    </Box>
+  </Box>
 );
 
 const MiniInfo = ({
@@ -1150,24 +1046,30 @@ const MiniInfo = ({
   label: string;
   value: ReactNode;
 }) => (
-  <div className="min-w-0">
-    <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400">
-      <span className="text-emerald-400">{icon}</span>
-      <span>{label}</span>
-    </div>
-    <div className="mt-1 text-xs font-medium text-slate-700">{value || '-'}</div>
-  </div>
+  <Box>
+    <Box direction="row" align="center" gap="4px">
+      <Box style={{ color: '#34D399' }}>{icon}</Box>
+      <Text size="10px" style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }} color="#94A3B8">
+        {label}
+      </Text>
+    </Box>
+    <Text margin={{ top: '4px' }} size="xsmall" weight={500} color="#334155">
+      {value || '-'}
+    </Text>
+  </Box>
 );
 
 const TinyStatus = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-center justify-end gap-2 text-[11px] text-slate-500">
-    <span className="h-2 w-2 rounded-full bg-emerald-400" />
-    <span>
+  <Box direction="row" align="center" justify="end" gap="8px">
+    <Box width="8px" height="8px" round="full" background="#34D399" />
+    <Text size="11px" color="#64748B">
       {label}
       {': '}
-      <span className="font-medium text-slate-700">{value}</span>
-    </span>
-  </div>
+      <Text as="span" weight={500} color="#334155">
+        {value}
+      </Text>
+    </Text>
+  </Box>
 );
 
 const formatRoundName = (roundName?: string) => {

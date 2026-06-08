@@ -1,26 +1,16 @@
-// src/jobs/jobs.service.ts
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DeepPartial, In, ILike } from 'typeorm';
-
-import { Job } from './job.entity';
-import { JobVendor } from './job-vendor.entity';
-import { Vendor } from '../vendors/vendors.entity';
-import { Candidate } from '../candidates/candidate.entity';
-import { InterviewRound } from './interview-round.entity';
-import { InterviewPanel } from './interview-panel.entity';
-import { JobStatus } from './job-status.enum';
-import {
-  JobPosition,
-  JobPositionStatus,
-} from './job-position.entity';
+import { CandidateDocument, CandidateDocumentModel } from '../mongodb/schemas/candidate.schema';
+import { JobDocument, JobDocumentModel } from '../mongodb/schemas/job.schema';
+import { VendorDocument, VendorDocumentModel } from '../mongodb/schemas/vendor.schema';
+import { MailService } from '../common/mail.service';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/user.entity';
-import { MailService } from '../common/mail.service';
+import { JobPosition, JobPositionStatus } from './job-position.entity';
+import { JobStatus } from './job-status.enum';
+import { Job } from './job.entity';
 
 type StoredFileMeta = {
   path: string;
@@ -31,32 +21,26 @@ type StoredFileMeta = {
 @Injectable()
 export class JobsService {
   constructor(
-    @InjectRepository(Job)
-    private readonly jobRepo: Repository<Job>,
-
-    @InjectRepository(JobVendor)
-    private readonly jobVendorRepo: Repository<JobVendor>,
-
-    @InjectRepository(Vendor)
-    private readonly vendorRepo: Repository<Vendor>,
-
-    @InjectRepository(Candidate)
-    private readonly candidateRepo: Repository<Candidate>,
-
-    @InjectRepository(InterviewRound)
-    private readonly roundRepo: Repository<InterviewRound>,
-
-    @InjectRepository(InterviewPanel)
-    private readonly panelRepo: Repository<InterviewPanel>,
-
-    @InjectRepository(JobPosition)
-    private readonly positionRepo: Repository<JobPosition>,
+    @InjectModel(JobDocumentModel.name)
+    private readonly jobMongoModel: Model<JobDocument>,
+    @InjectModel(VendorDocumentModel.name)
+    private readonly vendorMongoModel: Model<VendorDocument>,
+    @InjectModel(CandidateDocumentModel.name)
+    private readonly candidateMongoModel: Model<CandidateDocument>,
     private readonly usersService: UsersService,
     private readonly mailService: MailService,
   ) {}
 
   private normalizeEmail(email?: string | null) {
     return (email || '').trim().toLowerCase();
+  }
+
+  private serializeForMongo<T>(value: T): T {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  private escapeRegex(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private getScreeningPanels(interviewRounds: any[] = []) {
@@ -131,7 +115,7 @@ export class JobsService {
     }));
   }
 
-  private attachStoredFilesToJob(job: Job) {
+  private attachStoredFilesToJob<T extends Record<string, any>>(job: T) {
     const jdFiles = this.parseStoredFiles(job.jdFiles);
     const psqFiles = this.parseStoredFiles(job.psqFiles);
 
@@ -161,7 +145,7 @@ export class JobsService {
   }
 
   private setPrimaryFileFields(
-    job: Job,
+    job: Record<string, any>,
     field: 'jd' | 'psq',
     files: StoredFileMeta[],
   ) {
@@ -181,355 +165,417 @@ export class JobsService {
     job.psqFiles = files.length ? JSON.stringify(files) : '';
   }
 
-  private getPositionCurrentOpenings(position: JobPosition) {
-    const typedPosition = position as JobPosition & {
-      currentOpenings?: number;
-    };
-
-    return Number(typedPosition.currentOpenings ?? position.openings ?? 0);
+  private getPositionCurrentOpenings(position: Partial<JobPosition> & { openings?: number }) {
+    return Number(position.currentOpenings ?? position.openings ?? 0);
   }
 
   private setPositionCurrentOpenings(
-    position: JobPosition,
+    position: Partial<JobPosition> & { openings?: number },
     value: number,
   ) {
-    const typedPosition = position as JobPosition & {
-      currentOpenings?: number;
-    };
-
-    typedPosition.currentOpenings = value;
+    position.currentOpenings = value;
   }
 
-  /* ======================================================
-     ROLE BASED JOB LIST
-  ====================================================== */
+  private async getNextJobId() {
+    const docs = await this.jobMongoModel
+      .find({}, { postgresId: 1 })
+      .sort({ postgresId: -1 })
+      .limit(1)
+      .lean()
+      .exec();
+    return Number(docs[0]?.postgresId || 0) + 1;
+  }
+
+  private async getNextPositionId() {
+    const docs = await this.jobMongoModel.find({}, { positions: 1 }).lean().exec();
+    let maxId = 0;
+    for (const doc of docs) {
+      for (const position of doc.positions || []) {
+        maxId = Math.max(maxId, Number((position as any)?.id || 0));
+      }
+    }
+    return maxId + 1;
+  }
+
+  private async getNextRoundId() {
+    const docs = await this.jobMongoModel.find({}, { interviewRounds: 1 }).lean().exec();
+    let maxId = 0;
+    for (const doc of docs) {
+      for (const round of doc.interviewRounds || []) {
+        maxId = Math.max(maxId, Number((round as any)?.id || 0));
+      }
+    }
+    return maxId + 1;
+  }
+
+  private async getNextPanelId() {
+    const docs = await this.jobMongoModel.find({}, { interviewRounds: 1 }).lean().exec();
+    let maxId = 0;
+    for (const doc of docs) {
+      for (const round of doc.interviewRounds || []) {
+        for (const panel of (round as any)?.panels || []) {
+          maxId = Math.max(maxId, Number(panel?.id || 0));
+        }
+      }
+    }
+    return maxId + 1;
+  }
+
+  private async getNextJobVendorId() {
+    const docs = await this.jobMongoModel.find({}, { jobVendors: 1 }).lean().exec();
+    let maxId = 0;
+    for (const doc of docs) {
+      for (const mapping of doc.jobVendors || []) {
+        maxId = Math.max(maxId, Number((mapping as any)?.id || 0));
+      }
+    }
+    return maxId + 1;
+  }
+
+  private mapMongoVendor(doc: any) {
+    if (!doc) return null;
+
+    return {
+      id: doc.postgresId,
+      name: doc.name,
+      email: doc.email,
+      isActive: doc.isActive,
+      createdAt: doc.createdAt ? new Date(doc.createdAt) : null,
+      profile: doc.profile || null,
+      escalations: Array.isArray(doc.escalations) ? doc.escalations : [],
+      engagements: Array.isArray(doc.engagements) ? doc.engagements : [],
+      sows: Array.isArray(doc.sows) ? doc.sows : [],
+    };
+  }
+
+  private mapMongoCandidate(doc: any) {
+    if (!doc) return null;
+
+    return {
+      id: Number(doc.postgresId),
+      name: doc.name,
+      email: doc.email,
+      phone: doc.phone,
+      aadharNo: doc.aadharNo ?? null,
+      gender: doc.gender ?? null,
+      education: doc.education ?? null,
+      videoLink: doc.videoLink ?? null,
+      primarySkills: doc.primarySkills ?? null,
+      secondarySkills: doc.secondarySkills ?? null,
+      country: doc.country ?? null,
+      state: doc.state ?? null,
+      city: doc.city ?? null,
+      experience: doc.experience,
+      noticePeriod: doc.noticePeriod,
+      currentOrg: doc.currentOrg,
+      resumePath: doc.resumePath,
+      status: doc.status,
+      dropJustification: doc.dropJustification ?? null,
+      ytjJustification: doc.ytjJustification ?? null,
+      dateOfJoining: doc.dateOfJoining ?? null,
+      createdAt: doc.createdAt ? new Date(doc.createdAt) : null,
+      vendor: doc.vendorSnapshot || null,
+      job: doc.jobSnapshot || null,
+      position: doc.positionSnapshot || null,
+      interviews: Array.isArray(doc.interviews) ? doc.interviews : [],
+    };
+  }
+
+  private mapMongoJob(doc: any): any {
+    if (!doc) return null;
+
+    return {
+      id: Number(doc.postgresId),
+      title: doc.title,
+      location: doc.location,
+      experience: doc.experience,
+      department: doc.department ?? null,
+      jobCategory: doc.jobCategory ?? null,
+      workType: doc.workType ?? null,
+      region: doc.region ?? null,
+      dealName: doc.dealName ?? null,
+      hiringManager: doc.hiringManager ?? null,
+      justification: doc.justification ?? null,
+      employmentType: doc.employmentType ?? null,
+      budget: doc.budget ?? null,
+      startDate: doc.startDate ?? null,
+      endDate: doc.endDate ?? null,
+      level: doc.level ?? null,
+      numberOfPositions: doc.numberOfPositions ?? null,
+      currentNumberOfPositions: doc.currentNumberOfPositions ?? null,
+      requestType: doc.requestType ?? null,
+      backfillEmployeeId: doc.backfillEmployeeId ?? null,
+      backfillEmployeeName: doc.backfillEmployeeName ?? null,
+      description: doc.description ?? null,
+      status: doc.status,
+      isActive: doc.isActive,
+      jdPath: doc.jdPath ?? '',
+      jdFileName: doc.jdFileName ?? '',
+      jdMimeType: doc.jdMimeType ?? '',
+      jdFiles: doc.jdFiles ?? '',
+      psqPath: doc.psqPath ?? '',
+      psqFileName: doc.psqFileName ?? '',
+      psqMimeType: doc.psqMimeType ?? '',
+      psqFiles: doc.psqFiles ?? '',
+      createdAt: doc.createdAt ? new Date(doc.createdAt) : null,
+      positions: Array.isArray(doc.positions) ? doc.positions : [],
+      interviewRounds: Array.isArray(doc.interviewRounds) ? doc.interviewRounds : [],
+      jobVendors: Array.isArray(doc.jobVendors) ? doc.jobVendors : [],
+      candidates: Array.isArray(doc.candidates) ? doc.candidates : [],
+    };
+  }
+
+  private async findJobDocById(jobId: number) {
+    return this.jobMongoModel.findOne({ postgresId: jobId }).exec();
+  }
+
+  private async findLeanJobById(jobId: number) {
+    const doc = await this.jobMongoModel.findOne({ postgresId: jobId }).lean().exec();
+    return this.mapMongoJob(doc);
+  }
+
+  private async getActiveVendors() {
+    const docs = await this.vendorMongoModel.find({ isActive: true }).lean().exec();
+    return docs
+      .map((doc) => this.mapMongoVendor(doc))
+      .filter((vendor): vendor is NonNullable<ReturnType<JobsService['mapMongoVendor']>> => Boolean(vendor));
+  }
+
+  private async getCandidatesForJob(jobId: number) {
+    const docs = await this.candidateMongoModel.find({ jobPostgresId: jobId }).lean().exec();
+    return docs.map((doc) => this.mapMongoCandidate(doc));
+  }
+
+  private async buildPositionDocs(positions: any[] = []) {
+    let nextPositionId = await this.getNextPositionId();
+
+    return positions.map((pos) => {
+      const position: Record<string, any> = {
+        id: nextPositionId++,
+        level: pos.level,
+        openings: Number(pos.openings || 0),
+        currentOpenings: Number(pos.openings || 0),
+        status: JobPositionStatus.OPEN,
+        requestType: pos.requestType || 'NEW',
+        backfillEmployeeId: pos.backfillEmployeeId || null,
+        backfillEmployeeName: pos.backfillEmployeeName || null,
+        jdPath: pos.jdPath || null,
+        jdFileName: pos.jdFileName || null,
+        jdMimeType: pos.jdMimeType || null,
+        psqPath: pos.psqPath || null,
+        psqFileName: pos.psqFileName || null,
+        psqMimeType: pos.psqMimeType || null,
+        createdAt: new Date(),
+      };
+
+      return position;
+    });
+  }
+
+  private async buildInterviewRounds(rounds: any[] = []) {
+    let nextRoundId = await this.getNextRoundId();
+    let nextPanelId = await this.getNextPanelId();
+
+    return rounds.map((round) => ({
+      id: nextRoundId++,
+      roundName: round.roundName,
+      mode: round.mode,
+      panels: Array.isArray(round.panels)
+        ? round.panels.map((panel: any) => ({
+            id: nextPanelId++,
+            name: panel.name,
+            email: panel.email,
+          }))
+        : [],
+    }));
+  }
 
   async getJobsForUser(user: any): Promise<any[]> {
+    const mongoJobs = (await this.jobMongoModel.find().lean().exec()).map((doc) =>
+      this.mapMongoJob(doc),
+    );
 
-  /* ================= VENDOR ================= */
+    if (user.role === 'VENDOR') {
+      const vendorId = user.vendor?.id || user.vendorId;
+      if (!vendorId) return [];
 
-  if (user.role === 'VENDOR') {
-    const vendorId = user.vendor?.id || user.vendorId;
-    if (!vendorId) return [];
+      const vendorDoc = await this.vendorMongoModel.findOne({ postgresId: vendorId }).lean().exec();
+      if (!vendorDoc || !vendorDoc.isActive) {
+        return [];
+      }
 
-    const vendor = await this.vendorRepo.findOne({
-      where: { id: vendorId },
-    });
+      return mongoJobs
+        .filter((job) =>
+          [JobStatus.APPROVED, JobStatus.ON_HOLD, JobStatus.CLOSED].includes(job.status),
+        )
+        .filter((job) =>
+          (job.jobVendors || []).some(
+            (mapping: any) =>
+              mapping?.vendor?.id === vendorId &&
+              mapping?.isEnabled === true &&
+              mapping?.status === 'ACTIVE',
+          ),
+        )
+        .map((job) => {
+          const openPositions =
+            job.positions?.filter(
+              (p: any) =>
+                p.status === JobPositionStatus.OPEN &&
+                Number(p.currentOpenings ?? p.openings ?? 0) > 0,
+            ) || [];
+          const hasMainOpenings =
+            Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0) > 0;
 
-    if (!vendor || !vendor.isActive) {
-      return [];
+          return {
+            ...this.attachStoredFilesToJob(job),
+            positions: openPositions,
+            hasMainOpenings,
+          };
+        })
+        .filter((job) => job.positions.length > 0 || job.hasMainOpenings)
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
+        );
     }
 
-    const mappings = await this.jobVendorRepo.find({
-      where: {
-        vendor: { id: vendorId },
-        isEnabled: true,
-        status: 'ACTIVE',
-      },
-      relations: ['job'],
-    });
+    if (user.role === 'PANEL') {
+      const panelEmail = this.normalizeEmail(user.email);
 
-    const allowedIds = mappings.map((m) => m.job.id);
-    if (!allowedIds.length) return [];
+      return mongoJobs
+        .filter((job) =>
+          (job.interviewRounds || []).some(
+            (round: any) =>
+              (round.roundName || '').trim().toUpperCase() === 'SCREENING' &&
+              (round.panels || []).some(
+                (panel: any) => this.normalizeEmail(panel.email) === panelEmail,
+              ),
+          ),
+        )
+        .map((job) => this.attachStoredFilesToJob(job))
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
+        );
+    }
 
-    const jobs = await this.jobRepo.find({
-     where: {
-  id: In(allowedIds),
-  status: In([
-    JobStatus.APPROVED,
-    JobStatus.ON_HOLD,
-    JobStatus.CLOSED,
-  ]),
-},
-      relations: ['positions'],
-      order: { createdAt: 'DESC' },
-    });
-
-    return jobs
-      .map((job) => {
-        const openPositions =
-          job.positions?.filter(
-            (p) =>
-              p.status === JobPositionStatus.OPEN &&
-              this.getPositionCurrentOpenings(p) > 0,
-          ) || [];
-        const hasMainOpenings =
-          Number(
-            job.currentNumberOfPositions ?? job.numberOfPositions ?? 0,
-          ) > 0;
-
-        return {
+    if (user.role === 'VENDOR_MANAGER') {
+      return mongoJobs
+        .filter((job) => job.isActive)
+        .map((job) => ({
           ...this.attachStoredFilesToJob(job),
-          positions: openPositions,
-          hasMainOpenings,
-        };
-      })
-      .filter(
-        (job) => job.positions.length > 0 || job.hasMainOpenings,
+          positions: job.positions || [],
+        }))
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
+        );
+    }
+
+    return mongoJobs
+      .map((job) => this.attachStoredFilesToJob(job))
+      .sort(
+        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
       );
   }
-
-  /* ================= PANEL ================= */
-
-  if (user.role === 'PANEL') {
-    const panelEmail = this.normalizeEmail(user.email);
-
-    const jobs = await this.jobRepo.find({
-      relations: ['positions', 'interviewRounds', 'interviewRounds.panels'],
-      order: { createdAt: 'DESC' },
-    });
-
-    return jobs
-      .filter((job) =>
-        (job.interviewRounds || []).some(
-          (round) =>
-            (round.roundName || '').trim().toUpperCase() === 'SCREENING' &&
-            (round.panels || []).some(
-              (panel) => this.normalizeEmail(panel.email) === panelEmail,
-            ),
-        ),
-      )
-      .map((job) => this.attachStoredFilesToJob(job));
-  }
-
-  /* ================= VENDOR MANAGER ================= */
-
- if (user.role === 'VENDOR_MANAGER') {
-
-  const jobs = await this.jobRepo.find({
-    where: {
-      isActive: true,
-    },
-    relations: ['positions', 'jobVendors', 'jobVendors.vendor'],
-    order: { createdAt: 'DESC' },
-  });
-
-   return jobs.map((job) => ({
-    ...this.attachStoredFilesToJob(job),
-    positions: job.positions || [],
-  }));
-}
-
-  /* ================= OTHERS (HM, HEAD) ================= */
-
-  const jobs = await this.jobRepo.find({
-    relations: ['positions'],
-    order: { createdAt: 'DESC' },
-  });
-
-  return jobs.map((job) => this.attachStoredFilesToJob(job));
-}
-
-  /* ======================================================
-     CREATE JOB (UPDATED)
-  ====================================================== */
 
   async createJob(data: any): Promise<Job> {
-  console.log('🔥 CREATE JOB API HIT');
+    const { interviewRounds, positions, ...jobData } = data;
 
-  const { interviewRounds, positions, ...jobData } = data;
+    const jobId = await this.getNextJobId();
+    const positionDocs = await this.buildPositionDocs(Array.isArray(positions) ? positions : []);
+    const roundDocs = await this.buildInterviewRounds(Array.isArray(interviewRounds) ? interviewRounds : []);
 
-  const jobEntity = this.jobRepo.create(
-    jobData as DeepPartial<Job>,
-  );
+    await this.syncScreeningPanelUsers(roundDocs);
 
-  jobEntity.status = JobStatus.PENDING_APPROVAL;
-  jobEntity.isActive = true;
-  jobEntity.currentNumberOfPositions = Number(
-    jobData.numberOfPositions || 0,
-  );
+    const created = await this.jobMongoModel.create({
+      postgresId: jobId,
+      ...jobData,
+      numberOfPositions: Number(jobData.numberOfPositions || 0),
+      currentNumberOfPositions: Number(jobData.numberOfPositions || 0),
+      status: JobStatus.PENDING_APPROVAL,
+      isActive: true,
+      positions: positionDocs,
+      interviewRounds: roundDocs,
+      jobVendors: [],
+      candidates: [],
+    });
 
-  let savedJob: Job;
-
-  try {
-    savedJob = await this.jobRepo.save(jobEntity);
-    console.log('🔥 JOB SAVED:', savedJob.id);
-  } catch (error) {
-    console.error('❌ JOB SAVE ERROR:', error);
-    throw error;
+    const hydratedJob = await this.getJobById(Number(created.postgresId));
+    this.queueJobNotifications(hydratedJob);
+    return hydratedJob as Job;
   }
 
-  /* ================= POSITIONS ================= */
+  async holdJob(jobId: number) {
+    const job = await this.findJobDocById(jobId);
+    if (!job) throw new NotFoundException('Job not found');
 
-  if (Array.isArray(positions) && positions.length) {
-    for (const pos of positions) {
-      const positionEntity = new JobPosition();
-      positionEntity.level = pos.level;
-      positionEntity.openings = Number(pos.openings || 0);
-      this.setPositionCurrentOpenings(
-        positionEntity,
-        Number(pos.openings || 0),
-      );
-      positionEntity.status = JobPositionStatus.OPEN;
-      positionEntity.requestType = pos.requestType || 'NEW';
-      positionEntity.backfillEmployeeId = pos.backfillEmployeeId || null;
-      positionEntity.backfillEmployeeName = pos.backfillEmployeeName || null;
-      positionEntity.job = savedJob;
-
-      await this.positionRepo.save(positionEntity);
+    if (job.status === JobStatus.CLOSED) {
+      throw new Error('Closed job cannot be put on hold');
     }
+
+    job.status = JobStatus.ON_HOLD;
+    await job.save();
+
+    return { success: true };
   }
 
-  /* ================= INTERVIEW ================= */
+  async reopenJob(jobId: number) {
+    const job = await this.findJobDocById(jobId);
+    if (!job) throw new NotFoundException('Job not found');
 
-  if (Array.isArray(interviewRounds)) {
-    await this.syncScreeningPanelUsers(interviewRounds);
-
-    for (const round of interviewRounds) {
-      const roundEntity = this.roundRepo.create({
-        roundName: round.roundName,
-        mode: round.mode,
-        job: savedJob,
-      });
-
-      const savedRound = await this.roundRepo.save(roundEntity);
-
-      if (Array.isArray(round.panels)) {
-        for (const panel of round.panels) {
-          const panelEntity = this.panelRepo.create({
-            name: panel.name,
-            email: panel.email,
-            round: savedRound,
-          });
-
-          await this.panelRepo.save(panelEntity);
-        }
-      }
+    if (job.status === JobStatus.CLOSED) {
+      throw new Error('Closed job cannot be reopened');
     }
-  }
-  const hydratedJob = await this.getJobById(savedJob.id);
-  this.queueJobNotifications(hydratedJob);
-  return hydratedJob;
-}
 
+    job.status = JobStatus.APPROVED;
+    await job.save();
 
-/*hold and close*/
-
-async holdJob(jobId: number) {
-  const job = await this.jobRepo.findOne({ where: { id: jobId } });
-  if (!job) throw new NotFoundException('Job not found');
-
-  if (job.status === JobStatus.CLOSED) {
-    throw new Error('Closed job cannot be put on hold');
+    return { success: true };
   }
 
-  job.status = JobStatus.ON_HOLD;
-  await this.jobRepo.save(job);
-
-  return { success: true };
-}
-
-async reopenJob(jobId: number) {
-  const job = await this.jobRepo.findOne({ where: { id: jobId } });
-  if (!job) throw new NotFoundException('Job not found');
-
-  if (job.status === JobStatus.CLOSED) {
-    throw new Error('Closed job cannot be reopened');
-  }
-
-  job.status = JobStatus.APPROVED;
-  await this.jobRepo.save(job);
-
-  return { success: true };
-}
-  /* ======================================================
-   UPDATE JOB (EDIT & RESUBMIT)
-====================================================== */
-
-async updateJob(jobId: number, data: any): Promise<Job> {
-  const job = await this.jobRepo.findOne({
-    where: { id: jobId },
-    relations: ['positions', 'interviewRounds', 'interviewRounds.panels'],
-  });
-
-  if (!job) {
-    throw new NotFoundException('Job not found');
-  }
-
-  const { interviewRounds, positions, ...jobData } = data;
-
-  // ✅ UPDATE MAIN JOB FIELDS
-  Object.assign(job, jobData);
-  job.currentNumberOfPositions = Number(
-    jobData.numberOfPositions || 0,
-  );
-
-  // 🔥 CRITICAL: RESET STATUS FOR APPROVAL
-  job.status = JobStatus.PENDING_APPROVAL;
-
-  await this.jobRepo.save(job);
- 
-
-  /* ================= RESET POSITIONS ================= */
-
-  await this.positionRepo.delete({ job: { id: jobId } });
-
-  if (Array.isArray(positions)) {
-    for (const pos of positions) {
-      const newPos = new JobPosition();
-      newPos.level = pos.level;
-      newPos.openings = Number(pos.openings || 0);
-      this.setPositionCurrentOpenings(newPos, Number(pos.openings || 0));
-      newPos.status = JobPositionStatus.OPEN;
-      newPos.requestType = pos.requestType || 'NEW';
-      newPos.backfillEmployeeId = pos.backfillEmployeeId || null;
-      newPos.backfillEmployeeName = pos.backfillEmployeeName || null;
-      newPos.job = job;
-
-      await this.positionRepo.save(newPos);
+  async updateJob(jobId: number, data: any): Promise<Job> {
+    const job = await this.findJobDocById(jobId);
+    if (!job) {
+      throw new NotFoundException('Job not found');
     }
+
+    const { interviewRounds, positions, ...jobData } = data;
+    const positionDocs = await this.buildPositionDocs(Array.isArray(positions) ? positions : []);
+    const roundDocs = await this.buildInterviewRounds(Array.isArray(interviewRounds) ? interviewRounds : []);
+
+    await this.syncScreeningPanelUsers(roundDocs);
+
+    Object.assign(job, {
+      ...jobData,
+      numberOfPositions: Number(jobData.numberOfPositions || 0),
+      currentNumberOfPositions: Number(jobData.numberOfPositions || 0),
+      status: JobStatus.PENDING_APPROVAL,
+      positions: positionDocs,
+      interviewRounds: roundDocs,
+    });
+
+    await job.save();
+
+    const hydratedJob = await this.getJobById(jobId);
+    this.queueJobNotifications(hydratedJob);
+    return hydratedJob as Job;
   }
-
-  /* ================= RESET INTERVIEW ROUNDS ================= */
-
-  await this.roundRepo.delete({ job: { id: jobId } });
-
-  if (Array.isArray(interviewRounds)) {
-    await this.syncScreeningPanelUsers(interviewRounds);
-
-    for (const round of interviewRounds) {
-      const roundEntity = this.roundRepo.create({
-        roundName: round.roundName,
-        mode: round.mode,
-        job,
-      });
-
-      const savedRound = await this.roundRepo.save(roundEntity);
-
-      if (Array.isArray(round.panels)) {
-        for (const panel of round.panels) {
-          const panelEntity = this.panelRepo.create({
-            name: panel.name,
-            email: panel.email,
-            round: savedRound,
-          });
-
-          await this.panelRepo.save(panelEntity);
-        }
-      }
-    }
-  }
-  const hydratedJob = await this.getJobById(jobId);
-  this.queueJobNotifications(hydratedJob);
-  return hydratedJob;
-}
-
-  /* ======================================================
-     TEMPLATE FETCH (UPDATED)
-  ====================================================== */
 
   async getTemplateByTitle(title: string) {
     if (!title) return null;
 
-    const job = await this.jobRepo.findOne({
-      where: { title: ILike(title) },
-      relations: [
-        'positions',
-        'interviewRounds',
-        'interviewRounds.panels',
-      ],
-      order: { createdAt: 'DESC' },
-    });
+    const job = this.mapMongoJob(
+      await this.jobMongoModel
+        .findOne({
+          title: {
+            $regex: `^${this.escapeRegex(title)}$`,
+            $options: 'i',
+          },
+        })
+        .lean()
+        .exec(),
+    );
 
     if (!job) return null;
 
@@ -540,17 +586,17 @@ async updateJob(jobId: number, data: any): Promise<Job> {
       department: job.department,
       budget: job.budget,
       description: job.description,
-      positions: job.positions?.map((p) => ({
+      positions: job.positions?.map((p: any) => ({
         level: p.level,
         openings: p.openings,
         requestType: p.requestType,
         backfillEmployeeId: p.backfillEmployeeId,
         backfillEmployeeName: p.backfillEmployeeName,
       })),
-      interviewRounds: job.interviewRounds?.map((r) => ({
+      interviewRounds: job.interviewRounds?.map((r: any) => ({
         roundName: r.roundName,
         mode: r.mode,
-        panels: r.panels?.map((p) => ({
+        panels: r.panels?.map((p: any) => ({
           name: p.name,
           email: p.email,
         })),
@@ -558,23 +604,8 @@ async updateJob(jobId: number, data: any): Promise<Job> {
     };
   }
 
-  /* ======================================================
-     GET JOB BY ID
-  ====================================================== */
-
   async getJobById(jobId: number, user?: any): Promise<any> {
-    const job = await this.jobRepo.findOne({
-      where: { id: jobId },
-      relations: [
-        'jobVendors',
-        'jobVendors.vendor',
-        'interviewRounds',
-        'interviewRounds.panels',
-        'candidates',
-        'positions',
-      ],
-    });
-
+    const job = await this.findLeanJobById(jobId);
     if (!job) {
       throw new NotFoundException('Job not found');
     }
@@ -582,10 +613,10 @@ async updateJob(jobId: number, data: any): Promise<Job> {
     if (user?.role === 'PANEL') {
       const panelEmail = this.normalizeEmail(user.email);
       const hasAccess = (job.interviewRounds || []).some(
-        (round) =>
+        (round: any) =>
           (round.roundName || '').trim().toUpperCase() === 'SCREENING' &&
           (round.panels || []).some(
-            (panel) => this.normalizeEmail(panel.email) === panelEmail,
+            (panel: any) => this.normalizeEmail(panel.email) === panelEmail,
           ),
       );
 
@@ -594,14 +625,9 @@ async updateJob(jobId: number, data: any): Promise<Job> {
       }
     }
 
-    const allVendors = await this.vendorRepo.find({
-      where: { isActive: true },
-    });
-
+    const allVendors = await this.getActiveVendors();
     const vendors = allVendors.map((vendor) => {
-      const mapping = job.jobVendors.find(
-        (jv) => jv.vendor.id === vendor.id,
-      );
+      const mapping = (job.jobVendors || []).find((jv: any) => jv?.vendor?.id === vendor.id);
 
       return {
         id: vendor.id,
@@ -610,95 +636,107 @@ async updateJob(jobId: number, data: any): Promise<Job> {
       };
     });
 
+    const candidates = await this.getCandidatesForJob(jobId);
+
     return {
       ...this.attachStoredFilesToJob(job),
       vendors,
+      candidates,
     };
   }
 
-  /* ======================================================
-     OTHER METHODS (UNCHANGED)
-  ====================================================== */
-
   async toggleVendor(jobId: number, vendorId: string, isEnabled: boolean) {
-    let mapping = await this.jobVendorRepo.findOne({
-      where: {
-        job: { id: jobId },
-        vendor: { id: vendorId },
-      },
-      relations: ['job', 'vendor'],
-    });
-
-    if (!mapping) {
-      const job = await this.jobRepo.findOne({ where: { id: jobId } });
-      const vendor = await this.vendorRepo.findOne({ where: { id: vendorId } });
-
-      if (!job || !vendor) {
-        throw new NotFoundException('Job or Vendor not found');
-      }
-
-      mapping = this.jobVendorRepo.create({
-        job,
-        vendor,
-        isEnabled,
-      });
-    } else {
-      mapping.isEnabled = isEnabled;
+    const job = await this.findJobDocById(jobId);
+    if (!job) {
+      throw new NotFoundException('Job or Vendor not found');
     }
 
-    await this.jobVendorRepo.save(mapping);
+    const vendorDoc = await this.vendorMongoModel.findOne({ postgresId: vendorId }).lean().exec();
+    if (!vendorDoc) {
+      throw new NotFoundException('Job or Vendor not found');
+    }
+
+    const currentMappings = Array.isArray(job.jobVendors) ? [...job.jobVendors] : [];
+    const existingIndex = currentMappings.findIndex(
+      (mapping: any) => mapping?.vendor?.id === vendorId,
+    );
+
+    if (existingIndex >= 0) {
+      (currentMappings[existingIndex] as any).isEnabled = isEnabled;
+    } else {
+      currentMappings.push({
+        id: await this.getNextJobVendorId(),
+        vendor: this.serializeForMongo(this.mapMongoVendor(vendorDoc)),
+        isEnabled,
+        status: 'ACTIVE',
+      });
+    }
+
+    job.jobVendors = this.serializeForMongo(currentMappings) as any;
+    await job.save();
     return { success: true };
   }
 
   async closePosition(positionId: number) {
-    const position = await this.positionRepo.findOne({
-      where: { id: positionId },
-    });
+    const job = await this.jobMongoModel.findOne({ 'positions.id': positionId }).exec();
+    if (!job) throw new NotFoundException('Position not found');
 
-    if (!position)
-      throw new NotFoundException('Position not found');
+    const positions = Array.isArray(job.positions) ? [...job.positions] : [];
+    const positionIndex = positions.findIndex((position: any) => position?.id === positionId);
+    if (positionIndex < 0) throw new NotFoundException('Position not found');
 
-    this.setPositionCurrentOpenings(position, 0);
+    const position = positions[positionIndex] as any;
+    position.currentOpenings = 0;
     position.status = JobPositionStatus.CLOSED;
-    await this.positionRepo.save(position);
+    positions[positionIndex] = position;
+    job.positions = positions as any;
+    await job.save();
+
     return { success: true };
   }
 
   async closeJob(jobId: number) {
-    await this.jobRepo.update(jobId, {
-      isActive: false,
-      status: JobStatus.CLOSED,
-    });
+    const job = await this.findJobDocById(jobId);
+    if (!job) throw new NotFoundException('Job not found');
+
+    job.isActive = false;
+    job.status = JobStatus.CLOSED;
+    await job.save();
     return { success: true };
   }
 
   async approveJob(jobId: number) {
-    await this.jobRepo.update(jobId, {
-      status: JobStatus.APPROVED,
-    });
+    const job = await this.findJobDocById(jobId);
+    if (!job) throw new NotFoundException('Job not found');
+
+    job.status = JobStatus.APPROVED;
+    await job.save();
     return { success: true };
   }
 
   async rejectJob(jobId: number) {
-    await this.jobRepo.update(jobId, {
-      status: JobStatus.REJECTED,
-    });
+    const job = await this.findJobDocById(jobId);
+    if (!job) throw new NotFoundException('Job not found');
+
+    job.status = JobStatus.REJECTED;
+    await job.save();
     return { success: true };
   }
 
   async attachJD(jobId: number, files: Express.Multer.File[]) {
-    const job = await this.jobRepo.findOne({ where: { id: jobId } });
+    const job = await this.findJobDocById(jobId);
     if (!job) throw new NotFoundException('Job not found');
 
     const existingFiles = this.parseStoredFiles(job.jdFiles);
     const mergedFiles = [...existingFiles, ...this.buildStoredFiles(files)];
-    this.setPrimaryFileFields(job, 'jd', mergedFiles);
+    this.setPrimaryFileFields(job as any, 'jd', mergedFiles);
 
-    return this.jobRepo.save(job);
+    await job.save();
+    return this.getJobById(jobId);
   }
 
   async getJD(jobId: number, index = 0) {
-    const job = await this.jobRepo.findOne({ where: { id: jobId } });
+    const job = await this.findLeanJobById(jobId);
     const files = job ? this.parseStoredFiles(job.jdFiles) : [];
     const effectiveFiles =
       files.length || !job?.jdPath
@@ -712,115 +750,111 @@ async updateJob(jobId: number, data: any): Promise<Job> {
           ];
     const selectedFile = effectiveFiles[index] || effectiveFiles[0];
 
-    if (!job || !selectedFile)
-      throw new NotFoundException('JD not found');
-
+    if (!job || !selectedFile) throw new NotFoundException('JD not found');
     return selectedFile;
   }
 
-  /* ======================================================
-   VENDOR LEVEL CONTROL (NEW)
-====================================================== */
+  async updateVendorJobStatus(
+    jobId: number,
+    vendorId: string,
+    status: 'ACTIVE' | 'ON_HOLD' | 'CLOSED',
+  ) {
+    const job = await this.findJobDocById(jobId);
+    if (!job) throw new NotFoundException('Vendor not assigned to this job');
 
-async updateVendorJobStatus(
-  jobId: number,
-  vendorId: string,
-  status: 'ACTIVE' | 'ON_HOLD' | 'CLOSED',
-) {
-  const mapping = await this.jobVendorRepo.findOne({
-    where: {
-      job: { id: jobId },
-      vendor: { id: vendorId },
-    },
-    relations: ['job', 'vendor'],
-  });
+    const mappings = Array.isArray(job.jobVendors) ? [...job.jobVendors] : [];
+    const mappingIndex = mappings.findIndex((mapping: any) => mapping?.vendor?.id === vendorId);
+    if (mappingIndex < 0) {
+      throw new NotFoundException('Vendor not assigned to this job');
+    }
 
-  if (!mapping) {
-    throw new NotFoundException('Vendor not assigned to this job');
+    (mappings[mappingIndex] as any).status = status;
+    job.jobVendors = this.serializeForMongo(mappings) as any;
+    await job.save();
+
+    return { success: true };
   }
 
-  mapping.status = status;
+  async attachPSQ(jobId: number, files: Express.Multer.File[]) {
+    const job = await this.findJobDocById(jobId);
+    if (!job) throw new NotFoundException('Job not found');
 
-  await this.jobVendorRepo.save(mapping);
+    const existingFiles = this.parseStoredFiles(job.psqFiles);
+    const mergedFiles = [...existingFiles, ...this.buildStoredFiles(files)];
+    this.setPrimaryFileFields(job as any, 'psq', mergedFiles);
 
-  return { success: true };
-}
+    await job.save();
+    return this.getJobById(jobId);
+  }
 
-  /* ======================================================
-   PSQ HANDLING (ADD BELOW getJD)
-====================================================== */
+  async getPSQ(jobId: number, index = 0) {
+    const job = await this.findLeanJobById(jobId);
+    const files = job ? this.parseStoredFiles(job.psqFiles) : [];
+    const effectiveFiles =
+      files.length || !job?.psqPath
+        ? files
+        : [
+            {
+              path: job.psqPath,
+              fileName: job.psqFileName,
+              mimeType: job.psqMimeType,
+            },
+          ];
+    const selectedFile = effectiveFiles[index] || effectiveFiles[0];
 
-async attachPSQ(jobId: number, files: Express.Multer.File[]) {
-  const job = await this.jobRepo.findOne({ where: { id: jobId } });
-  if (!job) throw new NotFoundException('Job not found');
+    if (!job || !selectedFile) throw new NotFoundException('PSQ not found');
+    return selectedFile;
+  }
 
-  const existingFiles = this.parseStoredFiles(job.psqFiles);
-  const mergedFiles = [...existingFiles, ...this.buildStoredFiles(files)];
-  this.setPrimaryFileFields(job, 'psq', mergedFiles);
+  async attachPositionJD(positionId: number, file: Express.Multer.File) {
+    const job = await this.jobMongoModel.findOne({ 'positions.id': positionId }).exec();
+    if (!job) throw new NotFoundException('Position not found');
 
-  return this.jobRepo.save(job);
-}
+    const positions = Array.isArray(job.positions) ? [...job.positions] : [];
+    const positionIndex = positions.findIndex((position: any) => position?.id === positionId);
+    if (positionIndex < 0) throw new NotFoundException('Position not found');
 
-async getPSQ(jobId: number, index = 0) {
-  const job = await this.jobRepo.findOne({ where: { id: jobId } });
-  const files = job ? this.parseStoredFiles(job.psqFiles) : [];
-  const effectiveFiles =
-    files.length || !job?.psqPath
-      ? files
-      : [
-          {
-            path: job.psqPath,
-            fileName: job.psqFileName,
-            mimeType: job.psqMimeType,
-          },
-        ];
-  const selectedFile = effectiveFiles[index] || effectiveFiles[0];
+    const position = positions[positionIndex] as any;
+    position.jdPath = file.path;
+    position.jdFileName = file.originalname;
+    position.jdMimeType = file.mimetype;
+    positions[positionIndex] = position;
+    job.positions = positions as any;
+    await job.save();
 
-  if (!job || !selectedFile)
-    throw new NotFoundException('PSQ not found');
+    return position;
+  }
 
-  return selectedFile;
-}
+  async attachPositionPSQ(positionId: number, file: Express.Multer.File) {
+    const job = await this.jobMongoModel.findOne({ 'positions.id': positionId }).exec();
+    if (!job) throw new NotFoundException('Position not found');
 
-/* ======================================================
-   POSITION FILE HANDLING (NEW)
-====================================================== */
+    const positions = Array.isArray(job.positions) ? [...job.positions] : [];
+    const positionIndex = positions.findIndex((position: any) => position?.id === positionId);
+    if (positionIndex < 0) throw new NotFoundException('Position not found');
 
-async attachPositionJD(positionId: number, file: Express.Multer.File) {
-  const pos = await this.positionRepo.findOne({ where: { id: positionId } });
-  if (!pos) throw new NotFoundException('Position not found');
+    const position = positions[positionIndex] as any;
+    position.psqPath = file.path;
+    position.psqFileName = file.originalname;
+    position.psqMimeType = file.mimetype;
+    positions[positionIndex] = position;
+    job.positions = positions as any;
+    await job.save();
 
-  pos.jdPath = file.path;
-  pos.jdFileName = file.originalname;
-  pos.jdMimeType = file.mimetype;
+    return position;
+  }
 
-  return this.positionRepo.save(pos);
-}
+  async getPositionJD(positionId: number) {
+    const job = await this.jobMongoModel.findOne({ 'positions.id': positionId }).lean().exec();
+    const position = (job?.positions || []).find((entry: any) => entry?.id === positionId) as any;
+    if (!position || !position.jdPath) throw new NotFoundException('JD not found');
+    return position;
+  }
 
-async attachPositionPSQ(positionId: number, file: Express.Multer.File) {
-  const pos = await this.positionRepo.findOne({ where: { id: positionId } });
-  if (!pos) throw new NotFoundException('Position not found');
-
-  pos.psqPath = file.path;
-  pos.psqFileName = file.originalname;
-  pos.psqMimeType = file.mimetype;
-
-  return this.positionRepo.save(pos);
-}
-
-async getPositionJD(positionId: number) {
-  const pos = await this.positionRepo.findOne({ where: { id: positionId } });
-  if (!pos || !pos.jdPath)
-    throw new NotFoundException('JD not found');
-
-  return pos;
-}
-
-async getPositionPSQ(positionId: number) {
-  const pos = await this.positionRepo.findOne({ where: { id: positionId } });
-  if (!pos || !pos.psqPath)
-    throw new NotFoundException('PSQ not found');
-
-  return pos;
-}
+  async getPositionPSQ(positionId: number) {
+    const job = await this.jobMongoModel.findOne({ 'positions.id': positionId }).lean().exec();
+    const position = (job?.positions || []).find((entry: any) => entry?.id === positionId) as any;
+    if (!position || !position.psqPath) throw new NotFoundException('PSQ not found');
+    return position;
+  }
 }

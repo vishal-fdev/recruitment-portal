@@ -1,9 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
+import {
+  Box,
+  Button,
+  Card,
+  CardBody,
+  CheckBox,
+  Heading,
+  Layer,
+  Paragraph,
+  Text,
+} from 'grommet';
 import { getJobs } from '../../services/jobService';
 import type { Job } from '../../services/jobService';
 import api from '../../api/api';
+import StageBadge from '../../components/StageBadge';
 
 interface Vendor {
   id: string;
@@ -96,14 +108,20 @@ const Jobs = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-[20px] bg-white px-6 py-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-        <h1 className="text-2xl font-semibold text-[#0F172A]">Jobs</h1>
-        <p className="mt-1 text-sm text-[#64748B]">Manage requisitions, assignments, and job status.</p>
-      </div>
+    <Box gap="medium">
+      <Card background="white" round="20px" elevation="xsmall">
+        <CardBody pad="medium">
+          <Heading level={2} margin="none">
+            Jobs
+          </Heading>
+          <Paragraph margin={{ top: 'xsmall', bottom: 'none' }} color="text-paragraph">
+            Manage requisitions, assignments, and job status.
+          </Paragraph>
+        </CardBody>
+      </Card>
 
-      <div className="space-y-4">
-        {loading && <div className="rounded-[20px] bg-white p-8 shadow">Loading...</div>}
+      <Box gap="medium">
+        {loading ? <Card background="white" round="20px" pad="large" elevation="xsmall"><Text>Loading...</Text></Card> : null}
 
         {!loading &&
           jobs.map((job) => {
@@ -118,145 +136,165 @@ const Jobs = () => {
               ) || 0);
 
             return (
-              <div
+              <Card
                 key={job.id}
+                background="white"
+                round="24px"
+                border={{ color: 'border-weak' }}
+                elevation="xsmall"
                 onClick={() => navigate(`/vendor-manager/jobs/${job.id}`)}
-                className="rounded-[24px] border border-black/8 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-sm font-medium text-[#01A982]">{`HRQ${job.id}`}</span>
-                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusClass(job.status)}`}>
-                        {formatStatus(job.status)}
-                      </span>
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-semibold text-[#0F172A]">{job.title}</h2>
-                      <p className="mt-1 text-sm text-[#64748B]">{job.location} · Level {job.level || '-'}</p>
-                    </div>
-                  </div>
+                <CardBody pad="large" gap="medium">
+                  <Box direction="row" justify="between" align="start" gap="medium" wrap>
+                    <Box gap="small">
+                      <Box direction="row" align="center" gap="small">
+                        <Text size="small" weight="bold" color="brand">{`HRQ${job.id}`}</Text>
+                        <StageBadge status={job.status} />
+                      </Box>
+                      <Box>
+                        <Heading level={3} size="small" margin="none">
+                          {job.title}
+                        </Heading>
+                        <Text color="text-paragraph">{job.location} · Level {job.level || '-'}</Text>
+                      </Box>
+                    </Box>
 
-                  <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
-                    {job.status === 'APPROVED' && (
-                      <button
-                        type="button"
-                        onClick={() => void openAssignModal(job.id)}
-                        className="rounded-[12px] bg-[#01A982] px-4 py-2 text-sm font-medium text-white shadow-[0_10px_25px_rgba(1,169,130,0.2)]"
-                      >
-                        Assign Vendors
-                      </button>
-                    )}
+                    <Box direction="row" align="center" gap="small" onClick={(event) => event.stopPropagation()}>
+                      {job.status === 'APPROVED' ? (
+                        <Button label="Assign Vendors" primary color="brand" onClick={() => void openAssignModal(job.id)} />
+                      ) : null}
 
-                    <div className="relative">
-                      <button
-                        onClick={() => setOpenMenu(openMenu === job.id ? null : job.id)}
-                        className="rounded-[12px] border border-[#D6DCE5] bg-white px-3 py-2"
-                      >
-                        <ChevronDown size={14} />
-                      </button>
+                      <Box style={{ position: 'relative' }}>
+                        <Button
+                          icon={<ChevronDown size={14} />}
+                          onClick={() => setOpenMenu(openMenu === job.id ? null : job.id)}
+                        />
 
-                      {openMenu === job.id && (
-                        <div className="absolute right-0 mt-2 w-44 rounded-[14px] border border-black/8 bg-white p-2 shadow-lg z-50">
-                          {job.status === 'APPROVED' && (
-                            <MenuButton onClick={() => void openAssignModal(job.id)}>Assign</MenuButton>
-                          )}
-                          {job.status === 'APPROVED' && (
-                            <MenuButton onClick={() => void updateJobStatus(job.id, 'hold')}>Put on Hold</MenuButton>
-                          )}
-                          {job.status === 'ON_HOLD' && (
-                            <MenuButton onClick={() => void updateJobStatus(job.id, 'reopen')}>Reopen</MenuButton>
-                          )}
-                          {job.status !== 'CLOSED' && (
-                            <MenuButton danger onClick={() => void updateJobStatus(job.id, 'close')}>Close</MenuButton>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                        {openMenu === job.id ? (
+                          <Card
+                            background="white"
+                            round="14px"
+                            border={{ color: 'border-weak' }}
+                            elevation="medium"
+                            style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', zIndex: 10, minWidth: 176 }}
+                          >
+                            <CardBody pad="xsmall" gap="xxsmall">
+                              {job.status === 'APPROVED' ? (
+                                <MenuButton onClick={() => void openAssignModal(job.id)}>Assign</MenuButton>
+                              ) : null}
+                              {job.status === 'APPROVED' ? (
+                                <MenuButton onClick={() => void updateJobStatus(job.id, 'hold')}>Put on Hold</MenuButton>
+                              ) : null}
+                              {job.status === 'ON_HOLD' ? (
+                                <MenuButton onClick={() => void updateJobStatus(job.id, 'reopen')}>Reopen</MenuButton>
+                              ) : null}
+                              {job.status !== 'CLOSED' ? (
+                                <MenuButton danger onClick={() => void updateJobStatus(job.id, 'close')}>
+                                  Close
+                                </MenuButton>
+                              ) : null}
+                            </CardBody>
+                          </Card>
+                        ) : null}
+                      </Box>
+                    </Box>
+                  </Box>
 
-                <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-5">
-                  <Info label="Total Positions" value={String(totalPositions)} />
-                  <Info label="Current Positions" value={String(currentPositions)} />
-                  <Info label="Assigned Date" value={job.createdAt ? new Date(job.createdAt).toLocaleDateString('en-GB') : '-'} />
-                  <Info label="Status" value={formatStatus(job.status)} />
-                  <div className="rounded-[16px] bg-[#F8FAFC] px-4 py-3">
-                    <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[#94A3B8]">JD</div>
-                    <div className="mt-1 text-sm font-medium">
-                      {job.jdFileName ? (
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void handleDownload(job.id);
-                          }}
-                          className="text-[#01A982]"
-                        >
-                          Download JD
-                        </button>
-                      ) : (
-                        '—'
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  <Box direction="row" wrap gap="small">
+                    <Info label="Total Positions" value={String(totalPositions)} />
+                    <Info label="Current Positions" value={String(currentPositions)} />
+                    <Info
+                      label="Assigned Date"
+                      value={job.createdAt ? new Date(job.createdAt).toLocaleDateString('en-GB') : '-'}
+                    />
+                    <Info label="Status" value={formatStatus(job.status)} />
+                    <Info
+                      label="JD"
+                      value={
+                        job.jdFileName ? (
+                          <Button
+                            plain
+                            color="brand"
+                            label="Download JD"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleDownload(job.id);
+                            }}
+                          />
+                        ) : (
+                          '-'
+                        )
+                      }
+                    />
+                  </Box>
+                </CardBody>
+              </Card>
             );
           })}
-      </div>
+      </Box>
 
-      {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/40">
-          <div className="w-[400px] rounded-[20px] bg-white p-6 shadow-lg">
-            <h2 className="mb-3 font-semibold">Assign Vendors</h2>
-            {vendors.map((v) => (
-              <label key={v.id} className="block py-1">
-                <input type="checkbox" checked={selectedVendors.includes(v.id)} onChange={() => toggleVendor(v.id)} /> {v.name}
-              </label>
-            ))}
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setShowModal(false)}>Cancel</button>
-              <button onClick={() => void assignVendors()} className="rounded bg-green-600 px-3 py-1 text-white">
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      {showModal ? (
+        <Layer
+          onEsc={() => setShowModal(false)}
+          onClickOutside={() => setShowModal(false)}
+          responsive={false}
+          modal
+        >
+          <Box pad="large" gap="medium" width="400px">
+            <Heading level={3} size="small" margin="none">
+              Assign Vendors
+            </Heading>
+            <Box gap="small">
+              {vendors.map((v) => (
+                <CheckBox
+                  key={v.id}
+                  label={v.name}
+                  checked={selectedVendors.includes(v.id)}
+                  onChange={() => toggleVendor(v.id)}
+                />
+              ))}
+            </Box>
+            <Box direction="row" gap="small" justify="end">
+              <Button label="Cancel" onClick={() => setShowModal(false)} />
+              <Button label="Save" primary color="brand" onClick={() => void assignVendors()} />
+            </Box>
+          </Box>
+        </Layer>
+      ) : null}
+    </Box>
   );
 };
 
-const MenuButton = ({ children, onClick, danger }: { children: React.ReactNode; onClick: () => void; danger?: boolean }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`block w-full rounded-[10px] px-3 py-2 text-left text-sm hover:bg-[#F8FAFC] ${danger ? 'text-red-600' : 'text-[#0F172A]'}`}
-  >
-    {children}
-  </button>
+const MenuButton = ({
+  children,
+  onClick,
+  danger,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  danger?: boolean;
+}) => (
+  <Button plain onClick={onClick}>
+    <Box pad={{ horizontal: 'small', vertical: 'small' }} round="10px">
+      <Text size="small" color={danger ? 'status-critical' : 'text-strong'}>
+        {children}
+      </Text>
+    </Box>
+  </Button>
 );
 
-const Info = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-[16px] bg-[#F8FAFC] px-4 py-3">
-    <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[#94A3B8]">{label}</div>
-    <div className="mt-1 text-sm font-medium text-[#0F172A]">{value}</div>
-  </div>
+const Info = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <Box background="#F8FAFC" round="16px" pad={{ horizontal: 'medium', vertical: 'small' }} width="220px">
+    <Text size="xsmall" weight="bold" color="#94A3B8">
+      {label}
+    </Text>
+    <Box margin={{ top: 'xsmall' }}>
+      {typeof value === 'string' ? <Text weight="bold">{value}</Text> : value}
+    </Box>
+  </Box>
 );
 
 const formatStatus = (status: string) =>
   status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
-
-const getStatusClass = (status: string) => {
-  const map: Record<string, string> = {
-    APPROVED: 'bg-green-100 text-green-700',
-    PENDING_APPROVAL: 'bg-orange-100 text-orange-700',
-    REJECTED: 'bg-red-100 text-red-700',
-    ON_HOLD: 'bg-yellow-100 text-yellow-700',
-    CLOSED: 'bg-gray-200 text-gray-600',
-  };
-  return map[status] || 'bg-slate-100 text-slate-700';
-};
 
 export default Jobs;

@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Card,
+  CardBody,
+  Grid,
+  Heading,
+  Paragraph,
+  Spinner,
+  Text,
+} from 'grommet';
 import { getJobs } from '../../services/jobService';
 import type { Job } from '../../services/jobService';
 
@@ -15,7 +25,9 @@ const JobApprovals = () => {
   const loadJobs = async () => {
     try {
       const all = await getJobs();
-      const sorted = all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const sorted = all.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
       setJobs(sorted);
     } catch {
       console.error('Failed to load jobs');
@@ -32,7 +44,8 @@ const JobApprovals = () => {
 
   const getClosedPositions = (job: Job) => {
     const mainClosed =
-      Number(job.numberOfPositions || 0) - Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0);
+      Number(job.numberOfPositions || 0) -
+      Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0);
     const childClosed =
       job.positions?.reduce(
         (sum, p) => sum + (Number(p.openings || 0) - Number(p.currentOpenings ?? p.openings ?? 0)),
@@ -44,93 +57,133 @@ const JobApprovals = () => {
   const getCurrentPositions = (job: Job) => getTotalPositions(job) - getClosedPositions(job);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-black">Job Approval Queue</h1>
-        <p className="mt-1 text-gray-500">Review, approve or reject job requisitions</p>
-      </div>
+    <Box gap="large">
+      <Box gap="xsmall">
+        <Heading level={2} margin="none">
+          Job Approval Queue
+        </Heading>
+        <Paragraph size="small" color="dark-4" margin="none">
+          Review, approve or reject job requisitions
+        </Paragraph>
+      </Box>
 
-      <div className="space-y-4">
-        {loading && <div className="rounded-[20px] bg-white p-8 shadow">Loading...</div>}
+      <Box gap="medium">
+        {loading && (
+          <Card
+            background="white"
+            round="20px"
+            pad="large"
+            border={{ color: 'border', size: 'xsmall' }}
+            elevation="xsmall"
+          >
+            <Box direction="row" gap="small" align="center">
+              <Spinner size="small" />
+              <Text>Loading...</Text>
+            </Box>
+          </Card>
+        )}
 
         {!loading &&
           jobs.map((job) => {
             const totalPositions = getTotalPositions(job);
             const currentPositions = getCurrentPositions(job);
-            const progress = totalPositions ? Math.round(((totalPositions - currentPositions) / totalPositions) * 100) : 0;
+            const progress = totalPositions
+              ? Math.round(((totalPositions - currentPositions) / totalPositions) * 100)
+              : 0;
 
             return (
-              <button
+              <Card
                 key={job.id}
-                type="button"
+                background="white"
+                round="24px"
+                border={{ color: 'rgba(0,0,0,0.08)', size: 'xsmall' }}
+                elevation="xsmall"
                 onClick={() => navigate(`/vendor-manager-head/jobs/${job.id}`)}
-                className="w-full rounded-[24px] border border-black/8 bg-white p-6 text-left shadow-[0_8px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-sm font-medium text-[#01A982]">{`HRQ${job.id}`}</span>
-                      <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${getStatusClass(job.status)}`}>
-                        <span className={`h-2.5 w-2.5 rounded-full ${getDotClass(job.status)}`} />
-                        {formatStatus(job.status)}
-                      </span>
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-semibold text-[#0F172A]">{job.title}</h2>
-                      <p className="mt-1 text-sm text-[#64748B]">{job.location} · Level {job.level || '-'}</p>
-                    </div>
-                  </div>
-                </div>
+                <CardBody pad="large" gap="medium">
+                  <Box direction="row" justify="between" gap="medium" wrap>
+                    <Box gap="small">
+                      <Box direction="row" align="center" gap="small" wrap>
+                        <Text size="small" weight={600} color="brand">
+                          HRQ{job.id}
+                        </Text>
+                        <StatusBadge status={job.status} />
+                      </Box>
+                      <Box gap="xxsmall">
+                        <Text size="xlarge" weight={600} color="#0F172A">
+                          {job.title}
+                        </Text>
+                        <Text size="small" color="#64748B">
+                          {job.location} · Level {job.level || '-'}
+                        </Text>
+                      </Box>
+                    </Box>
+                  </Box>
 
-                <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-5">
-                  <Info label="Total Positions" value={String(totalPositions)} />
-                  <Info label="Current Positions" value={String(currentPositions)} />
-                  <Info label="Created Date" value={job.createdAt ? job.createdAt.split('T')[0] : '-'} />
-                  <Info label="Progress" value={`${progress}%`} />
-                  <Info label="Status" value={formatStatus(job.status)} />
-                </div>
-              </button>
+                  <Grid columns={{ count: 'fit', size: 'small' }} gap="small">
+                    <Info label="Total Positions" value={String(totalPositions)} />
+                    <Info label="Current Positions" value={String(currentPositions)} />
+                    <Info
+                      label="Created Date"
+                      value={job.createdAt ? job.createdAt.split('T')[0] : '-'}
+                    />
+                    <Info label="Progress" value={`${progress}%`} />
+                    <Info label="Status" value={formatStatus(job.status)} />
+                  </Grid>
+                </CardBody>
+              </Card>
             );
           })}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 
 const Info = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-[16px] bg-[#F8FAFC] px-4 py-3">
-    <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[#94A3B8]">{label}</div>
-    <div className="mt-1 text-sm font-medium text-[#0F172A]">{value}</div>
-  </div>
+  <Box background="#F8FAFC" round="16px" pad={{ horizontal: 'medium', vertical: 'small' }}>
+    <Text size="xsmall" weight={600} color="#94A3B8">
+      {label.toUpperCase()}
+    </Text>
+    <Text margin={{ top: 'xsmall' }} size="small" weight={500} color="#0F172A">
+      {value}
+    </Text>
+  </Box>
 );
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const colors = getStatusColors(status);
+
+  return (
+    <Box
+      direction="row"
+      align="center"
+      gap="xsmall"
+      background={colors.background}
+      round="full"
+      pad={{ horizontal: 'small', vertical: 'xsmall' }}
+    >
+      <Box width="10px" height="10px" round="full" background={colors.dot} />
+      <Text size="xsmall" weight={500} color={colors.text}>
+        {formatStatus(status)}
+      </Text>
+    </Box>
+  );
+};
 
 const formatStatus = (status: string) =>
   status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 
-const getStatusClass = (status: string) => {
-  switch (status) {
-    case 'APPROVED':
-      return 'bg-green-100 text-green-700';
-    case 'REJECTED':
-      return 'bg-red-100 text-red-700';
-    case 'PENDING_APPROVAL':
-      return 'bg-yellow-100 text-yellow-700';
-    default:
-      return 'bg-gray-100 text-gray-700';
+const getStatusColors = (status: string) => {
+  if (status === 'APPROVED') {
+    return { background: '#DDFBF2', text: '#0F766E', dot: '#01A982' };
   }
-};
-
-const getDotClass = (status: string) => {
-  switch (status) {
-    case 'APPROVED':
-      return 'bg-[#01A982]';
-    case 'REJECTED':
-      return 'bg-[#EF4444]';
-    case 'PENDING_APPROVAL':
-      return 'bg-[#F59E0B]';
-    default:
-      return 'bg-[#94A3B8]';
+  if (status === 'REJECTED') {
+    return { background: '#FEE2E2', text: '#B91C1C', dot: '#EF4444' };
   }
+  if (status === 'PENDING_APPROVAL') {
+    return { background: '#FEF3C7', text: '#B45309', dot: '#F59E0B' };
+  }
+  return { background: '#E5E7EB', text: '#64748B', dot: '#94A3B8' };
 };
 
 export default JobApprovals;

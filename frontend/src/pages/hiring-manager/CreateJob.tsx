@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
-import type { Dispatch, KeyboardEvent, SetStateAction } from 'react';
+import type { Dispatch, KeyboardEvent, ReactNode, SetStateAction } from 'react';
+import {
+  Box,
+  Button,
+  FormField,
+  Heading,
+  Layer,
+  Text,
+  TextInput,
+  TextArea,
+} from 'grommet';
 import api from '../../api/api';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
@@ -33,7 +43,7 @@ const SKILL_SUGGESTIONS = [
   'Vue.js',
   'HTML',
   'CSS',
-  'Tailwind CSS',
+  'Grommet',
   'Java',
   'Spring Boot',
   'Python',
@@ -1014,26 +1024,26 @@ setLoading(false);
 
 return(
 
-<div className="w-full px-8 space-y-8">
+<div style={styles.pageShell}>
 
 <div>
   <button
     type="button"
     onClick={() => navigate('/hiring-manager/jobs')}
-    className="rounded-md bg-[#01a982] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:shadow-md"
+    style={{ background: '#01A982', color: 'white', borderRadius: 6, padding: '8px 16px', fontSize: 14, fontWeight: 500, border: 'none', boxShadow: '0 1px 2px rgba(15,23,42,0.08)' }}
   >
     ← Back
   </button>
 </div>
 
 
-<div className="bg-white shadow rounded p-6">
+<div style={{ background: 'white', boxShadow: '0 1px 3px rgba(15,23,42,0.12)', borderRadius: 8, padding: 24 }}>
 
-<h1 className="text-2xl font-semibold">
+<h1 style={{ fontSize: 24, fontWeight: 600 }}>
 {isEditMode ? 'Edit Job' : 'Job Posting'}
 </h1>
 
-<p className="text-sm text-gray-500 mt-1">
+<p style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>
 Complete all required fields to submit for CWF request
 </p>
 
@@ -1053,7 +1063,7 @@ name="jobTitle"
 value={form.jobTitle}
 onChange={handleChange}
 onBlur={(e)=>fetchTemplate(e.target.value)}
-className="input"
+style={styles.input}
 />
 </Field>
 
@@ -1063,7 +1073,7 @@ className="input"
 name="jobCategory"
 value={form.jobCategory}
 onChange={handleChange}
-className="input"
+style={styles.input}
 >
 <option value="">Select Category</option>
 <option>IT & Consulting</option>
@@ -1080,7 +1090,7 @@ className="input"
 <input
 value="MS"
 disabled
-className="input bg-gray-100"
+style={styles.readOnlyInput}
 />
 </Field>
 
@@ -1089,7 +1099,7 @@ className="input bg-gray-100"
 <input
 value={form.hiringManager}
 disabled
-className="input bg-gray-100"
+style={styles.readOnlyInput}
 />
 </Field>
 
@@ -1099,7 +1109,7 @@ className="input bg-gray-100"
 name="workType"
 value={form.workType}
 onChange={handleChange}
-className="input"
+style={styles.input}
 >
 <option>Onsite</option>
 <option>Remote</option>
@@ -1124,14 +1134,14 @@ className="input"
 name="level"
 value={form.level}
 onChange={handleChange}
-className="input"
+style={styles.input}
 >
 <option value="">Select Level</option>
 {LEVEL_OPTIONS.map(l => (
 <option key={l} value={l}>{l}</option>
 ))}
 </select>
-{errors.level && <p className="text-red-500 text-xs">{errors.level}</p>}
+{errors.level && <p style={styles.errorText}>{errors.level}</p>}
 </Field>
 
 <Field label="No. of Positions *">
@@ -1158,9 +1168,9 @@ onChange={(e) => {
     );
   }
 }}
-className="input"
+style={styles.input}
 />
-{errors.numberOfPositions && <p className="text-red-500 text-xs">{errors.numberOfPositions}</p>}
+{errors.numberOfPositions && <p style={styles.errorText}>{errors.numberOfPositions}</p>}
 </Field>
 
 <Field label="Job Request Type *">
@@ -1168,58 +1178,58 @@ className="input"
 name="requestType"
 value={form.requestType}
 onChange={handleChange}
-className="input"
+style={styles.input}
 >
 <option value="NEW">New Request</option>
 <option value="BACKFILL">Backfill</option>
 </select>
-{errors.requestType && <p className="text-red-500 text-xs">{errors.requestType}</p>}
+{errors.requestType && <p style={styles.errorText}>{errors.requestType}</p>}
 </Field>
 
 {form.requestType === 'BACKFILL' && !!mainBackfillEntries.length && (
-  <div className="col-span-2 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
-    <div className="flex flex-wrap items-start justify-between gap-3">
+  <div style={{ gridColumn: 'span 2', borderRadius: 12, border: '1px solid #A7F3D0', background: 'rgba(236,253,245,0.6)', padding: 16 }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
       <div>
-        <h3 className="text-sm font-semibold text-slate-800">
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: '#1E293B' }}>
           Main Position Backfill Details
         </h3>
-        <p className="mt-1 text-xs text-slate-500">
+        <p style={{ marginTop: 4, fontSize: 12, color: '#64748B' }}>
           These employee details apply only to the main job position.
         </p>
       </div>
 
-      <div className="flex gap-2">
+      <div style={styles.inlineRowGap}>
         <button
           type="button"
           onClick={openMainBackfillModal}
-          className="rounded-md border border-emerald-200 bg-white px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+          style={{ borderRadius: 6, border: '1px solid #A7F3D0', background: 'white', padding: '6px 12px', fontSize: 12, fontWeight: 500, color: '#047857' }}
         >
           Edit
         </button>
         <button
           type="button"
           onClick={resetMainBackfill}
-          className="rounded-md border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50"
+          style={{ borderRadius: 6, border: '1px solid #FECDD3', background: 'white', padding: '6px 12px', fontSize: 12, fontWeight: 500, color: '#E11D48' }}
         >
           Remove
         </button>
       </div>
     </div>
 
-    <div className="mt-4 space-y-2">
+    <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
       {mainBackfillEntries.map((employee, index) => (
         <div
           key={`${employee.employeeId}-${index}`}
-          className="rounded-lg border border-white/70 bg-white px-3 py-2 text-sm"
+          style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,0.7)', background: 'white', padding: '8px 12px', fontSize: 14 }}
         >
-          <p className="font-medium text-slate-800">
+          <p style={{ fontWeight: 500, color: '#1E293B' }}>
             Employee {index + 1}
           </p>
-          <p className="mt-1 text-slate-600">
-            <span className="font-medium">EMP ID:</span> {employee.employeeId || '-'}
+          <p style={{ marginTop: 4, color: '#475569' }}>
+            <span style={{ fontWeight: 500 }}>EMP ID:</span> {employee.employeeId || '-'}
           </p>
-          <p className="text-slate-600">
-            <span className="font-medium">EMP Name:</span> {employee.employeeName || '-'}
+          <p style={{ color: '#475569' }}>
+            <span style={{ fontWeight: 500 }}>EMP Name:</span> {employee.employeeName || '-'}
           </p>
         </div>
       ))}
@@ -1232,29 +1242,29 @@ className="input"
 name="dealName"
 value={form.dealName}
 onChange={handleChange}
-className="input"
+style={styles.input}
 />
-{errors.dealName && <p className="text-red-500 text-xs">{errors.dealName}</p>}
+{errors.dealName && <p style={styles.errorText}>{errors.dealName}</p>}
 </Field>
 
 {/* FULL WIDTH ADD POSITION BLOCK */}
 
-<div className="col-span-2 space-y-3">
+<div style={{ ...styles.fullWidth, gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
   <div
     onClick={() => {
       setShowAdditionalPositions(true);
       setIsSectionSaved(false);
     }}
-    className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer bg-gradient-to-br from-gray-50 to-gray-100 hover:border-emerald-500 transition"
+    style={styles.additionalPositionsLauncher}
   >
-    <p className="text-gray-600 text-sm">
+    <p style={{ color: '#4B5563', fontSize: 14 }}>
       + Add more positions (Click here to add more positions)
     </p>
 
     <button
       type="button"
-      className="mt-3 px-5 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+      style={{ marginTop: 12, padding: '8px 20px', background: '#059669', color: 'white', borderRadius: 6, border: 'none' }}
     >
       Add Positions
     </button>
@@ -1263,21 +1273,21 @@ className="input"
 </div>
 
 {showAdditionalPositions && (
-  <div className="col-span-2 space-y-4 rounded-lg border border-gray-200 p-4">
+  <div style={{ ...styles.outlinedCard, gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
     <div>
-      <h3 className="font-medium">
+      <h3 style={{ fontWeight: 500 }}>
         Additional Positions (If more than one position is required)
       </h3>
-      <p className="mt-1 text-sm text-gray-500">
+      <p style={{ marginTop: 4, fontSize: 14, color: '#6B7280' }}>
         Fill every field, then click Add before continuing.
       </p>
       {errors.additionalPositions && (
-        <p className="mt-2 text-xs text-red-500">{errors.additionalPositions}</p>
+        <p style={{ marginTop: 8, fontSize: 12, color: '#EF4444' }}>{errors.additionalPositions}</p>
       )}
     </div>
 
-    <div className="grid grid-cols-4 gap-3">
+    <div style={styles.fourColumnGrid}>
 
       <div>
         <select
@@ -1286,13 +1296,13 @@ className="input"
             setNewChild({...newChild,level:e.target.value});
             setIsSectionSaved(false);
           }}
-          className="input"
+          style={styles.input}
         >
           <option value="">Level</option>
           {LEVEL_OPTIONS.map(l=><option key={l}>{l}</option>)}
         </select>
         {errors.newChildLevel && (
-          <p className="mt-1 text-xs text-red-500">{errors.newChildLevel}</p>
+          <p style={{ marginTop: 4, fontSize: 12, color: '#EF4444' }}>{errors.newChildLevel}</p>
         )}
       </div>
 
@@ -1311,10 +1321,10 @@ className="input"
               openNewChildBackfillModal();
             }
           }}
-          className="input"
+          style={styles.input}
         />
         {errors.newChildOpenings && (
-          <p className="mt-1 text-xs text-red-500">{errors.newChildOpenings}</p>
+          <p style={{ marginTop: 4, fontSize: 12, color: '#EF4444' }}>{errors.newChildOpenings}</p>
         )}
       </div>
 
@@ -1339,20 +1349,20 @@ className="input"
               openNewChildBackfillModal();
             }
           }}
-          className="input"
+          style={styles.input}
         >
           <option value="NEW">New</option>
           <option value="BACKFILL">Backfill</option>
         </select>
         {errors.newChildRequestType && (
-          <p className="mt-1 text-xs text-red-500">{errors.newChildRequestType}</p>
+          <p style={{ marginTop: 4, fontSize: 12, color: '#EF4444' }}>{errors.newChildRequestType}</p>
         )}
       </div>
 
       <button
         type="button"
         onClick={addChildPosition}
-        className="bg-gray-700 text-white px-4 py-2 rounded"
+        style={{ background: '#374151', color: 'white', padding: '8px 16px', borderRadius: 6, border: 'none' }}
       >
         Add
       </button>
@@ -1362,29 +1372,29 @@ className="input"
     {childPositions.map((pos,index)=>(
       <div
         key={index}
-        className="border rounded p-3"
+        style={styles.childPositionCard}
       >
-        <div className="flex justify-between items-center">
-          <div className="text-sm">
+        <div style={styles.inlineRowBetween}>
+          <div style={{ fontSize: 14 }}>
             <strong>{pos.level}</strong> - {pos.openings} openings
             <br />
             Request Type: <strong>{pos.requestType || 'NEW'}</strong>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {pos.requestType === 'BACKFILL' && (
               <>
                 <button
                   type="button"
                   onClick={() => openExistingChildBackfillModal(index)}
-                  className="text-xs font-medium text-emerald-700"
+                  style={{ fontSize: 12, fontWeight: 500, color: '#047857' }}
                 >
                   Edit Backfill
                 </button>
                 <button
                   type="button"
                   onClick={() => resetExistingChildBackfill(index)}
-                  className="text-xs font-medium text-rose-500"
+                  style={{ fontSize: 12, fontWeight: 500, color: '#F43F5E' }}
                 >
                   Remove Backfill
                 </button>
@@ -1394,25 +1404,25 @@ className="input"
         </div>
 
         {pos.requestType === 'BACKFILL' && getChildBackfillEntries(pos).length > 0 && (
-          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+          <div style={{ marginTop: 12, borderRadius: 8, border: '1px solid #A7F3D0', background: 'rgba(236,253,245,0.6)', padding: 12 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#047857' }}>
               Backfill Details
             </p>
 
-            <div className="mt-2 space-y-2">
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {getChildBackfillEntries(pos).map((employee, employeeIndex) => (
                 <div
                   key={`${employee.employeeId}-${employeeIndex}`}
-                  className="rounded-md bg-white px-3 py-2 text-sm text-slate-700"
+                  style={{ borderRadius: 6, background: 'white', padding: '8px 12px', fontSize: 14, color: '#334155' }}
                 >
-                  <p className="font-medium text-slate-800">
+                  <p style={{ fontWeight: 500, color: '#1E293B' }}>
                     Employee {employeeIndex + 1}
                   </p>
-                  <p className="mt-1">
-                    <span className="font-medium">EMP ID:</span> {employee.employeeId || '-'}
+                  <p style={{ marginTop: 4 }}>
+                    <span style={{ fontWeight: 500 }}>EMP ID:</span> {employee.employeeId || '-'}
                   </p>
                   <p>
-                    <span className="font-medium">EMP Name:</span> {employee.employeeName || '-'}
+                    <span style={{ fontWeight: 500 }}>EMP Name:</span> {employee.employeeName || '-'}
                   </p>
                 </div>
               ))}
@@ -1431,7 +1441,7 @@ type="date"
 name="startDate"
 value={form.startDate}
 onChange={handleChange}
-className="input"
+style={styles.input}
 />
 </Field>
 
@@ -1442,7 +1452,7 @@ type="date"
 name="endDate"
 value={form.endDate}
 onChange={handleChange}
-className="input"
+style={styles.input}
 />
 </Field>
 
@@ -1452,9 +1462,9 @@ className="input"
 name="workLocation"
 value={form.workLocation}
 onChange={handleChange}
-className="input"
+style={styles.input}
 />
-{errors.workLocation && <p className="text-red-500 text-xs">{errors.workLocation}</p>}
+{errors.workLocation && <p style={styles.errorText}>{errors.workLocation}</p>}
 </Field>
 
 
@@ -1463,9 +1473,9 @@ className="input"
 name="region"
 value={form.region}
 onChange={handleChange}
-className="input"
+style={styles.input}
 />
-{errors.region && <p className="text-red-500 text-xs">{errors.region}</p>}
+{errors.region && <p style={styles.errorText}>{errors.region}</p>}
 </Field>
 
 
@@ -1476,13 +1486,20 @@ className="input"
   onDrop={handleDrop}
   onDragOver={handleDragOver}
   onDragLeave={handleDragLeave}
-  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition 
-  ${isDragging ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300 bg-gray-50'}`}
+  style={{
+    border: `2px dashed ${isDragging ? '#10B981' : '#D1D5DB'}`,
+    borderRadius: 8,
+    padding: 24,
+    textAlign: 'center',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    background: isDragging ? '#ECFDF5' : '#F9FAFB',
+  }}
 >
 
   {!jdFiles.length ? (
     <>
-      <p className="text-gray-600">
+      <p style={{ color: '#4B5563' }}>
         Drag & drop JD here or click to upload
       </p>
 
@@ -1491,25 +1508,25 @@ className="input"
         multiple
         accept=".pdf,.doc,.docx"
         onChange={(e) => addMoreJdFiles(e.target.files)}
-        className="hidden"
+        style={{ display: 'none' }}
         id="jdUpload"
       />
 
       <label
         htmlFor="jdUpload"
-        className="mt-3 inline-block px-4 py-2 bg-emerald-600 text-white rounded cursor-pointer hover:bg-emerald-700"
+        style={{ marginTop: 12, display: 'inline-block', padding: '8px 16px', background: '#059669', color: 'white', borderRadius: 6, cursor: 'pointer' }}
       >
         Choose File
       </label>
     </>
   ) : (
-    <div className="space-y-2">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {jdFiles.map((file, index) => (
         <div
           key={`${file.name}-${file.size}-${file.lastModified}`}
-          className="flex items-center justify-between bg-white p-3 rounded shadow"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: 12, borderRadius: 8, boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }}
         >
-          <div className="text-sm text-emerald-700 truncate">
+          <div style={{ fontSize: 14, color: '#047857' }}>
             📄 {file.name}
           </div>
 
@@ -1518,26 +1535,26 @@ className="input"
             onClick={() =>
               setJdFiles((prev) => prev.filter((_, fileIndex) => fileIndex !== index))
             }
-            className="text-red-500 hover:text-red-700 text-sm"
+            style={{ color: '#EF4444', fontSize: 14 }}
           >
             Remove
           </button>
         </div>
       ))}
 
-      <div className="mt-3 flex flex-col items-center gap-3">
+      <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
         <input
           type="file"
           multiple
           accept=".pdf,.doc,.docx"
           onChange={(e) => addMoreJdFiles(e.target.files)}
-          className="hidden"
+          style={{ display: 'none' }}
           id="jdUploadMore"
         />
 
         <label
           htmlFor="jdUploadMore"
-          className="inline-block rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white cursor-pointer hover:bg-emerald-700"
+          style={{ display: 'inline-block', borderRadius: 6, background: '#059669', padding: '8px 16px', fontSize: 14, fontWeight: 500, color: 'white', cursor: 'pointer' }}
         >
           Add More Files
         </label>
@@ -1545,7 +1562,7 @@ className="input"
         <button
           type="button"
           onClick={removeFile}
-          className="text-sm font-medium text-red-500 hover:text-red-700"
+          style={{ fontSize: 14, fontWeight: 500, color: '#EF4444' }}
         >
           Remove All
         </button>
@@ -1555,7 +1572,7 @@ className="input"
 
 </div>
 
-<p className="text-xs text-gray-400 mt-1">
+<p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
 Only PDF, DOC, DOCX allowed
 </p>
 
@@ -1567,13 +1584,20 @@ Only PDF, DOC, DOCX allowed
   onDrop={handlePSQDrop}
   onDragOver={handlePSQDragOver}
   onDragLeave={handlePSQDragLeave}
-  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition 
-  ${isDraggingPSQ ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'}`}
+  style={{
+    border: `2px dashed ${isDraggingPSQ ? '#3B82F6' : '#D1D5DB'}`,
+    borderRadius: 8,
+    padding: 24,
+    textAlign: 'center',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    background: isDraggingPSQ ? '#EFF6FF' : '#F9FAFB',
+  }}
 >
 
   {!psqFiles.length ? (
     <>
-      <p className="text-gray-600">
+      <p style={{ color: '#4B5563' }}>
         Drag & drop PSQ here or click to upload
       </p>
 
@@ -1582,25 +1606,25 @@ Only PDF, DOC, DOCX allowed
         multiple
         accept=".pdf,.doc,.docx"
         onChange={(e) => addMorePsqFiles(e.target.files)}
-        className="hidden"
+        style={{ display: 'none' }}
         id="psqUpload"
       />
 
       <label
         htmlFor="psqUpload"
-        className="mt-3 inline-block px-4 py-2 bg-blue-600 text-white rounded cursor-pointer hover:bg-blue-700"
+        style={{ marginTop: 12, display: 'inline-block', padding: '8px 16px', background: '#2563EB', color: 'white', borderRadius: 6, cursor: 'pointer' }}
       >
         Choose File
       </label>
     </>
   ) : (
-    <div className="space-y-2">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {psqFiles.map((file, index) => (
         <div
           key={`${file.name}-${file.size}-${file.lastModified}`}
-          className="flex items-center justify-between bg-white p-3 rounded shadow"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: 12, borderRadius: 8, boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }}
         >
-          <div className="text-sm text-blue-700 truncate">
+          <div style={{ fontSize: 14, color: '#1D4ED8' }}>
             📄 {file.name}
           </div>
 
@@ -1609,26 +1633,26 @@ Only PDF, DOC, DOCX allowed
             onClick={() =>
               setPsqFiles((prev) => prev.filter((_, fileIndex) => fileIndex !== index))
             }
-            className="text-red-500 hover:text-red-700 text-sm"
+            style={{ color: '#EF4444', fontSize: 14 }}
           >
             Remove
           </button>
         </div>
       ))}
 
-      <div className="mt-3 flex flex-col items-center gap-3">
+      <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
         <input
           type="file"
           multiple
           accept=".pdf,.doc,.docx"
           onChange={(e) => addMorePsqFiles(e.target.files)}
-          className="hidden"
+          style={{ display: 'none' }}
           id="psqUploadMore"
         />
 
         <label
           htmlFor="psqUploadMore"
-          className="inline-block rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white cursor-pointer hover:bg-blue-700"
+          style={{ display: 'inline-block', borderRadius: 6, background: '#2563EB', padding: '8px 16px', fontSize: 14, fontWeight: 500, color: 'white', cursor: 'pointer' }}
         >
           Add More Files
         </label>
@@ -1636,7 +1660,7 @@ Only PDF, DOC, DOCX allowed
         <button
           type="button"
           onClick={removePSQ}
-          className="text-sm font-medium text-red-500 hover:text-red-700"
+          style={{ fontSize: 14, fontWeight: 500, color: '#EF4444' }}
         >
           Remove All
         </button>
@@ -1646,7 +1670,7 @@ Only PDF, DOC, DOCX allowed
 
 </div>
 
-<p className="text-xs text-gray-400 mt-1">
+<p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
 Only PDF, DOC, DOCX allowed
 </p>
 
@@ -1656,9 +1680,9 @@ Only PDF, DOC, DOCX allowed
 </Section>
 {/* JD */}
 
-<div className="mt-4">
+<div style={{ marginTop: 16 }}>
 
-<label className="block text-sm font-medium mb-1">
+<label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 4 }}>
 Justification
 </label>
 
@@ -1667,16 +1691,16 @@ name="justification"
 value={form.justification}
 onChange={handleChange}
 rows={4}
-className="w-full border rounded px-3 py-2"
+style={styles.textarea}
 />
 
 </div>
 
-<div className="flex justify-end">
+<div style={styles.footerRow}>
   <button
     type="button"
     onClick={handleSavePositionSection}
-    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+    style={{ padding: '8px 24px', background: '#2563EB', color: 'white', borderRadius: 6, border: 'none' }}
   >
     Save & Continue
   </button>
@@ -1691,7 +1715,7 @@ className="w-full border rounded px-3 py-2"
 {/* SKILLS */}
 
 {!isSectionSaved && (
-  <div className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+  <div style={styles.warningBanner}>
     Save the job position details section to continue with skills and interview rounds.
   </div>
 )}
@@ -1749,7 +1773,7 @@ placeholder="Type a secondary skill and press Enter"
 name="experience"
 value={form.experience}
 onChange={handleChange}
-className="input"
+style={styles.input}
 />
 </Field>
 
@@ -1770,7 +1794,7 @@ className="input"
 <select
 value={newRoundName}
 onChange={(e)=>setNewRoundName(e.target.value)}
-className="input"
+style={styles.input}
 >
 <option value="">Select Round</option>
 <option value="SCREENING">Screening</option>
@@ -1784,7 +1808,7 @@ className="input"
 <select
 value={newRoundMode}
 onChange={(e)=>setNewRoundMode(e.target.value)}
-className="input"
+style={styles.input}
 >
 <option>Virtual</option>
 <option>In Person</option>
@@ -1794,13 +1818,13 @@ className="input"
 </Grid>
 
 
-<div className="grid grid-cols-3 gap-4 mt-4">
+<div style={styles.threeColumnGrid}>
 
 <input
 placeholder="Panel Name"
 value={panelName}
 onChange={(e)=>setPanelName(e.target.value)}
-className="input"
+style={styles.input}
 />
 
 
@@ -1808,13 +1832,13 @@ className="input"
 placeholder="Panel Email"
 value={panelEmail}
 onChange={(e)=>setPanelEmail(e.target.value)}
-className="input"
+style={styles.input}
 />
 
 
 <button
 onClick={addPanel}
-className="bg-gray-700 text-white px-4 py-2 rounded"
+style={{ background: '#374151', color: 'white', padding: '8px 16px', borderRadius: 6, border: 'none' }}
 >
 Add Panel
 </button>
@@ -1823,7 +1847,7 @@ Add Panel
 
 
 {panels.map((p,i)=>(
-<div key={i} className="mt-2 text-sm">
+<div key={i} style={{ marginTop: 8, fontSize: 14 }}>
 {p.name} — {p.email}
 </div>
 ))}
@@ -1833,37 +1857,37 @@ Add Panel
 {/* ✅ ADDED ROUNDS DISPLAY */}
 
 {rounds.length > 0 && (
-<div className="mt-6 space-y-4">
+<div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
 {rounds.map((round, index) => (
 
-<div key={index} className="border rounded p-4 bg-gray-50">
+<div key={index} style={{ border: '1px solid #D1D5DB', borderRadius: 8, padding: 16, background: '#F9FAFB' }}>
 
-<div className="font-semibold text-gray-700 mb-2">
+<div style={{ fontWeight: 600, color: '#374151', marginBottom: 8 }}>
 {round.roundName} ({round.mode})
 </div>
 
 {round.panels.length > 0 ? (
-<ul className="text-sm space-y-1">
+<ul style={{ fontSize: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
 {round.panels.map((panel, i) => (
-  <li key={i} className="flex justify-between items-center">
+  <li key={i} style={styles.inlineRowBetween}>
 
     <span>
       • {panel.name} — {panel.email}
     </span>
 
-    <div className="space-x-2">
+    <div style={{ display: 'flex', gap: 8 }}>
 
       <button
         onClick={() => editPanel(index, i)}
-        className="text-blue-600 text-xs"
+        style={{ color: '#2563EB', fontSize: 12 }}
       >
         Edit
       </button>
 
       <button
         onClick={() => removePanel(index, i)}
-        className="text-red-500 text-xs"
+        style={styles.errorText}
       >
         Remove
       </button>
@@ -1875,7 +1899,7 @@ Add Panel
 
 </ul>
 ) : (
-<p className="text-sm text-gray-400">No panels added</p>
+<p style={{ fontSize: 14, color: '#9CA3AF' }}>No panels added</p>
 )}
 
 </div>
@@ -1892,11 +1916,11 @@ Add Panel
 
 
 
-<div className="flex justify-end space-x-4 pb-10">
+<div style={styles.footerActions}>
 
 <button
 onClick={()=>navigate(-1)}
-className="px-6 py-2 border rounded"
+style={{ padding: '8px 24px', border: '1px solid #D1D5DB', borderRadius: 6, background: 'white' }}
 >
 Cancel
 </button>
@@ -1905,7 +1929,7 @@ Cancel
 <button
 onClick={submit}
 disabled={loading}
-className="bg-emerald-600 text-white px-6 py-2 rounded"
+style={{ background: '#059669', color: 'white', padding: '8px 24px', borderRadius: 6, border: 'none' }}
 >
 {loading ? 'Saving...' : isEditMode ? 'Update & Resubmit' : 'Submit Request'}
 </button>
@@ -1916,13 +1940,13 @@ className="bg-emerald-600 text-white px-6 py-2 rounded"
 
 {activeBackfillIndex !== null && (
 
-<div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+<div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
 
-<div className="bg-white p-6 rounded shadow w-[500px] max-h-[80vh] overflow-y-auto relative">
+<div style={styles.modalContent}>
 
-<div className="flex justify-between items-center mb-4">
+<div style={{ ...styles.inlineRowBetween, marginBottom: 16 }}>
 
-  <h3 className="text-lg font-semibold">
+  <h3 style={{ fontSize: 18, fontWeight: 600 }}>
     Enter Backfill Details
   </h3>
 
@@ -1931,9 +1955,9 @@ className="bg-emerald-600 text-white px-6 py-2 rounded"
 {/* 🔥 MULTIPLE EMPLOYEES */}
 {backfillList.map((emp, index) => (
 
-<div key={index} className="mb-4 border-b pb-3">
+<div key={index} style={{ marginBottom: 16, borderBottom: '1px solid #E5E7EB', paddingBottom: 12 }}>
 
-<p className="text-sm font-medium mb-2">
+<p style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
 Employee {index + 1}
 </p>
 
@@ -1947,7 +1971,7 @@ onChange={(e) => {
 }}
 inputMode="numeric"
 maxLength={9}
-className="input mb-2 w-full"
+style={{ ...styles.input, ...styles.fullWidth, marginBottom: 8 }}
 />
 
 <input
@@ -1958,14 +1982,14 @@ onChange={(e) => {
   updated[index].employeeName = e.target.value;
   setBackfillList(updated);
 }}
-className="input w-full"
+style={{ ...styles.input, ...styles.fullWidth }}
 />
 
 </div>
 
 ))}
 
-<div className="flex justify-end space-x-3 mt-4">
+<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
 
 <button
 onClick={() => {
@@ -2008,11 +2032,14 @@ if (activeBackfillIndex !== null && activeBackfillIndex >= 0) {
 }}
 disabled={!isBackfillListValid}
 title={!isBackfillListValid ? 'Enter employee ID and employee name for every backfill entry' : undefined}
-className={`px-4 py-2 rounded text-white ${
-  isBackfillListValid
-    ? 'bg-emerald-600'
-    : 'cursor-not-allowed bg-gray-300'
-}`}
+style={{
+  padding: '8px 16px',
+  borderRadius: 6,
+  color: 'white',
+  background: isBackfillListValid ? '#059669' : '#D1D5DB',
+  cursor: isBackfillListValid ? 'pointer' : 'not-allowed',
+  border: 'none',
+}}
 >
 Save
 </button>
@@ -2036,41 +2063,43 @@ Save
 
 export default CreateJob;
 
-
-
-const Section=({title,children}:any)=>(
-
-<div className="bg-white shadow rounded p-6 space-y-6">
-
-<h2 className="text-lg font-semibold border-b pb-2">
-{title}
-</h2>
-
-{children}
-
-</div>
-
+const Section = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) => (
+  <Box
+    background="white"
+    round="8px"
+    pad="24px"
+    gap="24px"
+    style={styles.sectionShadow}
+  >
+    <Box border={{ side: 'bottom', color: '#E5E7EB' }} pad={{ bottom: '8px' }}>
+      <Heading level={3} size="small" margin="none">
+        {title}
+      </Heading>
+    </Box>
+    {children}
+  </Box>
 );
 
-
-const Grid=({children}:any)=>(
-
-<div className="grid grid-cols-2 gap-6">
-{children}
-</div>
-
+const Grid = ({ children }: { children: ReactNode }) => (
+  <Box style={styles.twoColumnGrid}>{children}</Box>
 );
 
-
-const Field=({label,children}:any)=>(
-
-<div>
-<label className="block text-sm font-medium mb-1">
-{label}
-</label>
-{children}
-</div>
-
+const Field = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) => (
+  <FormField label={label} margin="none">
+    {children}
+  </FormField>
 );
 
 const SkillInput = ({
@@ -2092,51 +2121,98 @@ const SkillInput = ({
   onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
   placeholder: string;
 }) => (
-  <div className="relative">
-    <div className="min-h-[50px] rounded-md border border-gray-300 bg-white px-3 py-2">
-      <div className="flex flex-wrap gap-2">
+  <Box style={styles.relative}>
+    <Box style={styles.skillInputShell}>
+      <Box direction="row" wrap gap="8px">
         {skills.map((skill) => (
-          <span
+          <Box
             key={skill}
-            className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700"
+            direction="row"
+            align="center"
+            gap="8px"
+            round="999px"
+            pad={{ horizontal: '12px', vertical: '6px' }}
+            background="#ECFDF5"
           >
-            {skill}
-            <button
-              type="button"
+            <Text size="small" color="#047857">
+              {skill}
+            </Text>
+            <Button
+              plain
+              label="x"
               onClick={() => onRemoveSkill(skill)}
-              className="text-emerald-700 hover:text-red-500"
-            >
-              x
-            </button>
-          </span>
+            />
+          </Box>
         ))}
 
-        <input
+        <TextInput
           value={inputValue}
           onChange={(event) => onInputChange(event.target.value)}
           onKeyDown={onKeyDown}
-          className="min-w-[180px] flex-1 border-0 p-0 text-sm outline-none focus:ring-0"
           placeholder={skills.length ? '' : placeholder}
+          plain
+          style={styles.skillTextInput}
         />
-      </div>
-    </div>
+      </Box>
+    </Box>
 
     {!!suggestions.length && (
-      <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg">
+      <Box style={styles.suggestionMenu}>
         {suggestions.map((suggestion) => (
-          <button
+          <Button
             key={suggestion}
-            type="button"
+            plain
             onClick={() => {
               onAddSkill(suggestion);
               onInputChange('');
             }}
-            className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+            hoverIndicator="#F9FAFB"
           >
-            {suggestion}
-          </button>
+            <Box pad={{ horizontal: '12px', vertical: '10px' }}>
+              <Text size="small">{suggestion}</Text>
+            </Box>
+          </Button>
         ))}
-      </div>
+      </Box>
     )}
-  </div>
+  </Box>
 );
+
+const styles: Record<string, React.CSSProperties> = {
+  pageShell: { width: '100%', padding: '0 32px', display: 'flex', flexDirection: 'column', gap: 32 },
+  sectionShadow: { boxShadow: '0 1px 3px rgba(15, 23, 42, 0.12)' },
+  twoColumnGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 24 },
+  fourColumnGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 },
+  threeColumnGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16, marginTop: 16 },
+  input: { width: '100%', border: '1px solid #D1D5DB', borderRadius: 6, padding: '10px 12px', fontSize: 14, background: 'white' },
+  readOnlyInput: { width: '100%', border: '1px solid #D1D5DB', borderRadius: 6, padding: '10px 12px', fontSize: 14, background: '#F3F4F6' },
+  textarea: { width: '100%', border: '1px solid #D1D5DB', borderRadius: 6, padding: '10px 12px', fontSize: 14, background: 'white' },
+  errorText: { color: '#EF4444', fontSize: 12, marginTop: 4 },
+  fullWidth: { width: '100%' },
+  additionalPositionsLauncher: {
+    border: '2px dashed #D1D5DB',
+    borderRadius: 12,
+    padding: 32,
+    textAlign: 'center',
+    cursor: 'pointer',
+    background: 'linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%)',
+    transition: 'border-color 0.2s ease',
+  },
+  outlinedCard: { border: '1px solid #E5E7EB', borderRadius: 8, padding: 16 },
+  childPositionCard: { border: '1px solid #D1D5DB', borderRadius: 8, padding: 12 },
+  inlineRowBetween: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  inlineRowGap: { display: 'flex', gap: 8 },
+  relative: { position: 'relative' },
+  skillInputShell: { minHeight: 50, border: '1px solid #D1D5DB', borderRadius: 6, background: 'white', padding: '8px 12px' },
+  skillTextInput: { minWidth: 180, flex: 1, fontSize: 14 },
+  suggestionMenu: { position: 'absolute', zIndex: 10, marginTop: 4, width: '100%', border: '1px solid #E5E7EB', borderRadius: 6, background: 'white', boxShadow: '0 10px 15px rgba(15, 23, 42, 0.1)' },
+  skillPill: { display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999, padding: '4px 12px', background: '#ECFDF5' },
+  footerActions: { display: 'flex', justifyContent: 'flex-end', gap: 16, paddingBottom: 40 },
+  footerRow: { display: 'flex', justifyContent: 'flex-end' },
+  warningBanner: { border: '1px solid #FCD34D', background: '#FFFBEB', borderRadius: 6, padding: '12px 16px', fontSize: 14, color: '#92400E' },
+  modalContent: { width: 500, maxHeight: '80vh', overflowY: 'auto' },
+};
+
+
+
+

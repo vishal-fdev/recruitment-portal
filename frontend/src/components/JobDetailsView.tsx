@@ -1,10 +1,21 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  approveJob,
-  getJobDetails,
-  rejectJob,
-} from '../services/jobService';
+  Box,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  Grid,
+  Heading,
+  Paragraph,
+  Spinner,
+  Tab,
+  Tabs,
+  Text,
+  TextArea,
+} from 'grommet';
+import { approveJob, getJobDetails, rejectJob } from '../services/jobService';
 import type { Job } from '../services/jobService';
 
 type TabType = 'DETAILS' | 'INTERVIEWS' | 'CALIBRATION';
@@ -17,6 +28,12 @@ type JobDetailsViewProps = {
 type BackfillEntry = {
   employeeId?: string;
   employeeName?: string;
+};
+
+const TAB_INDEX: Record<TabType, number> = {
+  DETAILS: 0,
+  INTERVIEWS: 1,
+  CALIBRATION: 2,
 };
 
 const JobDetailsView = ({
@@ -32,7 +49,8 @@ const JobDetailsView = ({
   const [activeTab, setActiveTab] = useState<TabType>('DETAILS');
   const [calibrationNotes, setCalibrationNotes] = useState('');
   const [isEditingCalibration, setIsEditingCalibration] = useState(false);
-  const canResubmit = !showApprovalActions && ['PENDING_APPROVAL', 'REJECTED'].includes(job?.status || '');
+  const canResubmit =
+    !showApprovalActions && ['PENDING_APPROVAL', 'REJECTED'].includes(job?.status || '');
 
   useEffect(() => {
     if (id) {
@@ -81,8 +99,21 @@ const JobDetailsView = ({
     setIsEditingCalibration(false);
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (!job) return <div>Job not found.</div>;
+  if (loading) {
+    return (
+      <Box align="center" justify="center" pad="xlarge">
+        <Spinner size="medium" />
+      </Box>
+    );
+  }
+
+  if (!job) {
+    return (
+      <Box pad="large">
+        <Text>Job not found.</Text>
+      </Box>
+    );
+  }
 
   let hiringManagerName = job.hiringManager;
   if (!hiringManagerName) {
@@ -154,299 +185,318 @@ const JobDetailsView = ({
     const entries = parseBackfillEntries(employeeIdValue, employeeNameValue);
 
     return (
-      <div className="space-y-1 text-right">
+      <Box gap="xsmall" align="end">
         {entries.map((entry, index) => (
-          <div key={`${field}-${index}`}>
+          <Text key={`${field}-${index}`} size="small" weight={500}>
             {field === 'employeeId' ? entry.employeeId || '-' : entry.employeeName || '-'}
-          </div>
+          </Text>
         ))}
-      </div>
+      </Box>
     );
   };
 
   return (
-    <div className="space-y-6">
-      <button
+    <Box gap="large">
+      <Button
+        label="Back"
         onClick={() => navigate(backRoute)}
-        className="px-4 py-2 bg-green-600 text-white rounded-md"
-      >
-        ← Back
-      </button>
+        color="white"
+        primary
+        style={{ alignSelf: 'flex-start' }}
+      />
 
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">HRQ{job.id}</h1>
+      <Box direction="row" justify="between" align="center" gap="medium" wrap>
+        <Heading level={2} margin="none">
+          HRQ{job.id}
+        </Heading>
         {canResubmit && (
-          <button
+          <Button
+            primary
+            color="brand"
+            label="Resubmit"
             onClick={() =>
               navigate(`/hiring-manager/edit-job/${job.id}`, {
                 state: { job },
               })
             }
-            className="rounded-[12px] bg-[#01A982] px-4 py-2 text-sm font-semibold text-white"
-          >
-            Resubmit
-          </button>
+          />
         )}
-      </div>
+      </Box>
 
       {showApprovalActions && job.status === 'PENDING_APPROVAL' && (
-        <div className="flex gap-4">
-          <button
+        <Box direction="row" gap="small">
+          <Button
+            label="Approve"
+            primary
+            color="dark-1"
             onClick={() => void handleApprove()}
             disabled={actionLoading}
-            className="px-6 py-2 bg-black text-white rounded"
-          >
-            Approve
-          </button>
-          <button
+          />
+          <Button
+            label="Reject"
             onClick={() => void handleReject()}
             disabled={actionLoading}
-            className="px-6 py-2 border rounded"
-          >
-            Reject
-          </button>
-        </div>
+          />
+        </Box>
       )}
 
-      <div className="bg-gray-200 rounded-lg flex overflow-hidden text-sm font-medium">
-        <TabButton
-          label="Details"
-          active={activeTab === 'DETAILS'}
-          onClick={() => setActiveTab('DETAILS')}
-        />
-        <TabButton
-          label="Interview Rounds"
-          active={activeTab === 'INTERVIEWS'}
-          onClick={() => setActiveTab('INTERVIEWS')}
-        />
-        <TabButton
-          label="Calibration"
-          active={activeTab === 'CALIBRATION'}
-          onClick={() => setActiveTab('CALIBRATION')}
-        />
-      </div>
+      <Box
+        background="white"
+        round="medium"
+        pad="small"
+        border={{ color: 'border', size: 'xsmall' }}
+      >
+        <Tabs
+          activeIndex={TAB_INDEX[activeTab]}
+          onActive={(index) =>
+            setActiveTab((Object.keys(TAB_INDEX) as TabType[]).find((key) => TAB_INDEX[key] === index) || 'DETAILS')
+          }
+        >
+          <Tab title="Details" />
+          <Tab title="Interview Rounds" />
+          <Tab title="Calibration" />
+        </Tabs>
+      </Box>
 
       {activeTab === 'DETAILS' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card title="Hiring Information">
-              <Row label="HRQ ID" value={`HRQ${job.id}`} />
-              <Row label="Role" value={job.title} />
-              <Row label="Hiring Manager" value={hiringManagerName} />
-              <Row label="Business" value={job.department} />
-              <Row label="Created Date" value={job.createdAt?.split('T')[0]} />
-            </Card>
+        <Box gap="large">
+          <Grid columns={{ count: 'fit', size: ['100%', '48%'] }} gap="large">
+            <InfoCard title="Hiring Information">
+              <DetailRow label="HRQ ID" value={`HRQ${job.id}`} />
+              <DetailRow label="Role" value={job.title} />
+              <DetailRow label="Hiring Manager" value={hiringManagerName} />
+              <DetailRow label="Business" value={job.department} />
+              <DetailRow label="Created Date" value={job.createdAt?.split('T')[0]} />
+            </InfoCard>
 
-            <Card title="Job Information">
-              <Row label="Location" value={job.location} />
-              <Row label="Employment Type" value={job.employmentType} />
-              <Row label="Work Type" value={job.workType} />
-              <Row label="Category" value={job.jobCategory} />
-              <Row label="Region" value={job.region} />
-              <Row label="Deal" value={job.dealName} />
-              <Row label="Start Date" value={job.startDate} />
-              <Row label="End Date" value={job.endDate} />
-              <Row label="Primary Skills" value={formatSkills(job.primarySkills)} />
-              <Row
-                label="Secondary Skills"
-                value={formatSkills(job.secondarySkills)}
-              />
-            </Card>
-          </div>
+            <InfoCard title="Job Information">
+              <DetailRow label="Location" value={job.location} />
+              <DetailRow label="Employment Type" value={job.employmentType} />
+              <DetailRow label="Work Type" value={job.workType} />
+              <DetailRow label="Category" value={job.jobCategory} />
+              <DetailRow label="Region" value={job.region} />
+              <DetailRow label="Deal" value={job.dealName} />
+              <DetailRow label="Start Date" value={job.startDate} />
+              <DetailRow label="End Date" value={job.endDate} />
+              <DetailRow label="Primary Skills" value={formatSkills(job.primarySkills)} />
+              <DetailRow label="Secondary Skills" value={formatSkills(job.secondarySkills)} />
+            </InfoCard>
+          </Grid>
 
-          <Card title="Position Details">
-            <div className="mb-4">
-              <h3 className="font-semibold mb-2">Main Position</h3>
+          <InfoCard title="Position Details">
+            <Box gap="medium">
+              <Box gap="small">
+                <Text weight={600}>Main Position</Text>
+                <DetailRow label="Request Type" value={job.requestType} />
+                <DetailRow label="No. Positions" value={job.numberOfPositions} />
+                <DetailRow label="Level" value={job.level} />
 
-              <Row label="Request Type" value={job.requestType} />
-              <Row label="No. Positions" value={job.numberOfPositions} />
-              <Row label="Level" value={job.level} />
-
-              {job.requestType === 'BACKFILL' && (
-                <>
-                  <Row
-                    label="Employee ID"
-                    value={renderBackfillValue(
-                      job.backfillEmployeeId,
-                      job.backfillEmployeeName,
-                      'employeeId',
-                    )}
-                  />
-                  <Row
-                    label="Employee Name"
-                    value={renderBackfillValue(
-                      job.backfillEmployeeId,
-                      job.backfillEmployeeName,
-                      'employeeName',
-                    )}
-                  />
-                </>
-              )}
-
-            </div>
-
-            {job.positions?.map((position, index) => (
-              <div key={position.id} className="mb-4 border-t pt-4">
-                <h4 className="font-medium mb-2">
-                  Additional Position {index + 1}
-                </h4>
-
-                <Row label="Level" value={position.level} />
-                <Row label="Openings" value={position.openings} />
-                <Row label="Request Type" value={position.requestType} />
-
-                {position.requestType === 'BACKFILL' && (
+                {job.requestType === 'BACKFILL' && (
                   <>
-                    <Row
+                    <DetailRow
                       label="Employee ID"
                       value={renderBackfillValue(
-                        position.backfillEmployeeId,
-                        position.backfillEmployeeName,
+                        job.backfillEmployeeId,
+                        job.backfillEmployeeName,
                         'employeeId',
                       )}
                     />
-                    <Row
+                    <DetailRow
                       label="Employee Name"
                       value={renderBackfillValue(
-                        position.backfillEmployeeId,
-                        position.backfillEmployeeName,
+                        job.backfillEmployeeId,
+                        job.backfillEmployeeName,
                         'employeeName',
                       )}
                     />
                   </>
                 )}
+              </Box>
 
-              </div>
-            ))}
-          </Card>
+              {job.positions?.map((position, index) => (
+                <Box
+                  key={position.id}
+                  gap="small"
+                  pad={{ top: 'medium' }}
+                  border={{ side: 'top', color: 'border' }}
+                >
+                  <Text weight={500}>Additional Position {index + 1}</Text>
+                  <DetailRow label="Level" value={position.level} />
+                  <DetailRow label="Openings" value={position.openings} />
+                  <DetailRow label="Request Type" value={position.requestType} />
 
-          <Card title="Justification">
-            <p className="text-sm">{job.justification}</p>
-          </Card>
-        </div>
+                  {position.requestType === 'BACKFILL' && (
+                    <>
+                      <DetailRow
+                        label="Employee ID"
+                        value={renderBackfillValue(
+                          position.backfillEmployeeId,
+                          position.backfillEmployeeName,
+                          'employeeId',
+                        )}
+                      />
+                      <DetailRow
+                        label="Employee Name"
+                        value={renderBackfillValue(
+                          position.backfillEmployeeId,
+                          position.backfillEmployeeName,
+                          'employeeName',
+                        )}
+                      />
+                    </>
+                  )}
+                </Box>
+              ))}
+            </Box>
+          </InfoCard>
+
+          <InfoCard title="Justification">
+            <Paragraph margin="none" size="small">
+              {job.justification || '-'}
+            </Paragraph>
+          </InfoCard>
+        </Box>
       )}
 
       {activeTab === 'INTERVIEWS' && (
-        <div className="space-y-4">
+        <Box gap="medium">
           {job.interviewRounds?.map((round, index) => (
-            <div key={round.id} className="bg-white rounded-xl shadow border p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-sm font-semibold">
-                  {index + 1}
-                </div>
+            <Card
+              key={round.id}
+              background="white"
+              round="large"
+              border={{ color: 'border', size: 'xsmall' }}
+              pad="medium"
+              elevation="xsmall"
+            >
+              <Box direction="row" gap="medium" align="center" margin={{ bottom: 'medium' }}>
+                <Box
+                  width="32px"
+                  height="32px"
+                  round="full"
+                  background="light-3"
+                  align="center"
+                  justify="center"
+                >
+                  <Text size="small" weight={600}>
+                    {index + 1}
+                  </Text>
+                </Box>
 
-                <div>
-                  <div className="font-medium">{round.roundName}</div>
-                  <div className="text-xs text-gray-500">{round.mode}</div>
-                </div>
-              </div>
+                <Box>
+                  <Text weight={600}>{round.roundName}</Text>
+                  <Text size="xsmall" color="dark-4">
+                    {round.mode}
+                  </Text>
+                </Box>
+              </Box>
 
-              <div className="text-sm text-gray-600 mb-2">Panel Members</div>
+              <Text size="small" color="dark-4" margin={{ bottom: 'small' }}>
+                Panel Members
+              </Text>
 
-              <div className="flex flex-wrap gap-2">
+              <Box direction="row" wrap gap="small">
                 {round.panels.map((panel) => (
-                  <span
+                  <Box
                     key={panel.id}
-                    className="px-3 py-1 bg-gray-200 rounded-full text-xs"
+                    background="light-2"
+                    round="full"
+                    pad={{ horizontal: 'small', vertical: 'xsmall' }}
                   >
-                    {panel.name} ({panel.email})
-                  </span>
+                    <Text size="xsmall">
+                      {panel.name} ({panel.email})
+                    </Text>
+                  </Box>
                 ))}
-              </div>
-            </div>
+              </Box>
+            </Card>
           ))}
-        </div>
+        </Box>
       )}
 
       {activeTab === 'CALIBRATION' && (
-        <div className="bg-white rounded-xl shadow border p-8 text-center">
+        <Card
+          background="white"
+          round="large"
+          border={{ color: 'border', size: 'xsmall' }}
+          pad="large"
+          align="center"
+          elevation="xsmall"
+        >
           {!isEditingCalibration ? (
-            <>
-              <h2 className="text-lg font-medium mb-2">
+            <Box align="center" gap="small">
+              <Heading level={4} margin="none">
                 No Calibration Information
-              </h2>
-
-              <p className="text-sm text-gray-500 mb-4">
+              </Heading>
+              <Paragraph size="small" color="dark-4" textAlign="center" margin="none">
                 No calibration sessions have been scheduled yet.
-              </p>
-
-              <button
+              </Paragraph>
+              <Button
+                label="Add Calibration Pointers"
+                primary
+                color="dark-1"
                 onClick={() => setIsEditingCalibration(true)}
-                className="px-5 py-2 bg-black text-white rounded"
-              >
-                Add Calibration Pointers
-              </button>
-            </>
+              />
+            </Box>
           ) : (
-            <>
-              <textarea
+            <Box width="100%" gap="medium">
+              <TextArea
                 value={calibrationNotes}
-                onChange={(e) => setCalibrationNotes(e.target.value)}
-                className="w-full border rounded p-3 mb-4"
+                onChange={(event) => setCalibrationNotes(event.currentTarget.value)}
+                resize={false}
+                rows={6}
               />
 
-              <div className="flex justify-center gap-3">
-                <button
+              <Box direction="row" justify="center" gap="small">
+                <Button
+                  label="Save"
+                  primary
+                  color="dark-1"
                   onClick={handleSaveCalibration}
-                  className="px-5 py-2 bg-black text-white rounded"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setIsEditingCalibration(false)}
-                  className="px-5 py-2 border rounded"
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
+                />
+                <Button label="Cancel" onClick={() => setIsEditingCalibration(false)} />
+              </Box>
+            </Box>
           )}
-        </div>
+        </Card>
       )}
-    </div>
+    </Box>
   );
 };
 
 export default JobDetailsView;
 
-const Card = ({ title, children }: { title: string; children: ReactNode }) => (
-  <div className="bg-white rounded-xl shadow border border-gray-200">
-    <div className="px-6 py-4 border-b font-medium">{title}</div>
-    <div className="p-4">{children}</div>
-  </div>
-);
-
-const Row = ({ label, value }: { label: string; value: ReactNode }) => (
-  <div className="flex justify-between px-4 py-2 odd:bg-gray-200 even:bg-white rounded">
-    <span className="text-gray-700">{label}</span>
-    <span className="font-medium">{value || '-'}</span>
-  </div>
-);
-
-const Btn = ({ link, label }: { link: string; label: string }) => (
-  <a
-    href={link}
-    target="_blank"
-    rel="noreferrer"
-    className="px-3 py-1 bg-gray-800 text-white rounded text-sm hover:bg-black"
+const InfoCard = ({ title, children }: { title: string; children: ReactNode }) => (
+  <Card
+    background="white"
+    round="large"
+    border={{ color: 'border', size: 'xsmall' }}
+    elevation="xsmall"
   >
-    {label}
-  </a>
+    <CardHeader pad={{ horizontal: 'medium', vertical: 'small' }}>
+      <Text weight={600}>{title}</Text>
+    </CardHeader>
+    <CardBody pad="medium" gap="xsmall">
+      {children}
+    </CardBody>
+  </Card>
 );
 
-const TabButton = ({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) => (
-  <button
-    onClick={onClick}
-    className={`flex-1 py-3 ${active ? 'bg-white font-semibold' : 'text-gray-600'}`}
+const DetailRow = ({ label, value }: { label: string; value: ReactNode }) => (
+  <Box
+    direction="row"
+    justify="between"
+    align="start"
+    gap="medium"
+    pad={{ horizontal: 'medium', vertical: 'small' }}
+    background="light-1"
+    round="small"
   >
-    {label}
-  </button>
+    <Text color="dark-4">{label}</Text>
+    {typeof value === 'string' || typeof value === 'number' ? (
+      <Text weight={500}>{value || '-'}</Text>
+    ) : (
+      value || <Text weight={500}>-</Text>
+    )}
+  </Box>
 );

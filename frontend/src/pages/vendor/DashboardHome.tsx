@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { Box, Button, Card, CardBody, Grid, Heading, Paragraph, Text } from 'grommet';
 import type { DashboardStats, SubmissionStat } from '../../services/dashboardService';
 import { getDashboardStats } from '../../services/dashboardService';
 import { getVendorCandidates } from '../../services/candidateService';
@@ -56,9 +57,7 @@ const DashboardHome = () => {
       } catch (error) {
         console.error('Failed to load vendor dashboard', error);
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     };
 
@@ -86,7 +85,6 @@ const DashboardHome = () => {
   );
 
   const weeklySubmissions: SubmissionStat[] = stats?.submissionsByDate ?? [];
-
   const candidatesSubmitted = candidates.length;
   const assignedJobs = jobs.length;
   const submittedThisWeek = weeklySubmissions.reduce((sum, item) => sum + Number(item.count), 0);
@@ -101,148 +99,121 @@ const DashboardHome = () => {
     .slice(0, 4);
 
   const candidateLiveStatus = [...candidates]
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
-    )
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
     .slice(0, 4);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-[26px] font-semibold leading-tight text-[#0F172A]">
+    <Box gap="large">
+      <Box gap="xsmall">
+        <Heading level={2} margin="none" color="text-strong">
           Vendor dashboard
-        </h1>
-        <div className="mt-2 flex items-center gap-2 text-[15px] text-[#6B7280]">
-          <span className="h-2.5 w-2.5 rounded-full bg-[#96F7E4]" />
-          <span>Live recruitment activity</span>
-        </div>
-      </div>
+        </Heading>
+        <Box direction="row" align="center" gap="small">
+          <Box width="10px" height="10px" round="full" background="#96F7E4" />
+          <Text color="text-paragraph">Live recruitment activity</Text>
+        </Box>
+      </Box>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          accent="#01A982"
-          title="ASSIGNED JOBS"
-          value={loading ? '...' : assignedJobs}
-          helper={`${jobsCreatedToday} new today`}
-          helperColor="text-[#01A982]"
-        />
-        <StatCard
-          accent="#3B82F6"
-          title="CANDIDATES SUBMITTED"
-          value={loading ? '...' : candidatesSubmitted}
-          helper={`${submittedThisWeek} this week`}
-          helperColor="text-[#01A982]"
-        />
-        <StatCard
-          accent="#7C6CF2"
-          title="IN INTERVIEW STAGE"
-          value={loading ? '...' : interviewCandidates.length}
-          helper={`Across ${interviewJobsCount} jobs`}
-          helperColor="text-[#94A3B8]"
-        />
-        <StatCard
-          accent="#F59E0B"
-          title="OFFERS / PLACED"
-          value={loading ? '...' : offersPlaced}
-          helper="This quarter"
-          helperColor="text-[#01A982]"
-        />
-      </section>
+      <Grid columns={{ count: 'fit', size: ['small', 'small'] }} gap="medium">
+        <StatCard accent="#01A982" title="ASSIGNED JOBS" value={loading ? '...' : assignedJobs} helper={`${jobsCreatedToday} new today`} helperColor="#01A982" />
+        <StatCard accent="#3B82F6" title="CANDIDATES SUBMITTED" value={loading ? '...' : candidatesSubmitted} helper={`${submittedThisWeek} this week`} helperColor="#01A982" />
+        <StatCard accent="#7C6CF2" title="IN INTERVIEW STAGE" value={loading ? '...' : interviewCandidates.length} helper={`Across ${interviewJobsCount} jobs`} helperColor="#94A3B8" />
+        <StatCard accent="#F59E0B" title="OFFERS / PLACED" value={loading ? '...' : offersPlaced} helper="This quarter" helperColor="#01A982" />
+      </Grid>
 
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_1fr]">
+      <Grid columns={{ count: 'fit', size: ['medium', 'medium'] }} gap="medium">
         <DashboardCard title="Candidate stage summary">
           {stageData.length ? (
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_220px]">
-              <div className="h-[320px]">
+            <Grid columns={['flex', '220px']} gap="medium">
+              <Box height="320px">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie
-                      data={stageData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={68}
-                      outerRadius={120}
-                      paddingAngle={3}
-                    >
+                    <Pie data={stageData} dataKey="value" nameKey="name" innerRadius={68} outerRadius={120} paddingAngle={3}>
                       {stageData.map((entry, index) => (
-                        <Cell
-                          key={`${entry.name}-${index}`}
-                          fill={CHART_COLORS[index % CHART_COLORS.length]}
-                        />
+                        <Cell key={`${entry.name}-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip />
                   </PieChart>
                 </ResponsiveContainer>
-              </div>
-              <div className="flex flex-col justify-center gap-3">
+              </Box>
+              <Box justify="center" gap="small">
                 {stageData.map((entry, index) => (
-                  <div key={entry.name} className="flex items-center gap-3">
-                    <span
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
-                    />
-                    <span className="flex-1 text-sm text-[#475569]">{entry.name}</span>
-                    <span className="text-sm font-semibold text-[#0F172A]">{entry.value}</span>
-                  </div>
+                  <Box key={entry.name} direction="row" align="center" gap="small">
+                    <Box width="12px" height="12px" round="full" background={CHART_COLORS[index % CHART_COLORS.length]} />
+                    <Box flex>
+  <Text color="text-paragraph" size="small">
+    {entry.name}
+  </Text>
+</Box>
+                    <Text weight="bold" size="small">
+                      {entry.value}
+                    </Text>
+                  </Box>
                 ))}
-              </div>
-            </div>
+              </Box>
+            </Grid>
           ) : (
-            <EmptyState message="No candidate stage data available yet." heightClassName="h-[320px]" />
+            <EmptyState message="No candidate stage data available yet." />
           )}
         </DashboardCard>
 
         <DashboardCard
           title="Assigned jobs"
-          action={
-            <button
-              type="button"
-              onClick={() => navigate('/vendor/candidates')}
-              className="text-[13px] font-semibold text-[#01A982]"
-            >
-              View all
-            </button>
-          }
+          action={<Button plain label="View all" color="brand" onClick={() => navigate('/vendor/candidates')} />}
         >
-          <div className="space-y-3">
+          <Box gap="small">
             {assignedJobsList.length ? (
               assignedJobsList.map((job) => (
-                <div
+                <Card
                   key={job.id}
+                  background={{ color: '#F8FAFC' }}
+                  round="18px"
+                  border={{ color: 'border-weak' }}
                   onClick={() => navigate(`/vendor/jobs/${job.id}`)}
-                  className="flex cursor-pointer items-center gap-3 rounded-[18px] border border-black/5 bg-[#F8FAFC] px-4 py-4 transition hover:bg-[#EEFDF9]"
+                  elevation="xsmall"
                 >
-                  <div className="min-w-[110px] text-[15px] text-[#7C8699]">{`JOB-${String(job.id).padStart(3, '0')}`}</div>
-                  <div className="flex-1">
-                    <div className="text-[16px] font-medium text-[#0F172A]">{job.title}</div>
-                  </div>
-                  <div className="min-w-[92px] text-[15px] text-[#94A3B8]">{job.location || '-'}</div>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      navigate(`/vendor/candidates/create?jobId=${job.id}`);
-                    }}
-                    className="rounded-[12px] bg-[#01A982] px-5 py-2 text-sm font-semibold text-white transition hover:shadow-md"
-                  >
-                    Submit
-                  </button>
-                </div>
+                  <CardBody pad="medium">
+                    <Box direction="row" align="center" gap="medium" wrap>
+                      <Box width="110px">
+  <Text color="text-weak">
+    {`JOB-${String(job.id).padStart(3, '0')}`}
+  </Text>
+</Box>
+                      <Box flex>
+                        <Text weight="bold">{job.title}</Text>
+                      </Box>
+                      <Box width="92px">
+  <Text color="text-weak">
+    {job.location || '-'}
+  </Text>
+</Box>
+                      <Button
+                        type="button"
+                        label="Submit"
+                        primary
+                        color="brand"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate(`/vendor/candidates/create?jobId=${job.id}`);
+                        }}
+                      />
+                    </Box>
+                  </CardBody>
+                </Card>
               ))
             ) : (
-              <EmptyState message="No assigned jobs available." heightClassName="h-[320px]" />
+              <EmptyState message="No assigned jobs available." />
             )}
-          </div>
+          </Box>
         </DashboardCard>
-      </section>
+      </Grid>
 
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_1fr]">
+      <Grid columns={{ count: 'fit', size: ['medium', 'medium'] }} gap="medium">
         <DashboardCard title="Weekly profile submissions">
           {weeklySubmissions.length ? (
-            <div className="space-y-3">
-              <div className="h-[320px]">
+            <Box gap="small">
+              <Box height="320px">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={weeklySubmissions}>
                     <CartesianGrid strokeDasharray="4 4" stroke="#E2E8F0" />
@@ -252,46 +223,66 @@ const DashboardHome = () => {
                     <Bar dataKey="count" fill="#01A982" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
-              <div className="rounded-[14px] bg-[#F8FAFC] px-4 py-3 text-sm text-[#475569]">
-                Total submissions this week: <span className="font-semibold text-[#0F172A]">{submittedThisWeek}</span>
-              </div>
-            </div>
+              </Box>
+              <Box background="#F8FAFC" round="14px" pad={{ horizontal: 'medium', vertical: 'small' }}>
+                <Text size="small" color="text-paragraph">
+                  Total submissions this week: <Text weight="bold">{submittedThisWeek}</Text>
+                </Text>
+              </Box>
+            </Box>
           ) : (
-            <EmptyState message="No weekly submission data available yet." heightClassName="h-[320px]" />
+            <EmptyState message="No weekly submission data available yet." />
           )}
         </DashboardCard>
 
-        <DashboardCard title="My candidates — live status">
-          <div className="space-y-3">
+        <DashboardCard title="My candidates - live status">
+          <Box gap="small">
             {candidateLiveStatus.length ? (
               candidateLiveStatus.map((candidate) => (
-                <div
+                <Card
                   key={candidate.id}
+                  background="white"
+                  round="18px"
+                  border={{ color: 'border-weak' }}
                   onClick={() => navigate(`/vendor/candidates/${candidate.id}`)}
-                  className="flex cursor-pointer items-center gap-4 rounded-[18px] border border-black/5 bg-white px-4 py-4 shadow-[0_1px_0_rgba(15,23,42,0.04)] transition hover:bg-[#F8FAFC]"
+                  elevation="xsmall"
                 >
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F1F5F9] text-[16px] font-semibold uppercase text-[#6B7280]">
-                    {getInitials(candidate.name)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-[16px] font-medium text-[#0F172A]">{candidate.name}</div>
-                    <div className="text-[15px] text-[#94A3B8]">
-                      {candidate.job ? `JOB-${String(candidate.job.id).padStart(3, '0')}` : 'No job assigned'}
-                    </div>
-                  </div>
-                  <span className={`rounded-full px-4 py-2 text-sm font-medium ${getLiveStatusClass(candidate.status)}`}>
-                    {formatLiveStatus(candidate.status)}
-                  </span>
-                </div>
+                  <CardBody pad="medium">
+                    <Box direction="row" align="center" gap="medium" wrap>
+                      <Box
+                        width="44px"
+                        height="44px"
+                        round="full"
+                        background="#F1F5F9"
+                        align="center"
+                        justify="center"
+                      >
+                        <Text weight="bold" color="#6B7280">
+                          {getInitials(candidate.name)}
+                        </Text>
+                      </Box>
+                      <Box flex>
+                        <Text weight="bold">{candidate.name}</Text>
+                        <Text color="text-weak">
+                          {candidate.job ? `JOB-${String(candidate.job.id).padStart(3, '0')}` : 'No job assigned'}
+                        </Text>
+                      </Box>
+                      <Box background={getLiveStatusColors(candidate.status).background} pad={{ horizontal: 'medium', vertical: 'small' }} round="full">
+                        <Text size="small" weight="bold" color={getLiveStatusColors(candidate.status).color}>
+                          {formatLiveStatus(candidate.status)}
+                        </Text>
+                      </Box>
+                    </Box>
+                  </CardBody>
+                </Card>
               ))
             ) : (
-              <EmptyState message="No live candidate activity yet." heightClassName="h-[320px]" />
+              <EmptyState message="No live candidate activity yet." />
             )}
-          </div>
+          </Box>
         </DashboardCard>
-      </section>
-    </div>
+      </Grid>
+    </Box>
   );
 };
 
@@ -308,14 +299,20 @@ const StatCard = ({
   helperColor: string;
   accent: string;
 }) => (
-  <div className="overflow-hidden rounded-[18px] border border-black/10 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.04)]">
-    <div className="h-1 w-full" style={{ backgroundColor: accent }} />
-    <div className="px-7 py-5">
-      <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">{title}</p>
-      <p className="mt-2 text-[42px] font-semibold leading-none tracking-[-0.03em] text-[#0F172A]">{value}</p>
-      <p className={`mt-3 text-[14px] ${helperColor}`}>{helper}</p>
-    </div>
-  </div>
+  <Card background="white" round="18px" border={{ color: 'border-weak' }} overflow="hidden" elevation="xsmall">
+    <Box height="4px" background={accent} />
+    <CardBody pad="medium" gap="small">
+      <Text size="xsmall" weight="bold" color="#9CA3AF">
+        {title}
+      </Text>
+      <Text size="xxlarge" weight="bold" color="text-strong">
+        {value}
+      </Text>
+      <Text size="small" color={helperColor}>
+        {helper}
+      </Text>
+    </CardBody>
+  </Card>
 );
 
 const DashboardCard = ({
@@ -327,25 +324,23 @@ const DashboardCard = ({
   children: React.ReactNode;
   action?: React.ReactNode;
 }) => (
-  <div className="rounded-[22px] border border-black/10 bg-white px-7 py-6 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
-    <div className="mb-5 flex items-center justify-between gap-4">
-      <h2 className="text-[20px] font-semibold text-[#0F172A]">{title}</h2>
-      {action}
-    </div>
-    {children}
-  </div>
+  <Card background="white" round="22px" border={{ color: 'border-weak' }} elevation="xsmall">
+    <CardBody pad="large" gap="medium">
+      <Box direction="row" justify="between" align="center" gap="medium">
+        <Heading level={3} size="small" margin="none">
+          {title}
+        </Heading>
+        {action}
+      </Box>
+      {children}
+    </CardBody>
+  </Card>
 );
 
-const EmptyState = ({
-  message,
-  heightClassName,
-}: {
-  message: string;
-  heightClassName: string;
-}) => (
-  <div className={`flex items-center justify-center text-sm text-[#94A3B8] ${heightClassName}`}>
-    {message}
-  </div>
+const EmptyState = ({ message }: { message: string }) => (
+  <Box height="320px" align="center" justify="center">
+    <Text color="text-weak">{message}</Text>
+  </Box>
 );
 
 const formatStageLabel = (value: string) =>
@@ -381,27 +376,27 @@ const formatLiveStatus = (status: string) => {
   }
 };
 
-const getLiveStatusClass = (status: string) => {
+const getLiveStatusColors = (status: string) => {
   switch (status) {
     case 'OPS_SELECTED':
     case 'IDENTIFIED':
-      return 'bg-[#EFE7FF] text-[#6D28D9]';
+      return { background: '#EFE7FF', color: '#6D28D9' };
     case 'SCREEN_SELECTED':
     case 'TECH_SELECTED':
-      return 'bg-[#DDFBF2] text-[#0F766E]';
+      return { background: '#DDFBF2', color: '#0F766E' };
     case 'SUBMITTED':
-      return 'bg-[#DBEAFE] text-[#1D4ED8]';
+      return { background: '#DBEAFE', color: '#1D4ED8' };
     case 'SCREEN_REJECTED':
     case 'TECH_REJECTED':
     case 'OPS_REJECTED':
     case 'DROPPED':
-      return 'bg-[#FEE2E2] text-[#B91C1C]';
+      return { background: '#FEE2E2', color: '#B91C1C' };
     case 'ONBOARDED':
-      return 'bg-[#DCFCE7] text-[#15803D]';
+      return { background: '#DCFCE7', color: '#15803D' };
     case 'YET_TO_JOIN':
-      return 'bg-[#FEF3C7] text-[#B45309]';
+      return { background: '#FEF3C7', color: '#B45309' };
     default:
-      return 'bg-[#F1F5F9] text-[#475569]';
+      return { background: '#F1F5F9', color: '#475569' };
   }
 };
 

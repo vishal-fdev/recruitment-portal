@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Button,
+  CheckBox,
+  FormField,
+  Heading,
+  Text,
+  TextArea,
+  TextInput,
+} from 'grommet';
 import api from '../../api/api';
 
 interface Vendor {
@@ -23,9 +33,6 @@ const CreateJob = () => {
     isActive: true,
   });
 
-  // ============================
-  // FETCH VENDORS (FIXED)
-  // ============================
   useEffect(() => {
     api
       .get('/vendors')
@@ -35,9 +42,6 @@ const CreateJob = () => {
       });
   }, []);
 
-  // ============================
-  // SUBMIT JOB
-  // ============================
   const submit = async () => {
     setError(null);
 
@@ -63,116 +67,95 @@ const CreateJob = () => {
   };
 
   return (
-    <div className="max-w-3xl space-y-4">
-      <h1 className="text-2xl font-semibold">
+    <Box width="xlarge" gap="16px">
+      <Heading level={2} size="small" margin="none">
         Create Job
-      </h1>
+      </Heading>
 
       {error && (
-        <div className="bg-red-100 text-red-700 p-2 rounded text-sm">
-          {error}
-        </div>
+        <Box background="#FEE2E2" pad="12px" round="8px">
+          <Text size="small" color="#B91C1C">
+            {error}
+          </Text>
+        </Box>
       )}
 
-      <input
-        placeholder="Job Title *"
-        className="w-full border p-2 rounded"
-        value={form.title}
-        onChange={(e) =>
-          setForm({ ...form, title: e.target.value })
-        }
-      />
+      <Box background="white" round="12px" border={{ color: 'border-weak' }} pad="24px" gap="16px">
+        <FormField label="Job Title *" margin="none">
+          <TextInput
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+          />
+        </FormField>
 
-      <textarea
-        placeholder="Description"
-        className="w-full border p-2 rounded"
-        value={form.description}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            description: e.target.value,
-          })
-        }
-      />
+        <FormField label="Description" margin="none">
+          <TextArea
+            value={form.description}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                description: e.target.value,
+              })
+            }
+            rows={4}
+            resize={false}
+          />
+        </FormField>
 
-      <input
-        placeholder="Location *"
-        className="w-full border p-2 rounded"
-        value={form.location}
-        onChange={(e) =>
-          setForm({ ...form, location: e.target.value })
-        }
-      />
+        <FormField label="Location *" margin="none">
+          <TextInput
+            value={form.location}
+            onChange={(e) => setForm({ ...form, location: e.target.value })}
+          />
+        </FormField>
 
-      <input
-        placeholder="Experience (e.g. 5–8 yrs) *"
-        className="w-full border p-2 rounded"
-        value={form.experience}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            experience: e.target.value,
-          })
-        }
-      />
+        <FormField label="Experience *" margin="none">
+          <TextInput
+            value={form.experience}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                experience: e.target.value,
+              })
+            }
+          />
+        </FormField>
 
-      <div>
-        <h3 className="font-medium mb-2">
-          Assign Vendors
-        </h3>
+        <Box gap="8px">
+          <Text weight={500}>Assign Vendors</Text>
 
-        {vendors.length === 0 && (
-          <p className="text-sm text-gray-500">
-            No vendors available
-          </p>
-        )}
+          {vendors.length === 0 && (
+            <Text size="small" color="#64748B">
+              No vendors available
+            </Text>
+          )}
 
-        {vendors.map((v) => (
-          <label
-            key={v.id}
-            className="block text-sm"
-          >
-            <input
-              type="checkbox"
-              className="mr-2"
+          {vendors.map((v) => (
+            <CheckBox
+              key={v.id}
+              label={v.email}
               checked={selectedVendors.includes(v.id)}
               onChange={(e) =>
                 e.target.checked
-                  ? setSelectedVendors([
-                      ...selectedVendors,
-                      v.id,
-                    ])
-                  : setSelectedVendors(
-                      selectedVendors.filter(
-                        (id) => id !== v.id,
-                      ),
-                    )
+                  ? setSelectedVendors([...selectedVendors, v.id])
+                  : setSelectedVendors(selectedVendors.filter((id) => id !== v.id))
               }
             />
-            {v.email}
-          </label>
-        ))}
-      </div>
+          ))}
+        </Box>
 
-      <div className="flex gap-3">
-        <button
-          disabled={loading}
-          onClick={submit}
-          className="bg-emerald-600 text-white px-4 py-2 rounded disabled:opacity-50"
-        >
-          {loading ? 'Creating…' : 'Create Job'}
-        </button>
-
-        <button
-          onClick={() =>
-            navigate('/vendor-manager/jobs')
-          }
-          className="border px-4 py-2 rounded"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+        <Box direction="row" gap="12px">
+          <Button
+            primary
+            color="#01A982"
+            label={loading ? 'Creating...' : 'Create Job'}
+            disabled={loading}
+            onClick={submit}
+          />
+          <Button label="Cancel" onClick={() => navigate('/vendor-manager/jobs')} />
+        </Box>
+      </Box>
+    </Box>
   );
 };
 

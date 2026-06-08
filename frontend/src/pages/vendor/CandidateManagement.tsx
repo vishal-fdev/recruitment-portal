@@ -1,6 +1,20 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  Box,
+  Button,
+  Grid,
+  Heading,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableRow,
+  Text,
+  TextInput,
+} from 'grommet';
+import {
   Eye,
   Filter,
   ListChecks,
@@ -9,6 +23,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/api';
 import ResumeModal from '../../components/ResumeModal';
+import StageBadge from '../../components/StageBadge';
 
 type CandidateStatus =
   | 'NEW'
@@ -33,6 +48,7 @@ interface Candidate {
   email?: string;
   phone?: string;
   experience: number;
+  resumePath?: string | null;
   status: CandidateStatus;
   createdAt: string;
   vendor?: {
@@ -92,24 +108,6 @@ const STATUS_LABELS: Record<CandidateStatus, string> = {
   SELECTED: 'Ops Select',
 };
 
-const STATUS_STYLES: Record<CandidateStatus, string> = {
-  NEW: 'bg-slate-100 text-slate-600',
-  SUBMITTED: 'bg-violet-100 text-violet-700',
-  SCREENING: 'bg-amber-100 text-amber-700',
-  SCREEN_SELECTED: 'bg-amber-100 text-amber-700',
-  SCREEN_REJECTED: 'bg-rose-50 text-rose-600',
-  TECH_SELECTED: 'bg-teal-100 text-teal-700',
-  TECH_REJECTED: 'bg-rose-50 text-rose-600',
-  IDENTIFIED: 'bg-emerald-100 text-emerald-700',
-  YET_TO_JOIN: 'bg-amber-100 text-amber-700',
-  OPS_SELECTED: 'bg-amber-100 text-amber-700',
-  OPS_REJECTED: 'bg-rose-50 text-rose-600',
-  ONBOARDED: 'bg-emerald-100 text-emerald-700',
-  DROPPED: 'bg-slate-100 text-slate-600',
-  REJECTED: 'bg-rose-50 text-rose-600',
-  SELECTED: 'bg-amber-100 text-amber-700',
-};
-
 const VendorCandidateManagement = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -121,7 +119,7 @@ const VendorCandidateManagement = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(true);
-  const [resumeCandidateId, setResumeCandidateId] = useState<number | null>(null);
+  const [resumeCandidate, setResumeCandidate] = useState<Candidate | null>(null);
   const [search, setSearch] = useState('');
   const [candidateFilterField, setCandidateFilterField] =
     useState<CandidateFilterField>('candidateCode');
@@ -297,18 +295,24 @@ const VendorCandidateManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-[2rem] font-semibold text-slate-800">
+    <Box gap="24px">
+      <Box>
+        <Heading level={2} margin="none" size="32px" color="#1E293B">
           Candidate Management
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        </Heading>
+        <Text margin={{ top: '4px' }} size="small" color="#64748B">
           Manage candidates, hiring requests, and review processes
-        </p>
-      </div>
+        </Text>
+      </Box>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
-        <div className="flex flex-wrap gap-3">
+      <Box
+        round="24px"
+        border={{ color: '#E5E7EB' }}
+        background="white"
+        pad="12px"
+        elevation="small"
+      >
+        <Box direction="row" wrap gap="12px">
           <TabButton
             active={activeTab === 'CANDIDATES'}
             icon={<ListChecks size={16} />}
@@ -321,80 +325,109 @@ const VendorCandidateManagement = () => {
             label="All HRQID"
             onClick={() => handleTabChange('HRQ')}
           />
-        </div>
-      </div>
+        </Box>
+      </Box>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
+      <Box
+        round="24px"
+        border={{ color: '#E5E7EB' }}
+        background="white"
+        pad="16px"
+        elevation="small"
+        gap="16px"
+      >
+        <Box direction="row" wrap justify="between" align="center" gap="16px">
+          <Box direction="row" wrap align="center" gap="12px">
             {activeTab === 'CANDIDATES' ? (
-              <select
+              <Box width={{ min: '220px', max: '260px' }}>
+                <Select
                 value={candidateFilterField}
-                onChange={(event) =>
-                  setCandidateFilterField(
-                    event.target.value as CandidateFilterField,
-                  )
+                options={[
+                  { label: 'Candidate Code', value: 'candidateCode' },
+                  { label: 'Candidate Name', value: 'candidateName' },
+                  { label: 'Candidate Contact', value: 'candidateContact' },
+                ]}
+                labelKey="label"
+                valueKey={{ key: 'value', reduce: true }}
+                onChange={({ value }) =>
+                  setCandidateFilterField(value as CandidateFilterField)
                 }
-                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-emerald-300"
-              >
-                <option value="candidateCode">Candidate Code</option>
-                <option value="candidateName">Candidate Name</option>
-                <option value="candidateContact">Candidate Contact</option>
-              </select>
+              />
+              </Box>
             ) : (
-              <div className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">
-                HRQ ID
-                <Filter size={15} className="text-emerald-500" />
-              </div>
+              <Box
+                direction="row"
+                align="center"
+                gap="8px"
+                round="12px"
+                border={{ color: '#E5E7EB' }}
+                background="white"
+                pad={{ horizontal: '16px', vertical: '10px' }}
+              >
+                <Text size="small" weight={500} color="#334155">
+                  HRQ ID
+                </Text>
+                <Filter size={15} color="#10B981" />
+              </Box>
             )}
 
-            <input
-              type="text"
+            <Box width={{ min: '260px', max: '320px' }}>
+              <TextInput
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => setSearch(event.currentTarget.value)}
               placeholder="Search records..."
-              className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none placeholder:text-slate-400 focus:border-emerald-300 xl:w-[320px]"
+              style={{ borderRadius: 12, fontSize: 14, minHeight: 44 }}
             />
-          </div>
+            </Box>
+          </Box>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <Box direction="row" wrap align="center" gap="12px">
             {activeTab === 'CANDIDATES' ? (
-              <select
+              <Box width={{ min: '220px', max: '240px' }}>
+                <Select
                 value={candidateStatusFilter}
-                onChange={(event) => setCandidateStatusFilter(event.target.value)}
-                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-emerald-300"
-              >
-                <option value="ALL">All Status</option>
-                <option value="SUBMITTED">Submitted</option>
-                <option value="SCREEN_SELECTED">Screen Select</option>
-                <option value="SCREEN_REJECTED">Screen Reject</option>
-                <option value="TECH_SELECTED">Tech Select</option>
-                <option value="TECH_REJECTED">Tech Reject</option>
-                <option value="IDENTIFIED">Identified</option>
-                <option value="YET_TO_JOIN">YTJ</option>
-                <option value="OPS_SELECTED">Ops Select</option>
-                <option value="OPS_REJECTED">Ops Reject</option>
-                <option value="ONBOARDED">Onboarded</option>
-                <option value="DROPPED">Drop</option>
-              </select>
+                onChange={({ value }) => setCandidateStatusFilter(value)}
+                options={[
+                  { label: 'All Status', value: 'ALL' },
+                  { label: 'Submitted', value: 'SUBMITTED' },
+                  { label: 'Screen Select', value: 'SCREEN_SELECTED' },
+                  { label: 'Screen Reject', value: 'SCREEN_REJECTED' },
+                  { label: 'Tech Select', value: 'TECH_SELECTED' },
+                  { label: 'Tech Reject', value: 'TECH_REJECTED' },
+                  { label: 'Identified', value: 'IDENTIFIED' },
+                  { label: 'YTJ', value: 'YET_TO_JOIN' },
+                  { label: 'Ops Select', value: 'OPS_SELECTED' },
+                  { label: 'Ops Reject', value: 'OPS_REJECTED' },
+                  { label: 'Onboarded', value: 'ONBOARDED' },
+                  { label: 'Drop', value: 'DROPPED' },
+                ]}
+                labelKey="label"
+                valueKey={{ key: 'value', reduce: true }}
+              />
+              </Box>
             ) : null}
 
-            <button
+            <Button
               type="button"
               onClick={() => navigate('/vendor/candidates/create')}
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-2 py-2 text-sm font-medium text-emerald-700"
-            >
-              <Plus size={15} />
-              Create
-            </button>
-          </div>
-        </div>
+              icon={<Plus size={15} />}
+              label="Create"
+              style={{
+                borderRadius: 12,
+                padding: '8px 12px',
+                color: '#047857',
+                fontSize: 14,
+                fontWeight: 500,
+              }}
+            />
+          </Box>
+        </Box>
 
-        <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200">
+        <Box round="12px" border={{ color: '#E5E7EB' }} overflow="auto">
           {activeTab === 'CANDIDATES' ? (
-            <table className="min-w-full text-sm">
-              <thead className="bg-[#96f7e4] text-slate-700">
-                <tr>
+            <Table>
+              <TableHeader background="#96f7e4">
+                <TableRow>
                   <HeaderCell>Candidate Code</HeaderCell>
                   <HeaderCell>Candidate Name</HeaderCell>
                   <HeaderCell>Candidate Email</HeaderCell>
@@ -406,22 +439,24 @@ const VendorCandidateManagement = () => {
                   <HeaderCell>Partner</HeaderCell>
                   <HeaderCell>Acknowledged</HeaderCell>
                   <HeaderCell>Status</HeaderCell>
-                </tr>
-              </thead>
-              <tbody className="bg-white">
+                </TableRow>
+              </TableHeader>
+              <TableBody background="white">
                 {loadingCandidates && (
-                  <tr>
-                    <td colSpan={11} className="px-4 py-10 text-center text-slate-400">
-                      Loading candidates...
-                    </td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={11} pad={{ horizontal: '16px', vertical: '40px' }}>
+                      <Box align="center">
+                        <Text color="#94A3B8">Loading candidates...</Text>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
                 )}
 
                 {!loadingCandidates &&
                   filteredCandidates.map((candidate) => (
-                    <tr
+                    <TableRow
                       key={candidate.id}
-                      className="border-t border-gray-100 text-slate-700 hover:bg-slate-50"
+                      border={{ side: 'top', color: '#F3F4F6' }}
                     >
                       <BodyLinkCell
                         onClick={() => navigate(`/vendor/candidates/${candidate.id}`)}
@@ -435,39 +470,39 @@ const VendorCandidateManagement = () => {
                       <BodyCell>{candidate.job?.title || '-'}</BodyCell>
                       <BodyCell>{candidate.experience}</BodyCell>
                       <BodyCell>
-                        <button
+                        <Button
                           type="button"
-                          onClick={() => setResumeCandidateId(candidate.id)}
-                          className="text-slate-500 hover:text-emerald-600"
-                        >
-                          <Eye size={17} />
-                        </button>
+                          onClick={() => setResumeCandidate(candidate)}
+                          plain
+                          icon={<Eye size={17} color="#64748B" />}
+                        />
                       </BodyCell>
                       <BodyCell>{candidate.vendor?.name || '-'}</BodyCell>
                       <BodyCell>No</BodyCell>
                       <BodyCell>
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLES[candidate.status]}`}
-                        >
-                          {STATUS_LABELS[candidate.status]}
-                        </span>
+                        <StageBadge
+                          label={STATUS_LABELS[candidate.status]}
+                          status={candidate.status}
+                        />
                       </BodyCell>
-                    </tr>
+                    </TableRow>
                   ))}
 
                 {!loadingCandidates && filteredCandidates.length === 0 && (
-                  <tr>
-                    <td colSpan={11} className="px-4 py-10 text-center text-slate-400">
-                      No candidates found.
-                    </td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={11} pad={{ horizontal: '16px', vertical: '40px' }}>
+                      <Box align="center">
+                        <Text color="#94A3B8">No candidates found.</Text>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           ) : (
-            <table className="min-w-full text-sm">
-              <thead className="bg-[#96f7e4] text-slate-700">
-                <tr>
+            <Table>
+              <TableHeader background="#96f7e4">
+                <TableRow>
                   <HeaderCell>HRQ ID</HeaderCell>
                   <HeaderCell>Role Hired For</HeaderCell>
                   <HeaderCell>Location</HeaderCell>
@@ -478,15 +513,17 @@ const VendorCandidateManagement = () => {
                   <HeaderCell>JD</HeaderCell>
                   <HeaderCell>PSQ</HeaderCell>
                   <HeaderCell>Action</HeaderCell>
-                </tr>
-              </thead>
-              <tbody className="bg-white">
+                </TableRow>
+              </TableHeader>
+              <TableBody background="white">
                 {loadingJobs && (
-                  <tr>
-                    <td colSpan={10} className="px-4 py-10 text-center text-slate-400">
-                      Loading HRQ IDs...
-                    </td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={10} pad={{ horizontal: '16px', vertical: '40px' }}>
+                      <Box align="center">
+                        <Text color="#94A3B8">Loading HRQ IDs...</Text>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
                 )}
 
                 {!loadingJobs &&
@@ -504,9 +541,9 @@ const VendorCandidateManagement = () => {
                       ) || 0;
 
                     return (
-                      <tr
+                      <TableRow
                         key={job.id}
-                        className="border-t border-gray-100 text-slate-700 hover:bg-slate-50"
+                        border={{ side: 'top', color: '#F3F4F6' }}
                       >
                         <BodyLinkCell
                           onClick={() => navigate(`/vendor/jobs/${job.id}`)}
@@ -524,20 +561,14 @@ const VendorCandidateManagement = () => {
                             additionalCurrent}
                         </BodyCell>
                         <BodyCell>
-                          <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getVendorJobStatusClass(
-                              job.status,
-                            )}`}
-                          >
-                            {getVendorJobStatusLabel(job.status)}
-                          </span>
+                          <VendorJobStatusBadge status={job.status} />
                         </BodyCell>
                         <BodyCell>
                           {(job.jdFiles?.length || job.jdFileName) ? (
-                            <div className="flex flex-col items-center gap-1">
+                            <Box gap="4px" align="center">
                               {(job.jdFiles?.length ? job.jdFiles : [{ fileName: job.jdFileName! }]).map(
                                 (file, index) => (
-                                  <button
+                                  <Button
                                     key={`jd-${job.id}-${file.fileName}-${index}`}
                                     type="button"
                                     onClick={(event) =>
@@ -549,23 +580,23 @@ const VendorCandidateManagement = () => {
                                         job.jdFiles?.length ? index : undefined,
                                       )
                                     }
-                                    className="font-medium text-emerald-600 hover:underline"
-                                  >
-                                    {job.jdFiles?.length ? `Download JD ${index + 1}` : 'Download JD'}
-                                  </button>
+                                    plain
+                                    label={job.jdFiles?.length ? `Download JD ${index + 1}` : 'Download JD'}
+                                    style={{ fontWeight: 500, color: '#059669' }}
+                                  />
                                 ),
                               )}
-                            </div>
+                            </Box>
                           ) : (
                             '-'
                           )}
                         </BodyCell>
                         <BodyCell>
                           {(job.psqFiles?.length || job.psqFileName) ? (
-                            <div className="flex flex-col items-center gap-1">
+                            <Box gap="4px" align="center">
                               {(job.psqFiles?.length ? job.psqFiles : [{ fileName: job.psqFileName! }]).map(
                                 (file, index) => (
-                                  <button
+                                  <Button
                                     key={`psq-${job.id}-${file.fileName}-${index}`}
                                     type="button"
                                     onClick={(event) =>
@@ -577,52 +608,61 @@ const VendorCandidateManagement = () => {
                                         job.psqFiles?.length ? index : undefined,
                                       )
                                     }
-                                    className="font-medium text-emerald-600 hover:underline"
-                                  >
-                                    {job.psqFiles?.length ? `Download PSQ ${index + 1}` : 'Download PSQ'}
-                                  </button>
+                                    plain
+                                    label={job.psqFiles?.length ? `Download PSQ ${index + 1}` : 'Download PSQ'}
+                                    style={{ fontWeight: 500, color: '#059669' }}
+                                  />
                                 ),
                               )}
-                            </div>
+                            </Box>
                           ) : (
                             '-'
                           )}
                         </BodyCell>
                         <BodyCell>
-                          <button
+                          <Button
                             type="button"
                             onClick={() =>
                               navigate(`/vendor/candidates/create?jobId=${job.id}`)
                             }
-                            className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-600"
-                          >
-                            Create
-                          </button>
+                            label="Create"
+                            primary
+                            color="#10B981"
+                            style={{
+                              borderRadius: 8,
+                              padding: '8px 16px',
+                              fontSize: 12,
+                              fontWeight: 500,
+                            }}
+                          />
                         </BodyCell>
-                      </tr>
+                      </TableRow>
                     );
                   })}
 
                 {!loadingJobs && filteredJobs.length === 0 && (
-                  <tr>
-                    <td colSpan={10} className="px-4 py-10 text-center text-slate-400">
-                      No HRQ IDs found.
-                    </td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={10} pad={{ horizontal: '16px', vertical: '40px' }}>
+                      <Box align="center">
+                        <Text color="#94A3B8">No HRQ IDs found.</Text>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
-        </div>
-      </div>
+        </Box>
+      </Box>
 
-      {resumeCandidateId && (
+      {resumeCandidate && (
         <ResumeModal
-          candidateId={resumeCandidateId}
-          onClose={() => setResumeCandidateId(null)}
+          candidateId={resumeCandidate.id}
+          resumePath={resumeCandidate.resumePath}
+          onClose={() => setResumeCandidate(null)}
         />
       )}
-    </div>
+    </Box>
   );
 };
 
@@ -639,28 +679,38 @@ const TabButton = ({
   label: string;
   onClick: () => void;
 }) => (
-  <button
+  <Button
     type="button"
     onClick={onClick}
-    className={`inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition ${
-      active
-        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-        : 'bg-violet-50 text-violet-600 hover:bg-violet-100'
-    }`}
-  >
-    {icon}
-    {label}
-  </button>
+    icon={icon}
+    label={label}
+    primary={active}
+    color={active ? '#10B981' : '#F5F3FF'}
+    style={{
+      borderRadius: 18,
+      padding: '12px 16px',
+      fontSize: 14,
+      fontWeight: 500,
+      color: active ? '#FFFFFF' : '#7C3AED',
+      boxShadow: active ? '0 14px 30px rgba(16,185,129,0.18)' : 'none',
+    }}
+  />
 );
 
 const HeaderCell = ({ children }: { children: ReactNode }) => (
-  <th className="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wide">
-    {children}
-  </th>
+  <TableCell pad={{ horizontal: '16px', vertical: '16px' }}>
+    <Text size="xsmall" weight={600} style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+      {children}
+    </Text>
+  </TableCell>
 );
 
 const BodyCell = ({ children }: { children: ReactNode }) => (
-  <td className="px-4 py-4 text-center align-middle">{children}</td>
+  <TableCell pad={{ horizontal: '16px', vertical: '16px' }} verticalAlign="middle">
+    <Text size="small" color="#334155">
+      {children}
+    </Text>
+  </TableCell>
 );
 
 const BodyLinkCell = ({
@@ -670,16 +720,34 @@ const BodyLinkCell = ({
   children: ReactNode;
   onClick: () => void;
 }) => (
-  <td className="px-4 py-4 text-center align-middle">
-    <button
+  <TableCell pad={{ horizontal: '16px', vertical: '16px' }} verticalAlign="middle">
+    <Button
       type="button"
       onClick={onClick}
-      className="font-medium text-emerald-600 hover:underline"
-    >
-      {children}
-    </button>
-  </td>
+      plain
+      label={children}
+      style={{ fontWeight: 500, color: '#059669' }}
+    />
+  </TableCell>
 );
+
+const VendorJobStatusBadge = ({ status }: { status: string }) => {
+  const label = getVendorJobStatusLabel(status);
+  const colors =
+    label === 'OPEN'
+      ? { background: '#ECFDF5', color: '#047857' }
+      : label === 'HOLD'
+        ? { background: '#FEF3C7', color: '#B45309' }
+        : { background: '#F1F5F9', color: '#475569' };
+
+  return (
+    <Box alignSelf="center" round="999px" background={colors.background} pad={{ horizontal: '12px', vertical: '6px' }}>
+      <Text size="xsmall" weight={600} color={colors.color}>
+        {label}
+      </Text>
+    </Box>
+  );
+};
 
 const formatDate = (value?: string) => {
   if (!value) return '-';

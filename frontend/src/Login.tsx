@@ -1,12 +1,22 @@
-// src/Login.tsx
-
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Button,
+  Form,
+  FormField,
+  Grommet,
+  Heading,
+  Image,
+  Paragraph,
+  Text,
+  TextInput,
+} from 'grommet';
 import api from './api/api';
 import { authService } from './auth/authService';
 import type { UserRole } from './auth/authService';
-
 import loginBg from './assets/login-bg.jpg';
+import appTheme from './theme/hpeTheme';
 
 const normalizeRole = (role: string): UserRole => {
   switch (role) {
@@ -22,7 +32,6 @@ const normalizeRole = (role: string): UserRole => {
 };
 
 const Login = () => {
-
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -46,7 +55,6 @@ const Login = () => {
   };
 
   const handleLogin = async (emailOverride?: string) => {
-
     const targetEmail = (emailOverride ?? email).trim();
 
     if (!targetEmail) {
@@ -55,7 +63,6 @@ const Login = () => {
     }
 
     try {
-
       setLoading(true);
 
       const res = await api.post('/auth/login', {
@@ -63,7 +70,6 @@ const Login = () => {
       });
 
       const token: string = res.data.access_token;
-
       const normalizedRole = normalizeRole(res.data.user.role);
 
       authService.login(token, normalizedRole);
@@ -74,20 +80,17 @@ const Login = () => {
           : getDefaultRoute(normalizedRole);
 
       navigate(destination, { replace: true });
-
     } catch (err) {
-
       console.error(err);
       alert('Invalid email or access not allowed');
-
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleLogin();
+  const handleSubmit = (event?: React.FormEvent) => {
+    event?.preventDefault();
+    void handleLogin();
   };
 
   useEffect(() => {
@@ -95,118 +98,151 @@ const Login = () => {
 
     setEmail(redirectEmail);
     void handleLogin(redirectEmail);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [redirectEmail]);
 
   return (
+    <Grommet theme={appTheme} full>
+      <Box
+        fill
+        align="center"
+        justify="center"
+        pad="large"
+        style={{
+          position: 'relative',
+          overflow: 'hidden',
+          minHeight: '100vh',
+        }}
+      >
+        <Image
+          src={loginBg}
+          alt="HPE recruitment portal background"
+          fit="cover"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+          }}
+        />
 
-    <div
-      className="min-h-screen flex items-center justify-center bg-cover bg-center relative overflow-hidden"
-      style={{ backgroundImage: `url(${loginBg})` }}
-    >
+        <Box
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.40)',
+            backdropFilter: 'blur(6px)',
+          }}
+        />
 
-      {/* GLOBAL DARK OVERLAY */}
+        {[25, 50, 75].map((top) => (
+          <Box
+            key={top}
+            style={{
+              position: 'absolute',
+              top: `${top}%`,
+              left: '-10%',
+              width: '120%',
+              height: 2,
+              background: 'rgba(52, 211, 153, 0.40)',
+              filter: 'blur(2px)',
+            }}
+          />
+        ))}
 
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+        <Box
+          direction="row"
+          justify="between"
+          align="center"
+          width={{ max: '1150px' }}
+          fill="horizontal"
+          pad={{ horizontal: '40px' }}
+          gap="large"
+          wrap
+          responsive
+          style={{ position: 'relative', zIndex: 1 }}
+        >
+          <Box pad="40px" width={{ max: '560px' }} gap="medium">
+            <Text size="small" color="#E5E7EB" style={{ letterSpacing: '0.08em' }}>
+              Welcome to
+            </Text>
 
+            <Heading
+              level={1}
+              margin="none"
+              size="56px"
+              color="white"
+              style={{ lineHeight: 1.05 }}
+            >
+              Hewlett Packard
+              <br />
+              Enterprise
+            </Heading>
 
-      {/* ANIMATED GREEN LINES */}
+            <Paragraph margin="none" size="medium" color="#E5E7EB">
+              Manage hiring workflows, vendor collaboration, and recruitment
+              operations securely across the enterprise platform.
+            </Paragraph>
 
-      <div className="absolute inset-0 pointer-events-none">
+            <Text margin={{ top: '24px' }} size="small" color="#D1D5DB">
+              © 2026 Hewlett Packard Enterprise
+            </Text>
+          </Box>
 
-        <div className="absolute w-[120%] h-[2px] bg-emerald-400/40 animate-pulse top-1/4 blur-sm"></div>
-        <div className="absolute w-[120%] h-[2px] bg-emerald-400/40 animate-pulse top-2/4 blur-sm"></div>
-        <div className="absolute w-[120%] h-[2px] bg-emerald-400/40 animate-pulse top-3/4 blur-sm"></div>
-
-      </div>
-
-
-      {/* MAIN CONTAINER */}
-
-      <div className="relative z-10 w-[1150px] flex items-center justify-between px-10">
-
-
-        {/* LEFT SIDE BRANDING */}
-
-        <div className="max-w-xl p-10 text-white">
-
-          <h2 className="text-sm text-gray-200 mb-2 tracking-wide">
-            Welcome to
-          </h2>
-
-          <h1 className="text-5xl font-bold mb-6 leading-tight drop-shadow-lg">
-            Hewlett Packard
-            <br />
-            Enterprise
-          </h1>
-
-          <p className="text-base text-gray-200 leading-relaxed">
-            Manage hiring workflows, vendor collaboration, and recruitment
-            operations securely across the enterprise platform.
-          </p>
-
-          <div className="mt-10 text-sm text-gray-300">
-            © 2026 Hewlett Packard Enterprise
-          </div>
-
-        </div>
-
-
-        {/* LOGIN CARD */}
-
-        <div className="flex justify-end">
-
-          <div className="w-[380px] bg-black/30 backdrop-blur-xl rounded-2xl p-10 shadow-2xl border border-white/20">
-
-            <h3 className="text-2xl font-semibold text-white mb-8 text-center">
+          <Box
+            width="380px"
+            round="24px"
+            pad="40px"
+            gap="large"
+            background="rgba(0, 0, 0, 0.30)"
+            border={{ color: 'rgba(255, 255, 255, 0.20)' }}
+            style={{
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 24px 60px rgba(0, 0, 0, 0.35)',
+            }}
+          >
+            <Heading level={3} margin="none" textAlign="center" color="white">
               Sign In
-            </h3>
+            </Heading>
 
-            {/* FORM ADDED HERE */}
+            <Form onSubmit={handleSubmit}>
+              <Box gap="24px">
+                <FormField
+                  htmlFor="login-email"
+                  label={<Text size="small" color="#E5E7EB">Email</Text>}
+                >
+                  <TextInput
+                    id="login-email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(event) => setEmail(event.currentTarget.value)}
+                    style={{
+                      borderRadius: 8,
+                      background: '#FFFFFF',
+                      fontSize: 14,
+                    }}
+                  />
+                </FormField>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-
-              {/* EMAIL */}
-
-              <div>
-
-                <label className="block text-sm text-gray-200 mb-2">
-                  Email
-                </label>
-
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  className="w-full border border-gray-300 rounded-md px-4 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  label={loading ? 'Signing in…' : 'Sign In'}
+                  primary
+                  color="#059669"
+                  style={{
+                    borderRadius: 8,
+                    padding: '10px 16px',
+                    fontWeight: 500,
+                  }}
                 />
-
-              </div>
-
-
-              {/* LOGIN BUTTON */}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-emerald-600 text-white py-2 rounded-md font-medium hover:bg-emerald-700 transition disabled:opacity-60"
-              >
-
-                {loading ? 'Signing in…' : 'Sign In'}
-
-              </button>
-
-            </form>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-
+              </Box>
+            </Form>
+          </Box>
+        </Box>
+      </Box>
+    </Grommet>
   );
 };
 

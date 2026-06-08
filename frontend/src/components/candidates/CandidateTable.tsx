@@ -1,3 +1,5 @@
+import { Box, Table, TableBody, TableCell, TableHeader, TableRow, Text } from 'grommet';
+
 type Props = {
   data: any[];
   loading?: boolean;
@@ -8,39 +10,47 @@ export default function CandidateTable({
   loading = false,
 }: Props) {
   if (loading) {
-    return <div className="p-4">Loading candidates...</div>;
+    return (
+      <Box pad="16px">
+        <Text>Loading candidates...</Text>
+      </Box>
+    );
   }
 
   if (!data.length) {
-    return <div className="p-4 text-gray-500">No candidates found</div>;
+    return (
+      <Box pad="16px">
+        <Text color="#6B7280">No candidates found</Text>
+      </Box>
+    );
   }
 
   return (
-    <div className="bg-white rounded-lg border overflow-hidden">
-      <table className="min-w-full text-sm">
-        <thead className="bg-green-100">
-          <tr>
-            <th className="px-4 py-3">ID</th>
-            <th className="px-4 py-3">Name</th>
-            <th className="px-4 py-3">Email</th>
-            <th className="px-4 py-3">Experience</th>
-            <th className="px-4 py-3">Status</th>
-          </tr>
-        </thead>
-        <tbody>
+    <Box background="white" round="12px" border={{ color: 'border' }} overflow="hidden">
+      <Table>
+        <TableHeader background="#DCFCE7">
+          <TableRow>
+            <TableCell pad={{ horizontal: '16px', vertical: '12px' }}><Text weight={600}>ID</Text></TableCell>
+            <TableCell pad={{ horizontal: '16px', vertical: '12px' }}><Text weight={600}>Name</Text></TableCell>
+            <TableCell pad={{ horizontal: '16px', vertical: '12px' }}><Text weight={600}>Email</Text></TableCell>
+            <TableCell pad={{ horizontal: '16px', vertical: '12px' }}><Text weight={600}>Experience</Text></TableCell>
+            <TableCell pad={{ horizontal: '16px', vertical: '12px' }}><Text weight={600}>Status</Text></TableCell>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {data.map((c) => (
-            <tr key={c.id} className="border-t">
-              <td className="px-4 py-3 text-green-600">
-                CA{c.id}
-              </td>
-              <td className="px-4 py-3">{c.name}</td>
-              <td className="px-4 py-3">{c.email}</td>
-              <td className="px-4 py-3">{c.experience}</td>
-              <td className="px-4 py-3">{c.status}</td>
-            </tr>
+            <TableRow key={c.id} border={{ side: 'top', color: 'border' }}>
+              <TableCell pad={{ horizontal: '16px', vertical: '12px' }}>
+                <Text color="#16A34A">CA{c.id}</Text>
+              </TableCell>
+              <TableCell pad={{ horizontal: '16px', vertical: '12px' }}><Text>{c.name}</Text></TableCell>
+              <TableCell pad={{ horizontal: '16px', vertical: '12px' }}><Text>{c.email}</Text></TableCell>
+              <TableCell pad={{ horizontal: '16px', vertical: '12px' }}><Text>{c.experience}</Text></TableCell>
+              <TableCell pad={{ horizontal: '16px', vertical: '12px' }}><Text>{c.status}</Text></TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </Table>
+    </Box>
   );
 }

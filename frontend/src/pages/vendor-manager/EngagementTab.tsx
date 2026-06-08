@@ -1,7 +1,18 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import api from "../../api/api";
-import { Pencil } from "lucide-react";
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { Pencil } from 'lucide-react';
+import {
+  Box,
+  Button,
+  Card,
+  CardBody,
+  DataTable,
+  Heading,
+  Select,
+  Text,
+  TextInput,
+} from 'grommet';
+import api from '../../api/api';
 
 interface Engagement {
   id?: string;
@@ -14,247 +25,160 @@ interface Engagement {
 }
 
 const EngagementTab = () => {
-
   const { id } = useParams();
-
-  const [data,setData] = useState<Engagement[]>([]);
-  const [editingRow,setEditingRow] = useState<number | null>(null);
-
-  /* ================= LOAD DATA ================= */
+  const [data, setData] = useState<Engagement[]>([]);
+  const [editingRow, setEditingRow] = useState<number | null>(null);
 
   const load = async () => {
     const res = await api.get(`/vendors/${id}/engagements`);
     setData(res.data);
   };
 
-  useEffect(()=>{
-    if(id){
-      load();
-    }
-  },[id]);
+  useEffect(() => {
+    if (id) void load();
+  }, [id]);
 
-  /* ================= UPDATE FIELD ================= */
-
-  const updateField = (
-    index:number,
-    field:keyof Engagement,
-    value:string
-  )=>{
-    const updated=[...data];
-    updated[index][field]=value;
+  const updateField = (index: number, field: keyof Engagement, value: string) => {
+    const updated = [...data];
+    updated[index][field] = value;
     setData(updated);
   };
 
-  /* ================= SAVE ================= */
-
-  const saveRow = async(index:number)=>{
-
-    const row=data[index];
-
-    if(row.id){
-      await api.patch(`/vendors/engagements/${row.id}`,row);
-    }else{
-      const res=await api.post(`/vendors/${id}/engagements`,row);
-
-      const updated=[...data];
-      updated[index]=res.data;
+  const saveRow = async (index: number) => {
+    const row = data[index];
+    if (row.id) {
+      await api.patch(`/vendors/engagements/${row.id}`, row);
+    } else {
+      const res = await api.post(`/vendors/${id}/engagements`, row);
+      const updated = [...data];
+      updated[index] = res.data;
       setData(updated);
     }
-
     setEditingRow(null);
   };
 
-  /* ================= ADD ROW ================= */
-
-  const addRow = ()=>{
-
-    const newRow:Engagement={
-      engagementStatus:"",
-      engagementType:"",
-      businessUnit:"",
-      evaluationStatus:"",
-      evaluatedBy:"",
-      extendedDate:""
+  const addRow = () => {
+    const newRow: Engagement = {
+      engagementStatus: '',
+      engagementType: '',
+      businessUnit: '',
+      evaluationStatus: '',
+      evaluatedBy: '',
+      extendedDate: '',
     };
-
-    setData([...data,newRow]);
+    setData([...data, newRow]);
     setEditingRow(data.length);
   };
 
-  return(
+  return (
+    <Card background="white" round="20px" border={{ color: 'border-weak' }} elevation="xsmall">
+      <CardBody pad="large" gap="medium">
+        <Box direction="row" justify="between" align="center" wrap gap="medium">
+          <Heading level={3} size="small" margin="none">
+            Engagement History
+          </Heading>
+          <Button label="+ Add" primary color="brand" onClick={addRow} />
+        </Box>
 
-  <div className="bg-white rounded-xl shadow border p-6">
-
-  {/* HEADER */}
-
-  <div className="flex justify-between items-center mb-6">
-
-  <h2 className="text-lg font-semibold">
-  Engagement History
-  </h2>
-
-  <button
-  onClick={addRow}
-  className="bg-emerald-600 text-white px-4 py-2 rounded"
-  >
-  + Add
-  </button>
-
-  </div>
-
-  {/* TABLE */}
-
-  <div className="overflow-x-auto">
-
-  <table className="w-full text-sm">
-
-  <thead className="bg-gray-100">
-
-  <tr>
-
-  <th className="px-4 py-3 text-left">Status</th>
-  <th className="px-4 py-3 text-left">Type</th>
-  <th className="px-4 py-3 text-left">Business Unit</th>
-  <th className="px-4 py-3 text-left">Evaluation</th>
-  <th className="px-4 py-3 text-left">Evaluated By</th>
-  <th className="px-4 py-3 text-left">Extended Date</th>
-  <th className="px-4 py-3 text-center">Actions</th>
-
-  </tr>
-
-  </thead>
-
-  <tbody>
-
-  {data.map((row,i)=>(
-
-  <tr key={i} className="border-t">
-
-  {editingRow===i ? (
-
-  <>
-  <td className="px-4 py-3">
-
-  <select
-  value={row.engagementStatus}
-  onChange={(e)=>updateField(i,"engagementStatus",e.target.value)}
-  className="border rounded px-2 py-1 w-full"
-  >
-  <option value="">Select</option>
-  <option value="Active">Active</option>
-  <option value="Inactive">Inactive</option>
-  </select>
-
-  </td>
-
-  <td className="px-4 py-3">
-
-  <select
-  value={row.engagementType}
-  onChange={(e)=>updateField(i,"engagementType",e.target.value)}
-  className="border rounded px-2 py-1 w-full"
-  >
-  <option value="">Select</option>
-  <option value="Labour">Labour</option>
-  <option value="Project">Project</option>
-  <option value="Fixed Cost">Fixed Cost</option>
-  </select>
-
-  </td>
-
-  <td className="px-4 py-3">
-
-  <input
-  value={row.businessUnit}
-  onChange={(e)=>updateField(i,"businessUnit",e.target.value)}
-  className="border rounded px-2 py-1 w-full"
-  />
-
-  </td>
-
-  <td className="px-4 py-3">
-
-  <select
-  value={row.evaluationStatus}
-  onChange={(e)=>updateField(i,"evaluationStatus",e.target.value)}
-  className="border rounded px-2 py-1 w-full"
-  >
-  <option value="">Select</option>
-  <option value="Contract">Contract</option>
-  <option value="Empanelled">Empanelled</option>
-  </select>
-
-  </td>
-
-  <td className="px-4 py-3">
-
-  <input
-  value={row.evaluatedBy}
-  onChange={(e)=>updateField(i,"evaluatedBy",e.target.value)}
-  className="border rounded px-2 py-1 w-full"
-  />
-
-  </td>
-
-  <td className="px-4 py-3">
-
-  <input
-  type="date"
-  value={row.extendedDate || ""}
-  onChange={(e)=>updateField(i,"extendedDate",e.target.value)}
-  className="border rounded px-2 py-1 w-full"
-  />
-
-  </td>
-
-  <td className="px-4 py-3 text-center">
-
-  <button
-  onClick={()=>saveRow(i)}
-  className="text-emerald-600 font-medium"
-  >
-  Save
-  </button>
-
-  </td>
-
-  </>
-
-  ):(
-
-  <>
-  <td className="px-4 py-3">{row.engagementStatus || "-"}</td>
-  <td className="px-4 py-3">{row.engagementType || "-"}</td>
-  <td className="px-4 py-3">{row.businessUnit || "-"}</td>
-  <td className="px-4 py-3">{row.evaluationStatus || "-"}</td>
-  <td className="px-4 py-3">{row.evaluatedBy || "-"}</td>
-  <td className="px-4 py-3">{row.extendedDate || "-"}</td>
-
-  <td className="px-4 py-3 text-center">
-
-  <Pencil
-  size={16}
-  className="cursor-pointer text-gray-600"
-  onClick={()=>setEditingRow(i)}
-  />
-
-  </td>
-
-  </>
-  )}
-
-  </tr>
-
-  ))}
-
-  </tbody>
-
-  </table>
-
-  </div>
-
-  </div>
-
+        <DataTable
+          data={data.map((row, i) => ({ ...row, _index: i }))}
+          columns={[
+            {
+              property: 'engagementStatus',
+              header: 'Status',
+              render: (datum) =>
+                editingRow === datum._index ? (
+                  <Select
+                    options={['', 'Active', 'Inactive']}
+                    value={datum.engagementStatus}
+                    onChange={({ value }) => updateField(datum._index, 'engagementStatus', String(value))}
+                  />
+                ) : (
+                  <Text>{datum.engagementStatus || '-'}</Text>
+                ),
+            },
+            {
+              property: 'engagementType',
+              header: 'Type',
+              render: (datum) =>
+                editingRow === datum._index ? (
+                  <Select
+                    options={['', 'Labour', 'Project', 'Fixed Cost']}
+                    value={datum.engagementType}
+                    onChange={({ value }) => updateField(datum._index, 'engagementType', String(value))}
+                  />
+                ) : (
+                  <Text>{datum.engagementType || '-'}</Text>
+                ),
+            },
+            {
+              property: 'businessUnit',
+              header: 'Business Unit',
+              render: (datum) =>
+                editingRow === datum._index ? (
+                  <TextInput
+                    value={datum.businessUnit}
+                    onChange={(e) => updateField(datum._index, 'businessUnit', e.target.value)}
+                  />
+                ) : (
+                  <Text>{datum.businessUnit || '-'}</Text>
+                ),
+            },
+            {
+              property: 'evaluationStatus',
+              header: 'Evaluation',
+              render: (datum) =>
+                editingRow === datum._index ? (
+                  <Select
+                    options={['', 'Contract', 'Empanelled']}
+                    value={datum.evaluationStatus}
+                    onChange={({ value }) => updateField(datum._index, 'evaluationStatus', String(value))}
+                  />
+                ) : (
+                  <Text>{datum.evaluationStatus || '-'}</Text>
+                ),
+            },
+            {
+              property: 'evaluatedBy',
+              header: 'Evaluated By',
+              render: (datum) =>
+                editingRow === datum._index ? (
+                  <TextInput
+                    value={datum.evaluatedBy}
+                    onChange={(e) => updateField(datum._index, 'evaluatedBy', e.target.value)}
+                  />
+                ) : (
+                  <Text>{datum.evaluatedBy || '-'}</Text>
+                ),
+            },
+            {
+              property: 'extendedDate',
+              header: 'Extended Date',
+              render: (datum) =>
+                editingRow === datum._index ? (
+                  <TextInput
+                    type="date"
+                    value={datum.extendedDate || ''}
+                    onChange={(e) => updateField(datum._index, 'extendedDate', e.target.value)}
+                  />
+                ) : (
+                  <Text>{datum.extendedDate || '-'}</Text>
+                ),
+            },
+            {
+              property: 'actions',
+              header: 'Actions',
+              render: (datum) =>
+                editingRow === datum._index ? (
+                  <Button plain label="Save" color="brand" onClick={() => void saveRow(datum._index)} />
+                ) : (
+                  <Button plain icon={<Pencil size={16} />} onClick={() => setEditingRow(datum._index)} />
+                ),
+            },
+          ]}
+        />
+      </CardBody>
+    </Card>
   );
 };
 

@@ -1,3 +1,5 @@
+import { Box, Card, CardBody, Text } from 'grommet';
+
 type Props = {
   title: string;
   value: number;
@@ -12,20 +14,31 @@ export default function StatCard({
   highlight,
 }: Props) {
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border">
-      <p className="text-sm text-gray-500">{title}</p>
-
-      <p className="text-3xl font-semibold mt-2">{value}</p>
-
+    <Card
+      background="white"
+      round="16px"
+      pad="24px"
+      border={{ color: 'border' }}
+      elevation="small"
+    >
+      <CardBody gap="small">
+        <Text size="small" color="#6B7280">
+          {title}
+        </Text>
+        <Text size="36px" weight={600} color="#111827">
+          {value}
+        </Text>
       {subtitle && (
-        <p
-          className={`text-xs mt-2 ${
-            highlight ? 'text-green-600' : 'text-gray-400'
-          }`}
-        >
+        <Box margin={{ top: '8px' }}>
+          <Text
+            size="xsmall"
+            color={highlight ? '#16A34A' : '#9CA3AF'}
+          >
           {subtitle}
-        </p>
+          </Text>
+        </Box>
       )}
-    </div>
+      </CardBody>
+    </Card>
   );
 }

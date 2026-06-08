@@ -1,22 +1,11 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Candidate } from '../candidates/candidate.entity';
-import { InterviewRound } from '../jobs/interview-round.entity';
-import { Job } from '../jobs/job.entity';
-import { Vendor } from '../vendors/vendors.entity';
-import { PartnerSlot } from './partner-slot.entity';
+import { MongoModelsModule } from '../mongodb/mongodb-models.module';
 import { PartnerSlotsController } from './partner-slots.controller';
 import { PartnerSlotsService } from './partner-slots.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      PartnerSlot,
-      Candidate,
-      Job,
-      Vendor,
-      InterviewRound,
-    ]),
+    MongoModelsModule,
   ],
   controllers: [PartnerSlotsController],
   providers: [PartnerSlotsService],

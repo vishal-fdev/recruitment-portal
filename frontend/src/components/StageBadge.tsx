@@ -1,33 +1,53 @@
+import { Box, Text } from 'grommet';
+
 interface Props {
   status: string;
 }
 
-const colors: Record<string, string> = {
-  NEW: 'bg-gray-100 text-gray-700',
-  SUBMITTED: 'bg-blue-100 text-blue-700',
-  SCREENING: 'bg-yellow-100 text-yellow-700',
-  SCREEN_SELECTED: 'bg-emerald-100 text-emerald-700',
-  SCREEN_REJECTED: 'bg-red-100 text-red-700',
-  TECH_SELECTED: 'bg-emerald-100 text-emerald-700',
-  TECH_REJECTED: 'bg-red-100 text-red-700',
-  IDENTIFIED: 'bg-green-100 text-green-700',
-  YET_TO_JOIN: 'bg-amber-100 text-amber-700',
-  OPS_SELECTED: 'bg-green-100 text-green-700',
-  OPS_REJECTED: 'bg-red-100 text-red-700',
-  SELECTED: 'bg-green-100 text-green-700',
-  REJECTED: 'bg-red-100 text-red-700',
-  ONBOARDED: 'bg-emerald-100 text-emerald-700',
-  DROPPED: 'bg-red-100 text-red-700',
+type BadgeTone = {
+  background: string;
+  color: string;
+};
+
+const colors: Record<string, BadgeTone> = {
+  NEW: { background: '#E5E7EB', color: '#374151' },
+  SUBMITTED: { background: '#DBEAFE', color: '#1D4ED8' },
+  SCREENING: { background: '#FEF3C7', color: '#B45309' },
+  SCREEN_SELECTED: { background: '#D1FAE5', color: '#047857' },
+  SCREEN_REJECTED: { background: '#FEE2E2', color: '#B91C1C' },
+  TECH_SELECTED: { background: '#D1FAE5', color: '#047857' },
+  TECH_REJECTED: { background: '#FEE2E2', color: '#B91C1C' },
+  IDENTIFIED: { background: '#DCFCE7', color: '#15803D' },
+  YET_TO_JOIN: { background: '#FEF3C7', color: '#B45309' },
+  OPS_SELECTED: { background: '#DCFCE7', color: '#15803D' },
+  OPS_REJECTED: { background: '#FEE2E2', color: '#B91C1C' },
+  SELECTED: { background: '#DCFCE7', color: '#15803D' },
+  REJECTED: { background: '#FEE2E2', color: '#B91C1C' },
+  ONBOARDED: { background: '#D1FAE5', color: '#047857' },
+  DROPPED: { background: '#FEE2E2', color: '#B91C1C' },
 };
 
 export default function StageBadge({ status }: Props) {
+  const tone = colors[status] || { background: '#E5E7EB', color: '#374151' };
+
   return (
-    <span
-      className={`text-xs px-3 py-1 rounded-full font-medium ${
-        colors[status] || 'bg-gray-200'
-      }`}
+    <Box
+      as="span"
+      direction="row"
+      align="center"
+      round="full"
+      pad={{ horizontal: '12px', vertical: '4px' }}
+      background={tone.background}
+      style={{ width: 'fit-content' }}
     >
-      {status.replace(/_/g, ' ')}
-    </span>
+      <Text
+        size="xsmall"
+        weight={500}
+        color={tone.color}
+        style={{ textTransform: 'uppercase', letterSpacing: '0.02em' }}
+      >
+        {status.replace(/_/g, ' ')}
+      </Text>
+    </Box>
   );
 }

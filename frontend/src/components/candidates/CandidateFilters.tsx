@@ -1,4 +1,4 @@
-import React from 'react';
+import { Box, FormField, Select, Text, TextInput } from 'grommet';
 
 type Props = {
   search: string;
@@ -14,46 +14,50 @@ export function CandidateFilters({
   onStatusChange,
 }: Props) {
   return (
-    <div className="bg-white border rounded-lg p-4 mb-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Search */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Search
-          </label>
-          <input
-            type="text"
-            placeholder="Search by name or email"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-        </div>
+    <Box
+      background="white"
+      border={{ color: 'border' }}
+      round="12px"
+      pad="16px"
+      margin={{ bottom: '16px' }}
+    >
+      <Box direction="row" wrap gap="16px">
+        <Box width={{ min: '220px', max: '320px' }}>
+          <FormField label={<Text size="small" color="#374151">Search</Text>}>
+            <TextInput
+              placeholder="Search by name or email"
+              value={search}
+              onChange={(event) => onSearchChange(event.currentTarget.value)}
+              style={{ borderRadius: 8, fontSize: 14 }}
+            />
+          </FormField>
+        </Box>
 
-        {/* Status */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Status
-          </label>
-          <select
-            value={status}
-            onChange={(e) => onStatusChange(e.target.value)}
-            className="w-full border rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            <option value="">All</option>
-            <option value="NEW">New</option>
-            <option value="SCREENING">Screening</option>
-            <option value="INTERVIEWING">Interviewing</option>
-            <option value="SELECTED">Selected</option>
-            <option value="REJECTED">Rejected</option>
-          </select>
-        </div>
+        <Box width={{ min: '220px', max: '320px' }}>
+          <FormField label={<Text size="small" color="#374151">Status</Text>}>
+            <Select
+              options={[
+                { label: 'All', value: '' },
+                { label: 'New', value: 'NEW' },
+                { label: 'Screening', value: 'SCREENING' },
+                { label: 'Interviewing', value: 'INTERVIEWING' },
+                { label: 'Selected', value: 'SELECTED' },
+                { label: 'Rejected', value: 'REJECTED' },
+              ]}
+              valueKey={{ key: 'value', reduce: true }}
+              labelKey="label"
+              value={status}
+              onChange={({ value }) => onStatusChange(value)}
+            />
+          </FormField>
+        </Box>
 
-        {/* Spacer / future filters */}
-        <div className="flex items-end text-sm text-gray-400">
-          {/* Reserved for future filters */}
-        </div>
-      </div>
-    </div>
+        <Box justify="end" pad={{ bottom: '8px' }}>
+          <Text size="small" color="#9CA3AF">
+            Reserved for future filters
+          </Text>
+        </Box>
+      </Box>
+    </Box>
   );
 }

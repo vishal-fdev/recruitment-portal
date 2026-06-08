@@ -1,21 +1,18 @@
+import { Card, CardBody, Heading, Paragraph } from 'grommet';
+
 const ContactMatrixTab = () => {
-
-return(
-
-<div className="bg-white rounded-xl shadow border p-6">
-
-<h2 className="text-lg font-semibold">
-Contact Matrix
-</h2>
-
-<p className="text-gray-500 mt-4">
-Contact Matrix UI will go here.
-</p>
-
-</div>
-
-);
-
+  return (
+    <Card background="white" round="16px" border={{ color: 'border-weak' }} elevation="xsmall">
+      <CardBody pad="large" gap="medium">
+        <Heading level={3} size="small" margin="none">
+          Contact Matrix
+        </Heading>
+        <Paragraph margin="none" color="text-paragraph">
+          Contact Matrix UI will go here.
+        </Paragraph>
+      </CardBody>
+    </Card>
+  );
 };
 
 export default ContactMatrixTab;

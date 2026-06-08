@@ -1,8 +1,3 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Global fixes */
 html,
 body,
 #root {
@@ -10,35 +5,8 @@ body,
 }
 
 body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
   background-color: #f3f4f6;
   color: #111827;
-}
-
-/* Global brand overrides */
-.bg-emerald-500,
-.bg-emerald-600 {
-  background-color: #01a982 !important;
-}
-
-.hover\:bg-emerald-600:hover,
-.hover\:bg-emerald-700:hover,
-.hover\:bg-emerald-500:hover {
-  background-color: #018f76 !important;
-}
-
-.focus\:ring-emerald-500:focus {
-  --tw-ring-color: #01a982 !important;
-}
-
-.border-emerald-500,
-.focus\:border-emerald-300:focus {
-  border-color: #01a982 !important;
-}
-
-/* Shared input style */
-.input {
-  width: 100%;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 8px 12px;
 }

@@ -1,23 +1,73 @@
 import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
+import { Box, Button, Nav, Text } from 'grommet';
 import { BriefcaseBusiness, BriefcaseIcon, LayoutDashboard, Layers, Users } from 'lucide-react';
 import { authService } from '../auth/authService';
+import type { LucideIcon } from 'lucide-react';
+type NavItem = {
+  label: string;
+  path: string;
+  icon: LucideIcon;
+  end?: boolean;
+};
 
-const navItemsByRole = {
+const navItemsByRole: Record<
+  'VENDOR_MANAGER' | 'VENDOR_MANAGER_HEAD',
+  NavItem[]
+> = {
   VENDOR_MANAGER: [
-    { label: 'Dashboard', path: '/vendor-manager', icon: LayoutDashboard, end: true },
-    { label: 'Candidate Management', path: '/vendor-manager/candidates', icon: Users },
-    { label: 'Interview Management', path: '/vendor-manager/partner-slots', icon: Layers },
-    { label: 'Jobs', path: '/vendor-manager/jobs', icon: BriefcaseIcon },
-    { label: 'Vendors', path: '/vendor-manager/vendors', icon: BriefcaseBusiness },
+    {
+      label: 'Dashboard',
+      path: '/vendor-manager',
+      icon: LayoutDashboard,
+      end: true,
+    },
+    {
+      label: 'Candidate Management',
+      path: '/vendor-manager/candidates',
+      icon: Users,
+    },
+    {
+      label: 'Interview Management',
+      path: '/vendor-manager/partner-slots',
+      icon: Layers,
+    },
+    {
+      label: 'Jobs',
+      path: '/vendor-manager/jobs',
+      icon: BriefcaseIcon,
+    },
+    {
+      label: 'Vendors',
+      path: '/vendor-manager/vendors',
+      icon: BriefcaseBusiness,
+    },
   ],
+
   VENDOR_MANAGER_HEAD: [
-    { label: 'Dashboard', path: '/vendor-manager-head', icon: LayoutDashboard, end: true },
-    { label: 'Job approvals', path: '/vendor-manager-head/jobs', icon: BriefcaseIcon },
-    { label: 'Interview Management', path: '/vendor-manager-head/partner-slots', icon: Layers },
-    { label: 'Vendors', path: '/vendor-manager-head/vendors', icon: BriefcaseBusiness },
+    {
+      label: 'Dashboard',
+      path: '/vendor-manager-head',
+      icon: LayoutDashboard,
+      end: true,
+    },
+    {
+      label: 'Job approvals',
+      path: '/vendor-manager-head/jobs',
+      icon: BriefcaseIcon,
+    },
+    {
+      label: 'Interview Management',
+      path: '/vendor-manager-head/partner-slots',
+      icon: Layers,
+    },
+    {
+      label: 'Vendors',
+      path: '/vendor-manager-head/vendors',
+      icon: BriefcaseBusiness,
+    },
   ],
-} as const;
+};
 
 const getUserDetails = () => {
   try {
@@ -30,9 +80,7 @@ const getUserDetails = () => {
     const email = payload?.email || '';
     const userPart = email.split('@')[0] || 'vendor.manager';
     const parts = userPart.split(/[._-]/).filter(Boolean);
-    const name =
-      parts.map((part: string) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') ||
-      'Vendor Manager';
+    const name = parts.map((part: string) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') || 'Vendor Manager';
     const initials =
       parts
         .slice(0, 2)
@@ -58,91 +106,102 @@ const VendorManagerPortalSidebar = ({
   const navItems = navItemsByRole[role];
 
   return (
-    <aside
+    <Box
+      as="aside"
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
-      className={`sticky top-0 z-40 flex h-screen shrink-0 flex-col border-r border-white/10 bg-[#151B2D] text-white transition-all duration-300 ${
-        expanded ? 'w-[280px]' : 'w-[88px]'
-      }`}
+      width={expanded ? '280px' : '88px'}
+      height="100vh"
+      background="#151B2D"
+      border={{ side: 'right', color: 'rgba(255,255,255,0.1)' }}
+      style={{ position: 'sticky', top: 0, zIndex: 40, transition: 'width 0.3s ease', overflow: 'hidden' }}
     >
-      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-5">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#01A982] text-white shadow-[0_10px_20px_rgba(1,169,130,0.2)]">
+      <Box direction="row" align="center" gap="12px" pad={{ horizontal: '16px', vertical: '20px' }} border={{ side: 'bottom', color: 'rgba(255,255,255,0.1)' }}>
+        <Box align="center" justify="center" width="40px" height="40px" round="12px" background="#01A982" style={{ boxShadow: '0 10px 20px rgba(1,169,130,0.2)' }}>
           <BriefcaseBusiness size={18} />
-        </div>
-        <div
-          className={`overflow-hidden transition-all duration-300 ${
-            expanded ? 'max-w-[180px] opacity-100' : 'max-w-0 opacity-0'
-          }`}
-        >
-          <p className="whitespace-nowrap text-[15px] font-semibold tracking-[-0.02em] text-white">
+        </Box>
+        <Box style={{ maxWidth: expanded ? 180 : 0, opacity: expanded ? 1 : 0, overflow: 'hidden', transition: 'all 0.3s ease' }}>
+          <Text size="15px" weight={600} color="white">
             Dribble
-          </p>
-          <p className="mt-0.5 whitespace-nowrap text-xs text-white/45">HPE Vendor Portal</p>
-        </div>
-      </div>
+          </Text>
+          <Text size="12px" color="rgba(255,255,255,0.45)" margin={{ top: '2px' }}>
+            HPE Vendor Portal
+          </Text>
+        </Box>
+      </Box>
 
-      <div
-        className={`px-4 pt-7 text-[12px] font-medium uppercase tracking-[0.18em] text-white/28 transition-opacity duration-300 ${
-          expanded ? 'opacity-100' : 'opacity-0'
-        }`}
-      >
-        Menu
-      </div>
+      <Box pad={{ horizontal: '16px', top: '28px' }} style={{ opacity: expanded ? 1 : 0, transition: 'opacity 0.3s ease' }}>
+        <Text size="12px" weight={500} color="rgba(255,255,255,0.28)" style={{ textTransform: 'uppercase', letterSpacing: '0.18em' }}>
+          Menu
+        </Text>
+      </Box>
 
-      <nav className="mt-3 space-y-2 px-3">
+      <Nav margin={{ top: '12px' }} gap="8px" pad={{ horizontal: '12px' }}>
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.end}
-              className={({ isActive }) =>
-                `flex items-center rounded-[12px] px-4 py-3 text-[13px] transition ${
-                  isActive
-                    ? 'bg-[rgba(1,169,130,0.16)] text-[#01A982]'
-                    : 'text-white/60 hover:bg-white/5 hover:text-white'
-                } ${expanded ? 'gap-3 justify-start' : 'justify-center'}`
-              }
-            >
-              <Icon size={18} className="shrink-0" />
-              <span
-                className={`overflow-hidden whitespace-nowrap transition-all duration-300 ${
-                  expanded ? 'max-w-[180px] opacity-100' : 'max-w-0 opacity-0'
-                }`}
-              >
-                {item.label}
-              </span>
+            <NavLink key={item.path} to={item.path} end={item.end}>
+              {({ isActive }) => (
+                <Box
+                  direction="row"
+                  align="center"
+                  justify={expanded ? 'start' : 'center'}
+                  gap={expanded ? '12px' : '0'}
+                  pad={{ horizontal: '16px', vertical: '12px' }}
+                  round="12px"
+                  background={isActive ? 'rgba(1,169,130,0.16)' : undefined}
+                >
+                  <Box color={isActive ? '#01A982' : 'rgba(255,255,255,0.6)'}>
+                    <Icon size={18} />
+                  </Box>
+                  <Text
+                    size="13px"
+                    color={isActive ? '#01A982' : 'rgba(255,255,255,0.6)'}
+                    style={{
+                      maxWidth: expanded ? 180 : 0,
+                      opacity: expanded ? 1 : 0,
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.3s ease',
+                    }}
+                  >
+                    {item.label}
+                  </Text>
+                </Box>
+              )}
             </NavLink>
           );
         })}
-      </nav>
+      </Nav>
 
-      <div className="mt-auto border-t border-white/10 p-3">
-        <button
+      <Box margin={{ top: 'auto' }} border={{ side: 'top', color: 'rgba(255,255,255,0.1)' }} pad="12px">
+        <Button
           type="button"
           onClick={() => {
             authService.logout();
             window.location.href = '/login';
           }}
-          className={`flex w-full items-center rounded-[14px] px-3 py-3 text-left transition hover:bg-white/5 ${
-            expanded ? 'gap-3' : 'justify-center'
-          }`}
-        >
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#01A982] text-sm font-semibold text-white">
-            {user.initials}
-          </div>
-          <div
-            className={`min-w-0 overflow-hidden transition-all duration-300 ${
-              expanded ? 'max-w-[180px] opacity-100' : 'max-w-0 opacity-0'
-            }`}
-          >
-            <p className="truncate text-[13px] font-semibold text-white">{user.name}</p>
-            <p className="truncate text-[11px] text-white/40">{user.email}</p>
-          </div>
-        </button>
-      </div>
-    </aside>
+          plain
+          label={
+            <Box direction="row" align="center" justify={expanded ? 'start' : 'center'} gap={expanded ? '12px' : '0'} pad={{ horizontal: '12px', vertical: '12px' }}>
+              <Box align="center" justify="center" width="44px" height="44px" round="999px" background="#01A982">
+                <Text size="14px" weight={600} color="white">
+                  {user.initials}
+                </Text>
+              </Box>
+              <Box style={{ minWidth: 0, maxWidth: expanded ? 180 : 0, opacity: expanded ? 1 : 0, overflow: 'hidden', transition: 'all 0.3s ease' }}>
+                <Text size="13px" weight={600} color="white" truncate>
+                  {user.name}
+                </Text>
+                <Text size="11px" color="rgba(255,255,255,0.4)" truncate>
+                  {user.email}
+                </Text>
+              </Box>
+            </Box>
+          }
+        />
+      </Box>
+    </Box>
   );
 };
 

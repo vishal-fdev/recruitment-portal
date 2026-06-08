@@ -1,4 +1,15 @@
 import { useEffect, useState } from 'react';
+import {
+  Box,
+  Button,
+  Form,
+  FormField,
+  Heading,
+  Select,
+  Text,
+  TextInput,
+  TextArea,
+} from 'grommet';
 import api from '../api/api';
 
 type Job = {
@@ -20,27 +31,12 @@ export default function Candidates() {
     jobId: '',
   });
 
-  /* =========================
-     Load jobs assigned to vendor
-     ========================= */
   useEffect(() => {
     api.get('/jobs')
-      .then(res => setJobs(res.data))
+      .then((res) => setJobs(res.data))
       .catch(() => setError('Failed to load jobs'));
   }, []);
 
-  /* =========================
-     Handle form change
-     ========================= */
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  /* =========================
-     Submit candidate
-     ========================= */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -57,7 +53,6 @@ export default function Candidates() {
       });
 
       setSuccess('Candidate submitted successfully');
-
       setForm({
         name: '',
         email: '',
@@ -65,92 +60,69 @@ export default function Candidates() {
         experience: '',
         jobId: '',
       });
-    } catch (err) {
+    } catch {
       setError('Failed to submit candidate');
     } finally {
       setLoading(false);
     }
   };
 
-  /* =========================
-     UI
-     ========================= */
   return (
-    <div className="max-w-xl">
-      <h2 className="text-xl font-semibold mb-4">
+    <Box width="xlarge" gap="16px">
+      <Heading level={2} margin="none" size="small">
         Submit Candidate Profile
-      </h2>
+      </Heading>
 
-      {error && (
-        <p className="mb-3 text-red-600">{error}</p>
-      )}
+      {error && <Text color="status-critical">{error}</Text>}
+      {success && <Text color="status-ok">{success}</Text>}
 
-      {success && (
-        <p className="mb-3 text-green-600">{success}</p>
-      )}
+      <Box
+        as="form"
+        onSubmit={handleSubmit}
+        gap="16px"
+        pad="24px"
+        background="white"
+        round="16px"
+        border={{ color: 'border-weak' }}
+      >
+        <Form value={form} onChange={(nextValue) => setForm(nextValue as typeof form)}>
+          <Box gap="16px">
+            <FormField name="name" label="Candidate Name" required>
+              <TextInput name="name" value={form.name} />
+            </FormField>
+            <FormField name="email" label="Email" required>
+              <TextInput name="email" type="email" value={form.email} />
+            </FormField>
+            <FormField name="skills" label="Skills" required>
+              <TextArea name="skills" value={form.skills} resize={false} rows={3} />
+            </FormField>
+            <FormField name="experience" label="Experience (years)" required>
+              <TextInput name="experience" type="number" value={form.experience} />
+            </FormField>
+            <FormField name="jobId" label="Select Job" required>
+              <Select
+                name="jobId"
+                options={jobs.map((job) => ({ label: job.title, value: String(job.id) }))}
+                labelKey="label"
+                valueKey={{ key: 'value', reduce: true }}
+                value={form.jobId}
+                onChange={({ value }) => setForm((current) => ({ ...current, jobId: value }))}
+              />
+            </FormField>
+          </Box>
+        </Form>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          name="name"
-          placeholder="Candidate Name"
-          className="w-full border rounded px-3 py-2"
-          value={form.name}
-          onChange={handleChange}
-          required
-        />
-
-        <input
-          name="email"
-          type="email"
-          placeholder="Email"
-          className="w-full border rounded px-3 py-2"
-          value={form.email}
-          onChange={handleChange}
-          required
-        />
-
-        <input
-          name="skills"
-          placeholder="Skills (React, Java, etc.)"
-          className="w-full border rounded px-3 py-2"
-          value={form.skills}
-          onChange={handleChange}
-          required
-        />
-
-        <input
-          name="experience"
-          type="number"
-          placeholder="Experience (years)"
-          className="w-full border rounded px-3 py-2"
-          value={form.experience}
-          onChange={handleChange}
-          required
-        />
-
-        <select
-          name="jobId"
-          className="w-full border rounded px-3 py-2"
-          value={form.jobId}
-          onChange={handleChange}
-          required
-        >
-          <option value="">Select Job</option>
-          {jobs.map(job => (
-            <option key={job.id} value={job.id}>
-              {job.title}
-            </option>
-          ))}
-        </select>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          {loading ? 'Submitting...' : 'Submit Candidate'}
-        </button>
-      </form>
-    </div>
+        <Box direction="row" justify="start">
+          <Button
+            type="submit"
+            primary
+            color="#3B82F6"
+            label={loading ? 'Submitting...' : 'Submit Candidate'}
+            disabled={loading}
+            onClick={() => undefined}
+          />
+        </Box>
+      </Box>
+    </Box>
   );
 }

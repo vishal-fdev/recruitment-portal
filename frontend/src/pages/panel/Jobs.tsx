@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  DataTable,
+  Heading,
+  Text,
+} from 'grommet';
 import { getJobs, type Job } from '../../services/jobService';
 
 const PanelJobs = () => {
@@ -23,60 +29,46 @@ const PanelJobs = () => {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-800">Assigned Jobs</h1>
-        <p className="mt-1 text-sm text-gray-500">
+    <Box gap="24px">
+      <Box gap="4px">
+        <Heading level={2} margin="none" size="small">
+          Assigned Jobs
+        </Heading>
+        <Text size="small" color="#64748B">
           Jobs where you are assigned to the screening round.
-        </p>
-      </div>
+        </Text>
+      </Box>
 
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="w-full text-sm text-center">
-          <thead className="bg-[#96f7e4] text-gray-700">
-            <tr>
-              <th className="px-4 py-3">HRQ ID</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Location</th>
-              <th className="px-4 py-3">Hiring Manager</th>
-              <th className="px-4 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={5} className="py-8 text-gray-500">
-                  Loading...
-                </td>
-              </tr>
-            )}
-
-            {!loading && !jobs.length && (
-              <tr>
-                <td colSpan={5} className="py-8 text-gray-400">
-                  No assigned jobs found.
-                </td>
-              </tr>
-            )}
-
-            {!loading &&
-              jobs.map((job) => (
-                <tr
-                  key={job.id}
-                  onClick={() => navigate(`/panel/jobs/${job.id}`)}
-                  className="cursor-pointer border-t hover:bg-gray-50"
-                >
-                  <td className="px-4 py-3 font-medium text-emerald-600">HRQ{job.id}</td>
-                  <td className="px-4 py-3">{job.title}</td>
-                  <td className="px-4 py-3">{job.location || '-'}</td>
-                  <td className="px-4 py-3">{job.hiringManager || '-'}</td>
-                  <td className="px-4 py-3">{job.status.replace(/_/g, ' ')}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      <Box background="white" round="16px" border={{ color: 'border-weak' }} overflow="hidden">
+        <DataTable
+          data={jobs}
+          onClickRow={({ datum }) => navigate(`/panel/jobs/${datum.id}`)}
+          columns={[
+            { property: 'id', header: 'HRQ ID', render: (datum) => <Text color="#01A982" weight={600}>{`HRQ${datum.id}`}</Text> },
+            { property: 'title', header: 'Role' },
+            { property: 'location', header: 'Location', render: (datum) => datum.location || '-' },
+            { property: 'hiringManager', header: 'Hiring Manager', render: (datum) => datum.hiringManager || '-' },
+            { property: 'status', header: 'Status', render: (datum) => datum.status.replace(/_/g, ' ') },
+          ]}
+          background={{ header: '#96f7e4' }}
+          pad={{ horizontal: 'medium', vertical: 'small' }}
+        />
+        {loading && (
+          <Box pad="32px" align="center">
+            <Text size="small" color="#64748B">
+              Loading...
+            </Text>
+          </Box>
+        )}
+        {!loading && !jobs.length && (
+          <Box pad="32px" align="center">
+            <Text size="small" color="#94A3B8">
+              No assigned jobs found.
+            </Text>
+          </Box>
+        )}
+      </Box>
+    </Box>
   );
 };
 

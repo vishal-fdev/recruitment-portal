@@ -1,68 +1,64 @@
-// src/layouts/BaseLayout.tsx
+import { Outlet, useLocation } from 'react-router-dom';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { Box } from 'grommet';
+import Sidebar from '../components/Sidebar';
+import Topbar from '../components/Topbar';
+import { authService } from '../auth/authService';
 
-import { Outlet } from "react-router-dom";
-import { useState } from "react";
-
-import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
-import { authService } from "../auth/authService";
-
-type Role =
-  | "VENDOR"
-  | "VENDOR_MANAGER"
-  | "VENDOR_MANAGER_HEAD"
-  | "HIRING_MANAGER"
-  | "PANEL";
+type Role = 'VENDOR' | 'VENDOR_MANAGER' | 'VENDOR_MANAGER_HEAD' | 'HIRING_MANAGER' | 'PANEL';
 
 const BaseLayout = () => {
-
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
-
-  // ensure role is never null
-  const role = (authService.getRole() || "VENDOR") as Role;
+  const location = useLocation();
+  const mainRef = useRef<HTMLDivElement | null>(null);
+  const role = (authService.getRole() || 'VENDOR') as Role;
 
   const handleLogout = () => {
     authService.logout();
-    window.location.href = "/login";
+    window.location.href = '/login';
   };
 
+  useLayoutEffect(() => {
+    const resetScroll = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      if (mainRef.current) {
+        mainRef.current.scrollTop = 0;
+        mainRef.current.scrollLeft = 0;
+        mainRef.current.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      }
+    };
+
+    resetScroll();
+    const frame = window.requestAnimationFrame(resetScroll);
+    const timer = window.setTimeout(resetScroll, 0);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [location.pathname]);
+
   return (
-
-    <div className="flex min-h-screen bg-gray-100">
-
-      {/* SIDEBAR */}
-
-      <Sidebar
-        role={role}
-        expanded={sidebarExpanded}
-        onHover={setSidebarExpanded}
-      />
-
-      {/* CONTENT AREA */}
-
-      <div
-        className={`
-          flex flex-col flex-1 transition-all duration-300
-        `}
-      >
-
-        {/* TOPBAR */}
-
-        <Topbar
-          role={role}
-          onLogout={handleLogout}
-        />
-
-        {/* PAGE CONTENT */}
-
-        <main className="flex-1 overflow-auto p-8 bg-gray-100">
+    <Box direction="row" fill background="#F3F4F6" style={{ minHeight: '100vh' }}>
+      <Sidebar role={role} expanded={sidebarExpanded} onHover={setSidebarExpanded} />
+      <Box flex>
+        <Topbar role={role} onLogout={handleLogout} />
+        <Box
+          key={location.pathname}
+          as="main"
+          ref={mainRef}
+          flex
+          overflow="auto"
+          pad="large"
+          background="#F3F4F6"
+          data-scroll-root="true"
+        >
           <Outlet />
-        </main>
-
-      </div>
-
-    </div>
-
+        </Box>
+      </Box>
+    </Box>
   );
 };
 

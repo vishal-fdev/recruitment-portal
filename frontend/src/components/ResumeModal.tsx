@@ -1,130 +1,139 @@
-import { useEffect, useState } from "react";
-import api from "../api/api";
+import { useEffect, useState } from 'react';
+import { Box, Button, Layer, Spinner, Text } from 'grommet';
+import api from '../api/api';
 
 interface Props {
   candidateId: number;
+  resumePath?: string | null;
   onClose: () => void;
 }
 
-const ResumeModal = ({ candidateId, onClose }: Props) => {
+const API_URL =
+  typeof api.defaults.baseURL === 'string' && api.defaults.baseURL
+    ? api.defaults.baseURL
+    : import.meta.env.VITE_API_URL || window.location.origin;
 
+const buildDirectResumeUrl = (path?: string | null) => {
+  if (!path) return null;
+
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_URL}${normalizedPath}`;
+};
+
+const ResumeModal = ({ candidateId, resumePath, onClose }: Props) => {
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
-  const [fileType, setFileType] = useState<"pdf" | "docx" | null>(null);
+  const [fileType, setFileType] = useState<'pdf' | 'docx' | null>(null);
 
   useEffect(() => {
     let objectUrl: string | null = null;
 
     const fetchResume = async () => {
+      const tryDirectPath = (path?: string | null) => {
+        const directUrl = buildDirectResumeUrl(path);
+        if (!directUrl) return false;
+
+        setResumeUrl(directUrl);
+        setFileType(directUrl.toLowerCase().endsWith('.pdf') ? 'pdf' : 'docx');
+        return true;
+      };
+
+      if (tryDirectPath(resumePath)) {
+        return;
+      }
+
+      try {
+        const detailRes = await api.get(`/candidates/${candidateId}`);
+        if (tryDirectPath(detailRes.data?.resumePath)) {
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to resolve resume path from candidate detail', error);
+      }
 
       try {
         const res = await api.get(`/candidates/${candidateId}/resume`, {
-          responseType: "blob",
+          responseType: 'blob',
         });
-        const mimeType = res.data.type || "";
+        const mimeType = res.data.type || '';
         objectUrl = URL.createObjectURL(res.data);
         setResumeUrl(objectUrl);
-
-        if (mimeType.toLowerCase().includes("pdf")) {
-          setFileType("pdf");
-        } else {
-          setFileType("docx");
-        }
-
+        setFileType(mimeType.toLowerCase().includes('pdf') ? 'pdf' : 'docx');
       } catch {
-        alert("Unable to load resume");
+        alert('Unable to load resume');
       }
-
     };
 
-    fetchResume();
+    void fetchResume();
 
     return () => {
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);
       }
     };
-
-  }, [candidateId]);
+  }, [candidateId, resumePath]);
 
   const downloadDoc = () => {
     if (!resumeUrl) return;
 
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = resumeUrl;
-    link.download = "resume";
+    link.download = 'resume';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   return (
+    <Layer
+      onEsc={onClose}
+      onClickOutside={onClose}
+      modal
+      responsive
+      position="center"
+      style={{ width: '85vw', height: '90vh', maxWidth: '1200px' }}
+    >
+      <Box fill background="white" round="medium" overflow="hidden">
+        <Box
+          direction="row"
+          justify="between"
+          align="center"
+          pad={{ horizontal: 'medium', vertical: 'small' }}
+          border={{ side: 'bottom', color: 'border' }}
+        >
+          <Text weight={600}>Candidate Resume</Text>
+          <Button plain label="✕" onClick={onClose} />
+        </Box>
 
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-
-      <div className="bg-white w-[85%] h-[90%] rounded-lg shadow relative">
-
-        {/* HEADER */}
-
-        <div className="flex justify-between items-center px-4 py-2 border-b">
-
-          <h2 className="font-semibold">
-            Candidate Resume
-          </h2>
-
-          <button
-            onClick={onClose}
-            className="text-xl font-semibold text-purple-600"
-          >
-            ✕
-          </button>
-
-        </div>
-
-        {/* BODY */}
-
-        {resumeUrl ? (
-
-          fileType === "pdf" ? (
-
-            <iframe
-              src={resumeUrl}
-              className="w-full h-[calc(100%-45px)]"
-              title="Resume"
-            />
-
+        <Box flex overflow="hidden">
+          {resumeUrl ? (
+            fileType === 'pdf' ? (
+              <iframe
+                src={resumeUrl}
+                title="Resume"
+                style={{ width: '100%', height: '100%', border: 'none' }}
+              />
+            ) : (
+              <Box flex align="center" justify="center" gap="medium" pad="large">
+                <Text color="dark-4">
+                  DOCX preview is not supported in local environment.
+                </Text>
+                <Button label="Download Resume" primary color="brand" onClick={downloadDoc} />
+              </Box>
+            )
           ) : (
-
-            <div className="flex flex-col items-center justify-center h-full space-y-4">
-
-              <p className="text-gray-600">
-                DOCX preview is not supported in local environment.
-              </p>
-
-              <button
-                onClick={downloadDoc}
-                className="bg-emerald-600 text-white px-6 py-2 rounded"
-              >
-                Download Resume
-              </button>
-
-            </div>
-
-          )
-
-        ) : (
-
-          <div className="p-6 text-center">
-            Loading resume...
-          </div>
-
-        )}
-
-      </div>
-
-    </div>
-
+            <Box flex align="center" justify="center" gap="small">
+              <Spinner size="medium" />
+              <Text>Loading resume...</Text>
+            </Box>
+          )}
+        </Box>
+      </Box>
+    </Layer>
   );
-
 };
 
 export default ResumeModal;

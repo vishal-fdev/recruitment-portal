@@ -1,94 +1,234 @@
-// src/candidates/candidates.service.ts
-
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 
-import { Candidate } from './candidate.entity';
-import { Vendor } from '../vendors/vendors.entity';
-import { Job } from '../jobs/job.entity';
-import { JobVendor } from '../jobs/job-vendor.entity';
-import { CandidateStatus } from './candidate-status.enum';
-import { CandidateInterview } from './candidate-interview.entity';
-import { InterviewRound } from '../jobs/interview-round.entity';
+import { JobPositionStatus } from '../jobs/job-position.entity';
+import { JobStatus } from '../jobs/job-status.enum';
 import {
-  JobPosition,
-  JobPositionStatus,
-} from '../jobs/job-position.entity';
+  JobDocument,
+  JobDocumentModel,
+} from '../mongodb/schemas/job.schema';
 import {
-  PartnerSlot,
+  PartnerSlotDocument,
+  PartnerSlotDocumentModel,
+} from '../mongodb/schemas/partner-slot.schema';
+import {
+  VendorDocument,
+  VendorDocumentModel,
+} from '../mongodb/schemas/vendor.schema';
+import {
+  CandidateDocument,
+  CandidateDocumentModel,
+} from '../mongodb/schemas/candidate.schema';
+import {
+  PartnerSlotStatus,
   SlotAttendanceStatus,
 } from '../partner-slots/partner-slot.entity';
+import { Candidate } from './candidate.entity';
+import { CandidateStatus } from './candidate-status.enum';
 
 @Injectable()
 export class CandidatesService {
   constructor(
-    @InjectRepository(Candidate)
-    private readonly candidateRepo: Repository<Candidate>,
-
-    @InjectRepository(Vendor)
-    private readonly vendorRepo: Repository<Vendor>,
-
-    @InjectRepository(Job)
-    private readonly jobRepo: Repository<Job>,
-
-    @InjectRepository(JobVendor)
-    private readonly jobVendorRepo: Repository<JobVendor>,
-
-    @InjectRepository(CandidateInterview)
-    private readonly interviewRepo: Repository<CandidateInterview>,
-
-    @InjectRepository(InterviewRound)
-    private readonly roundRepo: Repository<InterviewRound>,
-
-    @InjectRepository(JobPosition)
-    private readonly positionRepo: Repository<JobPosition>,
-
-    @InjectRepository(PartnerSlot)
-    private readonly slotRepo: Repository<PartnerSlot>,
+    @InjectModel(CandidateDocumentModel.name)
+    private readonly candidateMongoModel: Model<CandidateDocument>,
+    @InjectModel(VendorDocumentModel.name)
+    private readonly vendorMongoModel: Model<VendorDocument>,
+    @InjectModel(JobDocumentModel.name)
+    private readonly jobMongoModel: Model<JobDocument>,
+    @InjectModel(PartnerSlotDocumentModel.name)
+    private readonly partnerSlotMongoModel: Model<PartnerSlotDocument>,
   ) {}
 
   private normalizeEmail(email?: string | null) {
     return (email || '').trim().toLowerCase();
   }
 
+  private serializeForMongo<T>(value: T): T {
+    return JSON.parse(JSON.stringify(value));
+  }
+
   private async getAssignedScreeningJobIds(email?: string | null) {
     const panelEmail = this.normalizeEmail(email);
     if (!panelEmail) return [];
 
-    const jobs = await this.jobRepo.find({
-      relations: ['interviewRounds', 'interviewRounds.panels'],
-    });
+    const jobs = await this.jobMongoModel.find({}, { postgresId: 1, interviewRounds: 1 }).lean().exec();
 
     return jobs
       .filter((job) =>
         (job.interviewRounds || []).some(
-          (round) =>
+          (round: any) =>
             (round.roundName || '').trim().toUpperCase() === 'SCREENING' &&
             (round.panels || []).some(
-              (panel) => this.normalizeEmail(panel.email) === panelEmail,
+              (panel: any) => this.normalizeEmail(panel.email) === panelEmail,
             ),
         ),
       )
-      .map((job) => job.id);
+      .map((job) => Number(job.postgresId));
   }
 
-  /* =====================================================
-     CREATE CANDIDATE
-  ===================================================== */
+  private async getNextCandidateId() {
+    const docs = await this.candidateMongoModel
+      .find({}, { postgresId: 1 })
+      .sort({ postgresId: -1 })
+      .limit(1)
+      .lean()
+      .exec();
+    return Number(docs[0]?.postgresId || 0) + 1;
+  }
+
+  private async getNextInterviewId() {
+    const docs = await this.candidateMongoModel.find({}, { interviews: 1 }).lean().exec();
+    let maxId = 0;
+    for (const doc of docs) {
+      for (const interview of doc.interviews || []) {
+        maxId = Math.max(maxId, Number((interview as any)?.id || 0));
+      }
+    }
+    return maxId + 1;
+  }
+
+  private mapMongoVendor(doc: any) {
+    if (!doc) return null;
+
+    return {
+      id: doc.postgresId,
+      name: doc.name,
+      email: doc.email,
+      isActive: doc.isActive,
+      createdAt: doc.createdAt ? new Date(doc.createdAt) : null,
+      profile: doc.profile || null,
+      escalations: Array.isArray(doc.escalations) ? doc.escalations : [],
+      engagements: Array.isArray(doc.engagements) ? doc.engagements : [],
+      sows: Array.isArray(doc.sows) ? doc.sows : [],
+    };
+  }
+
+  private mapMongoJob(doc: any) {
+    if (!doc) return null;
+
+    return {
+      id: Number(doc.postgresId),
+      title: doc.title,
+      location: doc.location,
+      experience: doc.experience,
+      department: doc.department ?? null,
+      jobCategory: doc.jobCategory ?? null,
+      workType: doc.workType ?? null,
+      region: doc.region ?? null,
+      dealName: doc.dealName ?? null,
+      hiringManager: doc.hiringManager ?? null,
+      justification: doc.justification ?? null,
+      employmentType: doc.employmentType ?? null,
+      budget: doc.budget ?? null,
+      startDate: doc.startDate ?? null,
+      endDate: doc.endDate ?? null,
+      level: doc.level ?? null,
+      numberOfPositions: doc.numberOfPositions ?? null,
+      currentNumberOfPositions: doc.currentNumberOfPositions ?? null,
+      requestType: doc.requestType ?? null,
+      backfillEmployeeId: doc.backfillEmployeeId ?? null,
+      backfillEmployeeName: doc.backfillEmployeeName ?? null,
+      description: doc.description ?? null,
+      status: doc.status,
+      isActive: doc.isActive,
+      jdPath: doc.jdPath ?? '',
+      jdFileName: doc.jdFileName ?? '',
+      jdMimeType: doc.jdMimeType ?? '',
+      jdFiles: doc.jdFiles ?? '',
+      psqPath: doc.psqPath ?? '',
+      psqFileName: doc.psqFileName ?? '',
+      psqMimeType: doc.psqMimeType ?? '',
+      psqFiles: doc.psqFiles ?? '',
+      createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date(),
+      positions: Array.isArray(doc.positions) ? doc.positions : [],
+      interviewRounds: Array.isArray(doc.interviewRounds) ? doc.interviewRounds : [],
+      jobVendors: Array.isArray(doc.jobVendors) ? doc.jobVendors : [],
+      candidates: Array.isArray(doc.candidates) ? doc.candidates : [],
+    };
+  }
+
+  private mapMongoCandidate(doc: any): Candidate | null {
+    if (!doc) return null;
+
+    const candidate = new Candidate();
+
+    candidate.id = Number(doc.postgresId);
+    candidate.name = doc.name;
+    candidate.email = doc.email;
+    candidate.phone = doc.phone;
+    candidate.aadharNo = doc.aadharNo ?? null;
+    candidate.gender = doc.gender ?? null;
+    candidate.education = doc.education ?? null;
+    candidate.videoLink = doc.videoLink ?? null;
+    candidate.primarySkills = doc.primarySkills ?? null;
+    candidate.secondarySkills = doc.secondarySkills ?? null;
+    candidate.country = doc.country ?? null;
+    candidate.state = doc.state ?? null;
+    candidate.city = doc.city ?? null;
+    candidate.experience = Number(doc.experience ?? 0);
+    candidate.noticePeriod = Number(doc.noticePeriod ?? 0);
+    candidate.currentOrg = doc.currentOrg;
+    candidate.resumePath = doc.resumePath;
+    candidate.status = doc.status;
+    candidate.dropJustification = doc.dropJustification ?? null;
+    candidate.ytjJustification = doc.ytjJustification ?? null;
+    candidate.dateOfJoining = doc.dateOfJoining ?? null;
+    candidate.createdAt = doc.createdAt ? new Date(doc.createdAt) : new Date();
+    candidate.vendor = (doc.vendorSnapshot || null) as any;
+    candidate.job = (doc.jobSnapshot || null) as any;
+    candidate.position = (doc.positionSnapshot || null) as any;
+    candidate.interviews = Array.isArray(doc.interviews) ? (doc.interviews as any) : [];
+
+    return candidate;
+  }
+
+  private async getCandidateDocById(candidateId: number) {
+    return this.candidateMongoModel.findOne({ postgresId: candidateId }).exec();
+  }
+
+  private async getLeanCandidateById(candidateId: number) {
+    const doc = await this.candidateMongoModel.findOne({ postgresId: candidateId }).lean().exec();
+    return this.mapMongoCandidate(doc);
+  }
+
+  private async refreshCandidateSnapshots(candidateDoc: CandidateDocument) {
+    if (candidateDoc.vendorPostgresId) {
+      const vendorDoc = await this.vendorMongoModel
+        .findOne({ postgresId: candidateDoc.vendorPostgresId })
+        .lean()
+        .exec();
+      candidateDoc.vendorSnapshot = this.serializeForMongo(this.mapMongoVendor(vendorDoc));
+    }
+
+    if (candidateDoc.jobPostgresId) {
+      const jobDoc = await this.jobMongoModel
+        .findOne({ postgresId: candidateDoc.jobPostgresId })
+        .lean()
+        .exec();
+      const mappedJob = this.mapMongoJob(jobDoc);
+      candidateDoc.jobSnapshot = this.serializeForMongo(mappedJob);
+
+      if (mappedJob && candidateDoc.positionPostgresId) {
+        const position = (mappedJob.positions || []).find(
+          (entry: any) => Number(entry?.id) === Number(candidateDoc.positionPostgresId),
+        );
+        candidateDoc.positionSnapshot = this.serializeForMongo(position || null);
+      }
+    }
+  }
 
   async createCandidate(
     data: any,
     resumePath: string,
     vendorId: string,
   ) {
-    const vendor = await this.vendorRepo.findOne({
-      where: { id: vendorId },
-    });
+    const vendorDoc = await this.vendorMongoModel.findOne({ postgresId: vendorId }).lean().exec();
+    const vendor = this.mapMongoVendor(vendorDoc);
 
     if (!vendor) {
       throw new NotFoundException('Vendor not found');
@@ -101,9 +241,9 @@ export class CandidatesService {
     }
 
     if (data.aadharNo?.trim()) {
-      const duplicateByAadhar = await this.candidateRepo.findOne({
-        where: { aadharNo: data.aadharNo.trim() },
-      });
+      const duplicateByAadhar = await this.candidateMongoModel.findOne({
+        aadharNo: data.aadharNo.trim(),
+      }).lean().exec();
 
       if (duplicateByAadhar) {
         throw new BadRequestException(
@@ -112,106 +252,76 @@ export class CandidatesService {
       }
     }
 
-    let job: Job | null = null;
-    let position: JobPosition | null = null;
+    let job: any = null;
+    let position: any = null;
 
     if (data.jobId) {
-      job = await this.jobRepo.findOne({
-        where: { id: Number(data.jobId) },
-        relations: ['positions'],
-      });
+      const jobDoc = await this.jobMongoModel
+        .findOne({ postgresId: Number(data.jobId) })
+        .lean()
+        .exec();
+      job = this.mapMongoJob(jobDoc);
 
       if (!job) {
         throw new NotFoundException('Job not found');
       }
 
-      // 🔥 BLOCK BASED ON JOB STATUS
-if (job.status === 'ON_HOLD') {
-  throw new BadRequestException(
-    'This job is currently on hold',
-  );
-}
+      if (job.status === JobStatus.ON_HOLD) {
+        throw new BadRequestException('This job is currently on hold');
+      }
 
-if (job.status === 'CLOSED') {
-  throw new BadRequestException(
-    'This job is closed',
-  );
-}
+      if (job.status === JobStatus.CLOSED) {
+        throw new BadRequestException('This job is closed');
+      }
 
-      const mapping =
-        await this.jobVendorRepo.findOne({
-          where: {
-            job: { id: job.id },
-            vendor: { id: vendorId },
-            isEnabled: true,
-          },
-        });
+      const mapping = (job.jobVendors || []).find(
+        (entry: any) =>
+          entry?.vendor?.id === vendorId && entry?.isEnabled === true,
+      );
 
       if (!mapping) {
-  throw new BadRequestException(
-    'Vendor not assigned to this job',
-  );
-}
+        throw new BadRequestException('Vendor not assigned to this job');
+      }
 
-// 🔥 NEW VALIDATION
-if (mapping.status !== 'ACTIVE') {
-  throw new BadRequestException(
-    'This job is not active for your vendor',
-  );
-}
-      // 🔥 PREVENT DUPLICATE SUBMISSION (SAME JOB + SAME EMAIL)
-const existing = await this.candidateRepo.findOne({
-  where: {
-    email: data.email,
-    job: { id: job.id },
-  },
-});
+      if (mapping.status !== 'ACTIVE') {
+        throw new BadRequestException('This job is not active for your vendor');
+      }
 
-if (existing) {
-  throw new BadRequestException(
-    'Candidate already submitted for this job',
-  );
-}
+      const existing = await this.candidateMongoModel.findOne({
+        email: data.email,
+        jobPostgresId: job.id,
+      }).lean().exec();
+
+      if (existing) {
+        throw new BadRequestException('Candidate already submitted for this job');
+      }
 
       if (data.positionId) {
-        position = await this.positionRepo.findOne({
-          where: { id: Number(data.positionId) },
-          relations: ['job'],
-        });
+        position = (job.positions || []).find(
+          (entry: any) => Number(entry?.id) === Number(data.positionId),
+        );
 
         if (!position) {
-          throw new NotFoundException(
-            'Position not found',
-          );
-        }
-
-        if (position.job.id !== job.id) {
-          throw new BadRequestException(
-            'Invalid position for this job',
-          );
+          throw new NotFoundException('Position not found');
         }
 
         if (position.status === JobPositionStatus.CLOSED) {
-          throw new BadRequestException(
-            'This position is closed',
-          );
+          throw new BadRequestException('This position is closed');
         }
-        // 🔥 EXTRA SAFETY (prevents invalid submissions)
-if ((position.currentOpenings ?? position.openings) <= 0) {
-  throw new BadRequestException(
-    'No openings available for this position',
-  );
-}
+
+        if ((position.currentOpenings ?? position.openings) <= 0) {
+          throw new BadRequestException('No openings available for this position');
+        }
       } else if (
         Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0) <= 0
       ) {
-        throw new BadRequestException(
-          'No openings available for this job',
-        );
+        throw new BadRequestException('No openings available for this job');
       }
     }
 
-    const candidate = this.candidateRepo.create({
+    const candidateId = await this.getNextCandidateId();
+    const created = await this.candidateMongoModel.create({
+      postgresId: candidateId,
       ...data,
       aadharNo: data.aadharNo?.trim() || null,
       gender: data.gender?.trim() || null,
@@ -221,17 +331,17 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
       noticePeriod: Number(data.noticePeriod || 0),
       resumePath,
       status: CandidateStatus.SUBMITTED,
-      vendor,
-      job: job || null,
-      position: position || null,
+      vendorPostgresId: vendor.id,
+      jobPostgresId: job?.id || null,
+      positionPostgresId: position?.id || null,
+      vendorSnapshot: this.serializeForMongo(vendor),
+      jobSnapshot: this.serializeForMongo(job),
+      positionSnapshot: this.serializeForMongo(position),
+      interviews: [],
     });
 
-    return this.candidateRepo.save(candidate);
+    return this.mapMongoCandidate(created.toObject());
   }
-
-  /* =====================================================
-     MANUAL STATUS UPDATE (REQUIRED BY CONTROLLER)
-  ===================================================== */
 
   async updateStage(
     candidateId: number,
@@ -242,19 +352,14 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
     dateOfJoining?: string,
     ytjJustification?: string,
   ) {
-    const candidate = await this.candidateRepo.findOne({
-      where: { id: candidateId },
-      relations: ['job', 'position'],
-    });
+    const candidate = await this.getCandidateDocById(candidateId);
 
     if (!candidate) {
-      throw new NotFoundException(
-        'Candidate not found',
-      );
+      throw new NotFoundException('Candidate not found');
     }
 
     await this.assertStatusChangeAllowed(
-      candidate.id,
+      candidate.postgresId,
       candidate.status,
       nextStatus,
       user,
@@ -264,11 +369,7 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
       ytjJustification,
     );
 
-    await this.syncPositionAvailability(
-      candidate,
-      candidate.status,
-      nextStatus,
-    );
+    await this.syncPositionAvailability(candidate, candidate.status, nextStatus);
 
     candidate.status = nextStatus;
 
@@ -287,30 +388,23 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
       candidate.ytjJustification = candidate.ytjJustification || null;
     }
 
-    const savedCandidate = await this.candidateRepo.save(candidate);
-    await this.syncHmFeedbackSubmission(
-      candidate.id,
-      user,
-      nextStatus,
-      feedback,
-    );
+    await this.refreshCandidateSnapshots(candidate);
+    await candidate.save();
+    await this.syncHmFeedbackSubmission(candidate.postgresId, user, nextStatus, feedback);
 
-    return savedCandidate;
+    return this.getLeanCandidateById(candidateId);
   }
-
-  /* =====================================================
-     ROLE-AWARE FETCH
-  ===================================================== */
 
   async getCandidatesForUser(user: any) {
     if (user.role === 'VENDOR') {
-      return this.candidateRepo.find({
-        where: {
-          vendor: { id: user.vendorId },
-        },
-        relations: ['job', 'position'],
-        order: { createdAt: 'DESC' },
-      });
+      const docs = await this.candidateMongoModel.find({
+        vendorPostgresId: user.vendorId,
+      }).lean().exec();
+
+      return docs
+        .map((doc) => this.mapMongoCandidate(doc))
+        .filter((candidate): candidate is Candidate => Boolean(candidate))
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     }
 
     if (user.role === 'PANEL') {
@@ -320,50 +414,33 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
         return [];
       }
 
-      return this.candidateRepo.find({
-        where: jobIds.map((jobId) => ({ job: { id: jobId } })),
-        relations: ['vendor', 'job', 'position'],
-        order: { createdAt: 'DESC' },
-      });
+      const docs = await this.candidateMongoModel.find({
+        jobPostgresId: { $in: jobIds },
+      }).lean().exec();
+
+      return docs
+        .map((doc) => this.mapMongoCandidate(doc))
+        .filter((candidate): candidate is Candidate => Boolean(candidate))
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     }
 
-    return this.candidateRepo.find({
-      relations: ['vendor', 'job', 'position'],
-      order: { createdAt: 'DESC' },
-    });
+    const docs = await this.candidateMongoModel.find().lean().exec();
+
+    return docs
+      .map((doc) => this.mapMongoCandidate(doc))
+      .filter((candidate): candidate is Candidate => Boolean(candidate))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
-  /* =====================================================
-     GET SINGLE CANDIDATE
-  ===================================================== */
-
   async getCandidateById(id: number, user: any) {
-    const candidate = await this.candidateRepo.findOne({
-      where: { id },
-      relations: [
-        'vendor',
-        'job',
-        'job.interviewRounds',
-        'job.interviewRounds.panels',
-        'position',
-        'interviews',
-        'interviews.round',
-      ],
-    });
+    const candidate = await this.getLeanCandidateById(id);
 
     if (!candidate) {
-      throw new NotFoundException(
-        'Candidate not found',
-      );
+      throw new NotFoundException('Candidate not found');
     }
 
-    if (
-      user.role === 'VENDOR' &&
-      candidate.vendor.id !== user.vendorId
-    ) {
-      throw new BadRequestException(
-        'Unauthorized',
-      );
+    if (user.role === 'VENDOR' && candidate.vendor?.id !== user.vendorId) {
+      throw new BadRequestException('Unauthorized');
     }
 
     if (user.role === 'PANEL') {
@@ -376,136 +453,87 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
     return candidate;
   }
 
-  /* =====================================================
-     SUBMIT INTERVIEW FEEDBACK
-  ===================================================== */
-
   async submitInterviewFeedback(
     candidateId: number,
     roundId: number,
     feedback: string,
     decision: 'SELECT' | 'REJECT',
   ) {
-    const candidate = await this.candidateRepo.findOne({
-      where: { id: candidateId },
-      relations: [
-        'job',
-        'job.interviewRounds',
-        'interviews',
-        'interviews.round',
-      ],
-    });
+    const candidate = await this.getCandidateDocById(candidateId);
 
     if (!candidate) {
-      throw new NotFoundException(
-        'Candidate not found',
-      );
+      throw new NotFoundException('Candidate not found');
     }
 
-    if (!candidate.job) {
-      throw new BadRequestException(
-        'Candidate has no associated job',
-      );
+    const job = candidate.jobSnapshot as any;
+    if (!job) {
+      throw new BadRequestException('Candidate has no associated job');
     }
 
     if (
       candidate.status === CandidateStatus.REJECTED ||
       candidate.status === CandidateStatus.SELECTED
     ) {
-      throw new BadRequestException(
-        'Candidate decision already finalized',
-      );
+      throw new BadRequestException('Candidate decision already finalized');
     }
 
-    const round = await this.roundRepo.findOne({
-      where: { id: roundId },
-      relations: ['panels'],
-    });
+    const round = (job.interviewRounds || []).find(
+      (entry: any) => Number(entry?.id) === Number(roundId),
+    );
 
     if (!round) {
-      throw new NotFoundException(
-        'Round not found',
-      );
+      throw new NotFoundException('Round not found');
     }
 
-    const alreadySubmitted = candidate.interviews.find(
-      (i) => i.round.id === roundId,
+    const alreadySubmitted = (candidate.interviews || []).find(
+      (interview: any) => Number(interview?.round?.id) === Number(roundId),
     );
 
     if (alreadySubmitted) {
-      throw new BadRequestException(
-        'Feedback already submitted for this round',
-      );
+      throw new BadRequestException('Feedback already submitted for this round');
     }
 
-    const interviewsCount = candidate.interviews.length;
-    const expectedRound =
-      candidate.job.interviewRounds[interviewsCount];
+    const interviewsCount = (candidate.interviews || []).length;
+    const expectedRound = (job.interviewRounds || [])[interviewsCount];
 
-    if (!expectedRound || expectedRound.id !== roundId) {
-      throw new BadRequestException(
-        'Invalid round sequence',
-      );
+    if (!expectedRound || Number(expectedRound.id) !== Number(roundId)) {
+      throw new BadRequestException('Invalid round sequence');
     }
 
-    const interview = this.interviewRepo.create({
-      candidate,
-      round,
-      panelMembers: round.panels
-        .map((p) => p.name)
-        .join(', '),
+    const interview = {
+      id: await this.getNextInterviewId(),
+      round: this.serializeForMongo(round),
+      panelMembers: (round.panels || []).map((p: any) => p.name).join(', '),
       feedback,
       decision,
-    });
+      feedbackDate: new Date(),
+    };
 
-    await this.interviewRepo.save(interview);
+    candidate.interviews = this.serializeForMongo([...(candidate.interviews || []), interview]) as any;
 
     if (decision === 'REJECT') {
       candidate.status = CandidateStatus.REJECTED;
     } else {
-      const totalRounds =
-        candidate.job.interviewRounds.length;
-
-      if (interviewsCount === totalRounds - 1) {
-        candidate.status = CandidateStatus.IDENTIFIED;
-      } else {
-        candidate.status = CandidateStatus.SCREENING;
-      }
+      const totalRounds = (job.interviewRounds || []).length;
+      candidate.status =
+        interviewsCount === totalRounds - 1
+          ? CandidateStatus.IDENTIFIED
+          : CandidateStatus.SCREENING;
     }
 
-    await this.candidateRepo.save(candidate);
-
+    await candidate.save();
     return { success: true };
   }
 
-  
-
-  /* =====================================================
-     RESUME ACCESS
-  ===================================================== */
-
-  async getResumePathForUser(
-    candidateId: number,
-    user: any,
-  ) {
-    const candidate = await this.candidateRepo.findOne({
-      where: { id: candidateId },
-      relations: ['vendor', 'job'],
-    });
+  async getResumePathForUser(candidateId: number, user: any) {
+    const candidate = await this.getLeanCandidateById(candidateId);
 
     if (!candidate) {
-      throw new NotFoundException(
-        'Candidate not found',
-      );
+      throw new NotFoundException('Candidate not found');
     }
 
-    if (
-      user.role === 'VENDOR' &&
-      candidate.vendor.id !== user.vendorId
-    ) {
-      throw new BadRequestException(
-        'Unauthorized',
-      );
+    if (user.role === 'VENDOR' && candidate.vendor?.id !== user.vendorId) {
+      throw new BadRequestException('Unauthorized');
     }
 
     if (user.role === 'PANEL') {
@@ -520,9 +548,9 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
 
   async checkDuplicate(email?: string, phone?: string, aadharNo?: string) {
     if (aadharNo?.trim()) {
-      const aadharMatch = await this.candidateRepo.findOne({
-        where: { aadharNo: aadharNo.trim() },
-      });
+      const aadharMatch = await this.candidateMongoModel.findOne({
+        aadharNo: aadharNo.trim(),
+      }).lean().exec();
 
       if (aadharMatch) {
         return {
@@ -533,9 +561,9 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
     }
 
     if (email?.trim()) {
-      const emailMatch = await this.candidateRepo.findOne({
-        where: { email: email.trim() },
-      });
+      const emailMatch = await this.candidateMongoModel.findOne({
+        email: email.trim(),
+      }).lean().exec();
 
       if (emailMatch) {
         return {
@@ -546,9 +574,9 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
     }
 
     if (phone?.trim()) {
-      const phoneMatch = await this.candidateRepo.findOne({
-        where: { phone: phone.trim() },
-      });
+      const phoneMatch = await this.candidateMongoModel.findOne({
+        phone: phone.trim(),
+      }).lean().exec();
 
       if (phoneMatch) {
         return {
@@ -574,9 +602,7 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
     ytjJustification?: string,
   ) {
     if (user.role === 'HIRING_MANAGER') {
-      const allowedTransitions: Partial<
-        Record<CandidateStatus, CandidateStatus[]>
-      > = {
+      const allowedTransitions: Partial<Record<CandidateStatus, CandidateStatus[]>> = {
         [CandidateStatus.SUBMITTED]: [
           CandidateStatus.SCREEN_SELECTED,
           CandidateStatus.SCREEN_REJECTED,
@@ -604,15 +630,11 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
       };
 
       if (!allowedTransitions[currentStatus]?.includes(nextStatus)) {
-        throw new BadRequestException(
-          'Invalid hiring manager status transition',
-        );
+        throw new BadRequestException('Invalid hiring manager status transition');
       }
 
       if (!feedback?.trim()) {
-        throw new BadRequestException(
-          'Feedback is mandatory for this decision',
-        );
+        throw new BadRequestException('Feedback is mandatory for this decision');
       }
 
       return;
@@ -656,11 +678,7 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
       }
 
       if (currentStatus === CandidateStatus.YET_TO_JOIN) {
-        if (
-          ![CandidateStatus.ONBOARDED, CandidateStatus.DROPPED].includes(
-            nextStatus,
-          )
-        ) {
+        if (![CandidateStatus.ONBOARDED, CandidateStatus.DROPPED].includes(nextStatus)) {
           throw new BadRequestException(
             'YTJ candidates can only be moved to Onboarded or Drop',
           );
@@ -684,32 +702,37 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
   }
 
   private async syncPositionAvailability(
-    candidate: Candidate,
+    candidate: CandidateDocument,
     currentStatus: CandidateStatus,
     nextStatus: CandidateStatus,
   ) {
-    const occupiedStatuses = new Set<CandidateStatus>([
-      CandidateStatus.ONBOARDED,
-    ]);
+    const occupiedStatuses = new Set<CandidateStatus>([CandidateStatus.ONBOARDED]);
 
     const wasOccupied = occupiedStatuses.has(currentStatus);
     const willBeOccupied = occupiedStatuses.has(nextStatus);
 
-    if (wasOccupied === willBeOccupied || !candidate.job) {
+    if (wasOccupied === willBeOccupied || !candidate.jobPostgresId) {
       return;
     }
 
     const delta = willBeOccupied ? -1 : 1;
+    const job = await this.jobMongoModel.findOne({ postgresId: candidate.jobPostgresId }).exec();
 
-    if (candidate.position) {
-      const position = await this.positionRepo.findOne({
-        where: { id: candidate.position.id },
-      });
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
 
-      if (!position) {
+    if (candidate.positionPostgresId) {
+      const positions = Array.isArray(job.positions) ? [...job.positions] : [];
+      const positionIndex = positions.findIndex(
+        (entry: any) => Number(entry?.id) === Number(candidate.positionPostgresId),
+      );
+
+      if (positionIndex < 0) {
         throw new NotFoundException('Position not found');
       }
 
+      const position = positions[positionIndex] as any;
       position.currentOpenings = Math.max(
         0,
         Number(position.currentOpenings ?? position.openings ?? 0) + delta,
@@ -718,26 +741,18 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
         position.currentOpenings > 0
           ? JobPositionStatus.OPEN
           : JobPositionStatus.CLOSED;
-
-      await this.positionRepo.save(position);
+      positions[positionIndex] = position;
+      job.positions = positions as any;
+      await job.save();
       return;
-    }
-
-    const job = await this.jobRepo.findOne({
-      where: { id: candidate.job.id },
-    });
-
-    if (!job) {
-      throw new NotFoundException('Job not found');
     }
 
     job.currentNumberOfPositions = Math.max(
       0,
-      Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0) +
-        delta,
+      Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0) + delta,
     );
 
-    await this.jobRepo.save(job);
+    await job.save();
   }
 
   private async syncHmFeedbackSubmission(
@@ -750,30 +765,26 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
       return;
     }
 
-      if (
-        ![
-          CandidateStatus.SCREEN_SELECTED,
-          CandidateStatus.SCREEN_REJECTED,
-          CandidateStatus.TECH_SELECTED,
-          CandidateStatus.TECH_REJECTED,
-          CandidateStatus.OPS_SELECTED,
-          CandidateStatus.OPS_REJECTED,
-        ].includes(nextStatus)
-      ) {
-        return;
-      }
-
-    const candidate = await this.candidateRepo.findOne({
-      where: { id: candidateId },
-      relations: ['job', 'job.interviewRounds', 'job.interviewRounds.panels'],
-    });
-
-    if (!candidate?.job) {
+    if (
+      ![
+        CandidateStatus.SCREEN_SELECTED,
+        CandidateStatus.SCREEN_REJECTED,
+        CandidateStatus.TECH_SELECTED,
+        CandidateStatus.TECH_REJECTED,
+        CandidateStatus.OPS_SELECTED,
+        CandidateStatus.OPS_REJECTED,
+      ].includes(nextStatus)
+    ) {
       return;
     }
 
-    const orderedRounds = [...(candidate.job.interviewRounds || [])].sort(
-      (a, b) => a.id - b.id,
+    const candidate = await this.getCandidateDocById(candidateId);
+    if (!candidate || !candidate.jobSnapshot) {
+      return;
+    }
+
+    const orderedRounds = [...(((candidate.jobSnapshot as any)?.interviewRounds || []))].sort(
+      (a: any, b: any) => Number(a.id) - Number(b.id),
     );
 
     const isScreenDecision = [
@@ -787,66 +798,59 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
         return;
       }
 
-      const existingScreeningInterview = await this.interviewRepo.findOne({
-        where: {
-          candidate: { id: candidateId },
-          round: { id: screeningRound.id },
-        },
-        relations: ['round'],
-      });
+      const existingScreeningInterview = (candidate.interviews || []).find(
+        (interview: any) =>
+          Number(interview?.round?.id) === Number(screeningRound.id),
+      );
 
       if (!existingScreeningInterview) {
-        const interview = this.interviewRepo.create({
-          candidate,
-          round: screeningRound,
+        const interview = {
+          id: await this.getNextInterviewId(),
+          round: this.serializeForMongo(screeningRound),
           panelMembers: (screeningRound.panels || [])
-            .map((panel) => panel.name)
+            .map((panel: any) => panel.name)
             .filter(Boolean)
             .join(', '),
           feedback: feedback?.trim() || '',
           decision:
-            nextStatus === CandidateStatus.SCREEN_SELECTED
-              ? 'SELECT'
-              : 'REJECT',
-        });
+            nextStatus === CandidateStatus.SCREEN_SELECTED ? 'SELECT' : 'REJECT',
+          feedbackDate: new Date(),
+        };
 
-        await this.interviewRepo.save(interview);
+        candidate.interviews = this.serializeForMongo([
+          ...(candidate.interviews || []),
+          interview,
+        ]) as any;
+        await candidate.save();
       }
 
       return;
     }
 
-    const attendedSlot = await this.slotRepo.findOne({
-      where: {
-        candidate: { id: candidateId },
+    const attendedSlot = await this.partnerSlotMongoModel
+      .findOne({
+        candidatePostgresId: candidateId,
         attendanceStatus: SlotAttendanceStatus.ATTENDED,
         hmFeedbackSubmitted: false,
-      },
-      order: { updatedAt: 'DESC' },
-    });
+      })
+      .sort({ updatedAt: -1 })
+      .exec();
 
     if (!attendedSlot) {
       return;
     }
 
-    const normalizedRoundName = (attendedSlot.roundName || '')
-      .trim()
-      .toUpperCase();
-
+    const normalizedRoundName = (attendedSlot.roundName || '').trim().toUpperCase();
     const round =
       orderedRounds.find(
-        (item) =>
+        (item: any) =>
           (item.roundName || '').trim().toUpperCase() === normalizedRoundName,
       ) || null;
 
     if (round) {
-      const existingInterview = await this.interviewRepo.findOne({
-        where: {
-          candidate: { id: candidateId },
-          round: { id: round.id },
-        },
-        relations: ['round'],
-      });
+      const existingInterview = (candidate.interviews || []).find(
+        (interview: any) => Number(interview?.round?.id) === Number(round.id),
+      );
 
       if (!existingInterview) {
         const decision =
@@ -855,22 +859,27 @@ if ((position.currentOpenings ?? position.openings) <= 0) {
             ? 'SELECT'
             : 'REJECT';
 
-        const interview = this.interviewRepo.create({
-          candidate,
-          round,
+        const interview = {
+          id: await this.getNextInterviewId(),
+          round: this.serializeForMongo(round),
           panelMembers: (round.panels || [])
-            .map((panel) => panel.name)
+            .map((panel: any) => panel.name)
             .filter(Boolean)
             .join(', '),
           feedback: feedback?.trim() || attendedSlot.hmComment || '',
           decision,
-        });
+          feedbackDate: new Date(),
+        };
 
-        await this.interviewRepo.save(interview);
+        candidate.interviews = this.serializeForMongo([
+          ...(candidate.interviews || []),
+          interview,
+        ]) as any;
+        await candidate.save();
       }
     }
 
     attendedSlot.hmFeedbackSubmitted = true;
-    await this.slotRepo.save(attendedSlot);
+    await attendedSlot.save();
   }
 }
