@@ -12,11 +12,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Box, Button, Card, CardBody, DataTable, Grid, Heading, Text } from 'grommet';
+import { Box, Button, Card, CardBody, DataTable, Grid, Text } from 'grommet';
 import api from '../../api/api';
 import { getDashboardStats } from '../../services/dashboardService';
 import type { DashboardStats, SubmissionStat } from '../../services/dashboardService';
 import { getJobs, type Job } from '../../services/jobService';
+import { DashboardEmpty, DashboardSection } from '../../components/DashboardHero';
 
 type CandidateRecord = {
   id: number;
@@ -126,17 +127,25 @@ const HiringManagerDashboard = () => {
 
   return (
     <Box gap="24px">
-      <Card round="24px" border={{ color: 'border-weak' }} background="white">
-        <CardBody pad="32px" gap="24px">
-          <Box direction="row" justify="between" align="start">
+      <Card
+        background="white"
+        round="24px"
+        border={{ color: 'border-weak' }}
+        elevation="xsmall"
+        overflow="hidden"
+      >
+        <CardBody pad={{ horizontal: '40px', vertical: '28px' }} gap="28px">
+          <Box direction="row" justify="between" align="start" wrap gap="24px">
             <Box gap="8px">
-              <Heading level={1} margin="none" size="medium" color="#0B1F44">
+              <Text size="48px" weight={700} color="#0F172A" style={{ lineHeight: 1.05 }}>
                 Hiring manager dashboard
-              </Heading>
-              <Text color="#64748B">Q2 2026 - HPE India - Welcome back</Text>
+              </Text>
+              <Text size="24px" color="#94A3B8">
+                Q2 2026 · HPE India · Welcome back
+              </Text>
             </Box>
 
-            <Box direction="row" gap="12px">
+            <Box direction="row" gap="12px" align="center">
               <Button
                 label="Export"
                 style={{
@@ -163,16 +172,40 @@ const HiringManagerDashboard = () => {
           </Box>
 
           <Grid columns={['flex', 'flex', 'flex', 'flex']} gap="16px">
-            <TopCard accent="#01A982" title="JOBS CREATED" value={loading ? '...' : jobs.length} helper={`${createdThisWeek} this week`} helperColor="#01A982" />
-            <TopCard accent="#4E86F7" title="PENDING APPROVAL" value={loading ? '...' : pendingApprovals} helper="Awaiting VM Head" helperColor="#94A3B8" />
-            <TopCard accent="#7C6CF2" title="ACTIVE CANDIDATES" value={loading ? '...' : activeCandidates} helper={`${activeCandidatesThisWeek} this week`} helperColor="#01A982" />
-            <TopCard accent="#F59E0B" title="OFFERS EXTENDED" value={loading ? '...' : offersExtended} helper={`${offersToday} today`} helperColor="#01A982" />
+            <HeroMetricCard
+              accent="#01A982"
+              title="JOBS CREATED"
+              value={loading ? '...' : jobs.length}
+              helper={`${createdThisWeek} this week`}
+              helperColor="#01A982"
+            />
+            <HeroMetricCard
+              accent="#4E86F7"
+              title="PENDING APPROVAL"
+              value={loading ? '...' : pendingApprovals}
+              helper="Awaiting VM Head"
+              helperColor="#94A3B8"
+            />
+            <HeroMetricCard
+              accent="#7C6CF2"
+              title="ACTIVE CANDIDATES"
+              value={loading ? '...' : activeCandidates}
+              helper={`${activeCandidatesThisWeek} this week`}
+              helperColor="#01A982"
+            />
+            <HeroMetricCard
+              accent="#F59E0B"
+              title="OFFERS EXTENDED"
+              value={loading ? '...' : offersExtended}
+              helper={`${offersToday} today`}
+              helperColor="#01A982"
+            />
           </Grid>
         </CardBody>
       </Card>
 
       <Grid columns={['flex', 'flex']} gap="24px">
-        <DashboardCard title="Candidate status distribution">
+        <DashboardSection title="Candidate status distribution">
           {pieData.length ? (
             <Box height="320px" align="center" justify="center">
               <ResponsiveContainer width="100%" height="100%">
@@ -187,11 +220,11 @@ const HiringManagerDashboard = () => {
               </ResponsiveContainer>
             </Box>
           ) : (
-            <EmptyState message="No candidate status data available yet." />
+            <DashboardEmpty message="No candidate status data available yet." />
           )}
-        </DashboardCard>
+        </DashboardSection>
 
-        <DashboardCard
+        <DashboardSection
           title="Recent job openings"
           action={<Button plain label="View all" color="brand" onClick={() => navigate('/hiring-manager/jobs')} />}
         >
@@ -209,14 +242,11 @@ const HiringManagerDashboard = () => {
                   onClick={() => navigate(`/hiring-manager/jobs/${job.id}`)}
                 >
                   <Text color="#7C8699">{`JOB-${String(job.id).padStart(3, '0')}`}</Text>
-                 <Box flex>
-  <Text
-    weight={500}
-    truncate
-  >
-    {job.title}
-  </Text>
-</Box>
+                  <Box flex overflow="hidden">
+                    <Text weight={500} truncate>
+                      {job.title}
+                    </Text>
+                  </Box>
                   <Text color="#94A3B8">{job.location || '-'}</Text>
                   <Box pad={{ horizontal: '16px', vertical: '8px' }} round="999px" background={getPillColors(job.status).background}>
                     <Text size="small" color={getPillColors(job.status).color}>
@@ -224,13 +254,13 @@ const HiringManagerDashboard = () => {
                     </Text>
                   </Box>
                 </Box>
-              )) : <EmptyState message="No recent job openings available yet." />}
+              )) : <DashboardEmpty message="No recent job openings available yet." />}
           </Box>
-        </DashboardCard>
+        </DashboardSection>
       </Grid>
 
       <Grid columns={['flex', 'flex']} gap="24px">
-        <DashboardCard title="Candidate submissions per day">
+        <DashboardSection title="Candidate submissions per day">
           {barData.length ? (
             <Box height="300px">
               <ResponsiveContainer width="100%" height="100%">
@@ -244,11 +274,11 @@ const HiringManagerDashboard = () => {
               </ResponsiveContainer>
             </Box>
           ) : (
-            <EmptyState message="No submission trend data available yet." />
+            <DashboardEmpty message="No submission trend data available yet." />
           )}
-        </DashboardCard>
+        </DashboardSection>
 
-        <DashboardCard title="Candidate status summary">
+        <DashboardSection title="Candidate status summary">
           {candidateSummary.length ? (
             <Box gap="20px">
               {candidateSummary.map((item) => (
@@ -272,129 +302,49 @@ const HiringManagerDashboard = () => {
               ))}
             </Box>
           ) : (
-            <EmptyState message="No candidate status summary available yet." />
+            <DashboardEmpty message="No candidate status summary available yet." />
           )}
-        </DashboardCard>
+        </DashboardSection>
       </Grid>
 
-      <DashboardCard
+      <DashboardSection
         title="Recent candidate updates"
         action={<Button plain label="View all" color="brand" onClick={() => navigate('/hiring-manager/candidates')} />}
       >
         {recentCandidateUpdates.length > 0 ? (
-  <DataTable
-    data={recentCandidateUpdates}
-    columns={[
-      {
-        property: 'candidateCode',
-        header: (
-          <Text size="small" weight="bold">
-            ID
-          </Text>
-        ),
-        render: (datum) => (
-          <Text weight="bold" color="brand">
-            {datum.candidateCode}
-          </Text>
-        ),
-      },
-      {
-        property: 'name',
-        header: (
-          <Text size="small" weight="bold">
-            NAME
-          </Text>
-        ),
-      },
-      {
-        property: 'jobCode',
-        header: (
-          <Text size="small" weight="bold">
-            JOB
-          </Text>
-        ),
-        render: (datum) => (
-          <Text weight="bold" color="brand">
-            {datum.jobCode}
-          </Text>
-        ),
-      },
-      {
-        property: 'statusLabel',
-        header: (
-          <Text size="small" weight="bold">
-            STATUS
-          </Text>
-        ),
-        render: (datum) => (
-          <StatusPill
-            status={datum.status}
-            label={datum.statusLabel}
+          <DataTable
+            data={recentCandidateUpdates}
+            columns={[
+              {
+                property: 'candidateCode',
+                header: <Text size="small" weight="bold" color="text-paragraph">ID</Text>,
+                render: (datum) => <Text weight="bold" color="brand">{datum.candidateCode}</Text>,
+              },
+              {
+                property: 'name',
+                header: <Text size="small" weight="bold" color="text-paragraph">NAME</Text>,
+              },
+              {
+                property: 'jobCode',
+                header: <Text size="small" weight="bold" color="text-paragraph">JOB</Text>,
+                render: (datum) => <Text weight="bold" color="brand">{datum.jobCode}</Text>,
+              },
+              {
+                property: 'statusLabel',
+                header: <Text size="small" weight="bold" color="text-paragraph">STATUS</Text>,
+                render: (datum) => <StatusPill status={datum.status} label={datum.statusLabel} />,
+              },
+            ]}
+            onClickRow={({ datum }) => navigate(`/hiring-manager/candidates/${datum.id}`)}
+            fill
           />
-        ),
-      },
-    ]}
-    onClickRow={({ datum }) =>
-      navigate(`/hiring-manager/candidates/${datum.id}`)
-    }
-    fill
-  />
-) : (
-  <EmptyState message="No candidate updates available yet." />
-)}
-      </DashboardCard>
+        ) : (
+          <DashboardEmpty message="No candidate updates available yet." />
+        )}
+      </DashboardSection>
     </Box>
   );
 };
-
-const TopCard = ({
-  title,
-  value,
-  helper,
-  helperColor,
-  accent,
-}: {
-  title: string;
-  value: number | string;
-  helper: string;
-  helperColor: string;
-  accent: string;
-}) => (
-  <Card round="20px" border={{ color: 'border-weak' }} background="white" overflow="hidden">
-    <Box height="4px" background={accent} />
-    <CardBody pad="28px" gap="12px">
-      <Text size="small" weight="bold" color="#A0A8B8" style={{ letterSpacing: '0.08em' }}>
-        {title}
-      </Text>
-      <Text size="48px" weight="bold" color="#0B1F44">
-        {value}
-      </Text>
-      <Text color={helperColor}>{helper}</Text>
-    </CardBody>
-  </Card>
-);
-
-const DashboardCard = ({
-  title,
-  children,
-  action,
-}: {
-  title: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) => (
-  <Card round="24px" border={{ color: 'border-weak' }} background="white">
-    <CardBody pad="28px" gap="20px">
-      <Box direction="row" justify="between" align="center">
-        <Heading level={3} size="small" margin="none">
-          {title}
-        </Heading>
-        {action}
-      </Box>
-      {children}
-    </CardBody>
-  </Card>
-);
 
 const StatusPill = ({ status, label }: { status: string; label: string }) => {
   const { background, color } = getPillColors(status);
@@ -407,10 +357,33 @@ const StatusPill = ({ status, label }: { status: string; label: string }) => {
   );
 };
 
-const EmptyState = ({ message }: { message: string }) => (
-  <Box height="300px" align="center" justify="center">
-    <Text color="text-weak">{message}</Text>
-  </Box>
+const HeroMetricCard = ({
+  accent,
+  title,
+  value,
+  helper,
+  helperColor,
+}: {
+  accent: string;
+  title: string;
+  value: string | number;
+  helper: string;
+  helperColor: string;
+}) => (
+  <Card background="white" round="20px" border={{ color: 'border-weak' }} overflow="hidden">
+    <Box height="4px" background={accent} />
+    <CardBody pad={{ horizontal: '28px', vertical: '24px' }} gap="10px">
+      <Text size="12px" weight={700} color="#A3B0C4" style={{ letterSpacing: '0.08em' }}>
+        {title}
+      </Text>
+      <Text size="48px" weight={700} color="#0F172A" style={{ lineHeight: 1 }}>
+        {value}
+      </Text>
+      <Text size="16px" color={helperColor}>
+        {helper}
+      </Text>
+    </CardBody>
+  </Card>
 );
 
 const formatStageLabel = (value: string) =>

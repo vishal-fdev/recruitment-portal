@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadRequestException,
   Injectable,
   NotFoundException,
@@ -46,6 +46,24 @@ export class CandidatesService {
 
   private normalizeEmail(email?: string | null) {
     return (email || '').trim().toLowerCase();
+  }
+
+  private parseNumberField(value: unknown, fallback?: number) {
+    if (value === null || value === undefined || value === '') {
+      return fallback;
+    }
+
+    const direct = Number(value);
+    if (Number.isFinite(direct)) {
+      return direct;
+    }
+
+    const match = String(value).match(/\d+/);
+    if (match) {
+      return Number(match[0]);
+    }
+
+    return fallback;
   }
 
   private serializeForMongo<T>(value: T): T {
@@ -227,7 +245,8 @@ export class CandidatesService {
     resumePath: string,
     vendorId: string,
   ) {
-    const vendorDoc = await this.vendorMongoModel.findOne({ postgresId: vendorId }).lean().exec();
+    const normalizedVendorId = String(vendorId || '');
+    const vendorDoc = await this.vendorMongoModel.findOne({ postgresId: normalizedVendorId }).lean().exec();
     const vendor = this.mapMongoVendor(vendorDoc);
 
     if (!vendor) {
@@ -276,7 +295,7 @@ export class CandidatesService {
 
       const mapping = (job.jobVendors || []).find(
         (entry: any) =>
-          entry?.vendor?.id === vendorId && entry?.isEnabled === true,
+          String(entry?.vendor?.id || '') === normalizedVendorId && entry?.isEnabled === true,
       );
 
       if (!mapping) {
@@ -319,6 +338,12 @@ export class CandidatesService {
       }
     }
 
+    const experience = this.parseNumberField(data.experience);
+    if (experience === undefined) {
+      throw new BadRequestException('Total experience is required');
+    }
+
+    const noticePeriod = this.parseNumberField(data.noticePeriod, 0) ?? 0;
     const candidateId = await this.getNextCandidateId();
     const created = await this.candidateMongoModel.create({
       postgresId: candidateId,
@@ -327,11 +352,11 @@ export class CandidatesService {
       gender: data.gender?.trim() || null,
       education: data.education?.trim() || null,
       videoLink: data.videoLink?.trim() || null,
-      experience: Number(data.experience),
-      noticePeriod: Number(data.noticePeriod || 0),
+      experience,
+      noticePeriod,
       resumePath,
       status: CandidateStatus.SUBMITTED,
-      vendorPostgresId: vendor.id,
+      vendorPostgresId: String(vendor.id),
       jobPostgresId: job?.id || null,
       positionPostgresId: position?.id || null,
       vendorSnapshot: this.serializeForMongo(vendor),
@@ -424,6 +449,30 @@ export class CandidatesService {
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     }
 
+    if (user.role === 'HIRING_MANAGER') {
+      const hiringManagerEmail = this.normalizeEmail(user.email);
+      const jobs = await this.jobMongoModel
+        .find({}, { postgresId: 1, hiringManager: 1 })
+        .lean()
+        .exec();
+      const jobIds = jobs
+        .filter((job) => this.normalizeEmail((job as any).hiringManager) === hiringManagerEmail)
+        .map((job) => Number(job.postgresId));
+
+      if (!jobIds.length) {
+        return [];
+      }
+
+      const docs = await this.candidateMongoModel.find({
+        jobPostgresId: { $in: jobIds },
+      }).lean().exec();
+
+      return docs
+        .map((doc) => this.mapMongoCandidate(doc))
+        .filter((candidate): candidate is Candidate => Boolean(candidate))
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
+
     const docs = await this.candidateMongoModel.find().lean().exec();
 
     return docs
@@ -448,6 +497,13 @@ export class CandidatesService {
       if (!candidate.job || !jobIds.includes(candidate.job.id)) {
         throw new BadRequestException('Unauthorized');
       }
+    }
+
+    if (
+      user.role === 'HIRING_MANAGER' &&
+      this.normalizeEmail(candidate.job?.hiringManager) !== this.normalizeEmail(user.email)
+    ) {
+      throw new BadRequestException('Unauthorized');
     }
 
     return candidate;
@@ -787,43 +843,19 @@ export class CandidatesService {
       (a: any, b: any) => Number(a.id) - Number(b.id),
     );
 
-    const isScreenDecision = [
-      CandidateStatus.SCREEN_SELECTED,
-      CandidateStatus.SCREEN_REJECTED,
-    ].includes(nextStatus);
+    const decisionRoundIndex: Partial<Record<CandidateStatus, number>> = {
+      [CandidateStatus.SCREEN_SELECTED]: 0,
+      [CandidateStatus.SCREEN_REJECTED]: 0,
+      [CandidateStatus.TECH_SELECTED]: 1,
+      [CandidateStatus.TECH_REJECTED]: 1,
+      [CandidateStatus.OPS_SELECTED]: 2,
+      [CandidateStatus.OPS_REJECTED]: 2,
+    };
 
-    if (isScreenDecision) {
-      const screeningRound = orderedRounds[0] || null;
-      if (!screeningRound) {
-        return;
-      }
+    const roundIndex = decisionRoundIndex[nextStatus];
+    const round = typeof roundIndex === 'number' ? orderedRounds[roundIndex] : null;
 
-      const existingScreeningInterview = (candidate.interviews || []).find(
-        (interview: any) =>
-          Number(interview?.round?.id) === Number(screeningRound.id),
-      );
-
-      if (!existingScreeningInterview) {
-        const interview = {
-          id: await this.getNextInterviewId(),
-          round: this.serializeForMongo(screeningRound),
-          panelMembers: (screeningRound.panels || [])
-            .map((panel: any) => panel.name)
-            .filter(Boolean)
-            .join(', '),
-          feedback: feedback?.trim() || '',
-          decision:
-            nextStatus === CandidateStatus.SCREEN_SELECTED ? 'SELECT' : 'REJECT',
-          feedbackDate: new Date(),
-        };
-
-        candidate.interviews = this.serializeForMongo([
-          ...(candidate.interviews || []),
-          interview,
-        ]) as any;
-        await candidate.save();
-      }
-
+    if (!round) {
       return;
     }
 
@@ -836,50 +868,43 @@ export class CandidatesService {
       .sort({ updatedAt: -1 })
       .exec();
 
-    if (!attendedSlot) {
-      return;
+    const existingInterview = (candidate.interviews || []).find(
+      (interview: any) => Number(interview?.round?.id) === Number(round.id),
+    );
+
+    if (!existingInterview) {
+      const decision = [
+        CandidateStatus.SCREEN_SELECTED,
+        CandidateStatus.TECH_SELECTED,
+        CandidateStatus.OPS_SELECTED,
+      ].includes(nextStatus)
+        ? 'SELECT'
+        : 'REJECT';
+
+      const interview = {
+        id: await this.getNextInterviewId(),
+        round: this.serializeForMongo(round),
+        panelMembers: (round.panels || [])
+          .map((panel: any) => panel.name)
+          .filter(Boolean)
+          .join(', '),
+        feedback: feedback?.trim() || attendedSlot?.hmComment || '',
+        decision,
+        feedbackDate: new Date(),
+      };
+
+      candidate.interviews = this.serializeForMongo([
+        ...(candidate.interviews || []),
+        interview,
+      ]) as any;
+      await candidate.save();
     }
 
-    const normalizedRoundName = (attendedSlot.roundName || '').trim().toUpperCase();
-    const round =
-      orderedRounds.find(
-        (item: any) =>
-          (item.roundName || '').trim().toUpperCase() === normalizedRoundName,
-      ) || null;
-
-    if (round) {
-      const existingInterview = (candidate.interviews || []).find(
-        (interview: any) => Number(interview?.round?.id) === Number(round.id),
-      );
-
-      if (!existingInterview) {
-        const decision =
-          nextStatus === CandidateStatus.TECH_SELECTED ||
-          nextStatus === CandidateStatus.OPS_SELECTED
-            ? 'SELECT'
-            : 'REJECT';
-
-        const interview = {
-          id: await this.getNextInterviewId(),
-          round: this.serializeForMongo(round),
-          panelMembers: (round.panels || [])
-            .map((panel: any) => panel.name)
-            .filter(Boolean)
-            .join(', '),
-          feedback: feedback?.trim() || attendedSlot.hmComment || '',
-          decision,
-          feedbackDate: new Date(),
-        };
-
-        candidate.interviews = this.serializeForMongo([
-          ...(candidate.interviews || []),
-          interview,
-        ]) as any;
-        await candidate.save();
-      }
+    if (attendedSlot) {
+      attendedSlot.hmFeedbackSubmitted = true;
+      await attendedSlot.save();
     }
-
-    attendedSlot.hmFeedbackSubmitted = true;
-    await attendedSlot.save();
   }
 }
+
+

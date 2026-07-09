@@ -3,11 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
-  Card,
-  CardBody,
   DataTable,
   Grid,
-  Heading,
   Text,
 } from 'grommet';
 import {
@@ -24,6 +21,7 @@ import {
 } from 'recharts';
 import api from '../../api/api';
 import { getJobs, type Job } from '../../services/jobService';
+import { DashboardEmpty, DashboardHero, DashboardSection } from '../../components/DashboardHero';
 
 type CandidateRecord = {
   id: number;
@@ -136,32 +134,19 @@ const DashboardHome = () => {
 
   return (
     <Box gap="24px">
-      <Card round="24px" border={{ color: 'border-weak' }} background="white">
-        <CardBody pad="32px" gap="24px">
-          <Box gap="8px">
-            <Heading level={1} size="medium" margin="none">
-              VM Head dashboard
-            </Heading>
-            <Text color="#64748B">Q2 2026 - HPE India - Welcome back</Text>
-          </Box>
+      <DashboardHero
+        title="Vendor manager head dashboard"
+        subtitle="Q2 2026 - HPE India - Welcome back"
+        metrics={[
+          { accent: '#EF4444', title: 'PENDING APPROVALS', value: loading ? '...' : pendingJobs.length, helper: 'Action needed', helperColor: '#EF4444' },
+          { accent: '#01A982', title: 'APPROVED JOBS', value: loading ? '...' : approvedJobs, helper: `${jobs.filter((job) => isThisWeek(job.createdAt) && job.status === 'APPROVED').length} this week`, helperColor: '#01A982' },
+          { accent: '#3B82F6', title: 'ACTIVE VENDORS', value: loading ? '...' : activeVendors, helper: 'All active', helperColor: '#94A3B8' },
+          { accent: '#7C6CF2', title: 'TOTAL CANDIDATES', value: loading ? '...' : totalCandidates, helper: `${candidatesThisWeek} this week`, helperColor: '#01A982' },
+        ]}
+      />
 
-          <Grid columns={['flex', 'flex', 'flex', 'flex']} gap="16px">
-            <TopCard accent="#EF4444" title="PENDING APPROVALS" value={loading ? '...' : pendingJobs.length} helper="Action needed" helperColor="#EF4444" />
-            <TopCard
-              accent="#01A982"
-              title="APPROVED JOBS"
-              value={loading ? '...' : approvedJobs}
-              helper={`${jobs.filter((job) => isThisWeek(job.createdAt) && job.status === 'APPROVED').length} this week`}
-              helperColor="#01A982"
-            />
-            <TopCard accent="#3B82F6" title="ACTIVE VENDORS" value={loading ? '...' : activeVendors} helper="All active" helperColor="#94A3B8" />
-            <TopCard accent="#7C6CF2" title="TOTAL CANDIDATES" value={loading ? '...' : totalCandidates} helper={`${candidatesThisWeek} this week`} helperColor="#01A982" />
-          </Grid>
-        </CardBody>
-      </Card>
-
-      <Grid columns={['flex', 'flex']} gap="24px">
-        <DashboardCard title="Job status distribution">
+      <div style={styles.twoColumnGrid}>
+        <DashboardSection title="Job status distribution">
           {pieData.length ? (
             <Grid columns={['flex', '220px']} gap="20px">
               <Box height="300px">
@@ -180,11 +165,9 @@ const DashboardHome = () => {
                 {pieData.map((entry, index) => (
                   <Box key={entry.name} direction="row" align="center" gap="12px" background="#F8FAFC" round="14px" pad={{ horizontal: '12px', vertical: '8px' }}>
                     <Box width="12px" height="12px" round="50%" background={CHART_COLORS[index % CHART_COLORS.length]} />
-                    <Box flex>
-  <Text size="small" color="#475569">
-    {entry.name}
-  </Text>
-</Box>
+                    <Text size="small" color="#475569" flex>
+                      {entry.name}
+                    </Text>
                     <Text size="small" weight={600}>
                       {entry.value}
                     </Text>
@@ -193,11 +176,11 @@ const DashboardHome = () => {
               </Box>
             </Grid>
           ) : (
-            <EmptyState message="No job status data available yet." />
+            <DashboardEmpty message="No job status data available yet." />
           )}
-        </DashboardCard>
+        </DashboardSection>
 
-        <DashboardCard
+        <DashboardSection
           title="Jobs pending your approval"
           action={<Button plain label="View all" onClick={() => navigate('/vendor-manager-head/jobs')} />}
         >
@@ -215,17 +198,8 @@ const DashboardHome = () => {
                   pad={{ horizontal: '20px', vertical: '16px' }}
                   onClick={() => navigate(`/vendor-manager-head/jobs/${job.id}`)}
                 >
-                 <Text
-  color="#01A982"
-  style={{ fontFamily: 'monospace' }}
->
-  {`JOB-${String(job.id).padStart(3, '0')}`}
-</Text>
-                  <Box flex>
-  <Text weight={500} truncate>
-    {job.title}
-  </Text>
-</Box>
+                  <Text color="#01A982" family="monospace">{`JOB-${String(job.id).padStart(3, '0')}`}</Text>
+                  <Text weight={500} flex truncate>{job.title}</Text>
                   <Text color="#64748B">{job.createdAt ? formatShortDate(job.createdAt) : '-'}</Text>
                   <Box pad={{ horizontal: '16px', vertical: '8px' }} round="999px" background="#FEE2E2">
                     <Text size="small" color="#B91C1C">
@@ -235,14 +209,14 @@ const DashboardHome = () => {
                 </Box>
               ))
             ) : (
-              <EmptyState message="No pending approvals right now." />
+              <DashboardEmpty message="No pending approvals right now." />
             )}
           </Box>
-        </DashboardCard>
-      </Grid>
+        </DashboardSection>
+      </div>
 
-      <Grid columns={['flex', 'flex']} gap="24px">
-        <DashboardCard title="Candidate inflow">
+      <div style={styles.twoColumnGrid}>
+        <DashboardSection title="Candidate inflow">
           {barData.length ? (
             <Box gap="16px">
               <Box height="300px">
@@ -263,11 +237,11 @@ const DashboardHome = () => {
               </Box>
             </Box>
           ) : (
-            <EmptyState message="No candidate inflow data available yet." />
+            <DashboardEmpty message="No candidate inflow data available yet." />
           )}
-        </DashboardCard>
+        </DashboardSection>
 
-        <DashboardCard title="Vendor performance">
+        <DashboardSection title="Vendor performance">
           {vendorPerformance.length ? (
             <DataTable
               data={vendorPerformance}
@@ -290,12 +264,12 @@ const DashboardHome = () => {
               ]}
             />
           ) : (
-            <EmptyState message="No vendor performance data available yet." />
+            <DashboardEmpty message="No vendor performance data available yet." />
           )}
-        </DashboardCard>
-      </Grid>
+        </DashboardSection>
+      </div>
 
-      <DashboardCard title="Pipeline overview">
+      <DashboardSection title="Pipeline overview">
         {pipelineOverview.length ? (
           <DataTable
             data={pipelineOverview}
@@ -318,71 +292,12 @@ const DashboardHome = () => {
             ]}
           />
         ) : (
-          <EmptyState message="No pipeline candidates available yet." />
+          <DashboardEmpty message="No pipeline candidates available yet." />
         )}
-      </DashboardCard>
+      </DashboardSection>
     </Box>
   );
 };
-
-const TopCard = ({
-  title,
-  value,
-  helper,
-  helperColor,
-  accent,
-}: {
-  title: string;
-  value: number | string;
-  helper: string;
-  helperColor: string;
-  accent: string;
-}) => (
-  <Card round="18px" border={{ color: 'border-weak' }} background="white">
-    <Box height="4px" background={accent} />
-    <CardBody pad="24px" gap="12px">
-      <Text size="small" weight={600} color="#A0A8B8">
-        {title}
-      </Text>
-      <Text size="xxlarge" weight={600}>
-        {value}
-      </Text>
-      <Text size="small" color={helperColor}>
-        {helper}
-      </Text>
-    </CardBody>
-  </Card>
-);
-
-const DashboardCard = ({
-  title,
-  children,
-  action,
-}: {
-  title: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) => (
-  <Card round="24px" border={{ color: 'border-weak' }} background="white">
-    <CardBody pad="24px" gap="20px">
-      <Box direction="row" justify="between" align="center">
-        <Heading level={3} size="small" margin="none">
-          {title}
-        </Heading>
-        {action}
-      </Box>
-      {children}
-    </CardBody>
-  </Card>
-);
-
-const EmptyState = ({ message }: { message: string }) => (
-  <Box height="300px" align="center" justify="center">
-    <Text size="small" color="#94A3B8">
-      {message}
-    </Text>
-  </Box>
-);
 
 const formatStageLabel = (value: string) =>
   value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
@@ -417,6 +332,15 @@ const isThisWeek = (value?: string) => {
   startOfWeek.setDate(now.getDate() - now.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
   return date >= startOfWeek;
+};
+
+const styles = {
+  twoColumnGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: 24,
+    width: '100%',
+  },
 };
 
 export default DashboardHome;

@@ -55,26 +55,6 @@ interface Candidate {
   status: CandidateStatus;
 }
 
-const STATUS_LABELS: Record<CandidateStatus, string> = {
-  SUBMITTED: 'Submitted',
-  SCREEN_SELECTED: 'Screen Select',
-  SCREEN_REJECTED: 'Screen Reject',
-  TECH_SELECTED: 'Tech Select',
-  TECH_REJECTED: 'Tech Reject',
-  IDENTIFIED: 'Identified',
-  YET_TO_JOIN: 'YTJ',
-  OPS_SELECTED: 'Ops Select',
-  OPS_REJECTED: 'Ops Reject',
-  ONBOARDED: 'Onboarded',
-  DROPPED: 'Drop',
-  NEW: 'New',
-  SCREENING: 'Screening',
-  TECH: 'Tech',
-  OPS: 'Ops',
-  SELECTED: 'Selected',
-  REJECTED: 'Rejected',
-};
-
 const Candidates = () => {
   const navigate = useNavigate();
   const today = new Date().toLocaleDateString('en-CA');
@@ -186,9 +166,7 @@ const Candidates = () => {
                       <Text size="xlarge" weight={600} color="#0F172A">
                         {candidate.name}
                       </Text>
-                      <StageBadge
-  status={candidate.status}
-/>
+                  <StageBadge status={candidate.status} />
                     </Box>
                     <Text size="small" color="#64748B">
                       {candidate.email}

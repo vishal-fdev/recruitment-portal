@@ -44,7 +44,7 @@ export class VendorsController {
   /* ================= CREATE ================= */
 
   @Post()
-  @Roles(UserRole.VENDOR_MANAGER)
+  @Roles(UserRole.VENDOR_MANAGER, UserRole.VENDOR_MANAGER_HEAD)
   createVendor(@Body() body: any) {
     return this.vendorsService.createVendor(body);
   }

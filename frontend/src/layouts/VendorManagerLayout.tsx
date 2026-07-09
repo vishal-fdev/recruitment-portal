@@ -1,5 +1,5 @@
-import { Outlet, useLocation } from 'react-router-dom';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useLayoutEffect, useState } from 'react';
 import { Box } from 'grommet';
 import Topbar from '../components/Topbar';
 import VendorManagerPortalSidebar from '../components/VendorManagerPortalSidebar';
@@ -8,8 +8,10 @@ import { authService } from '../auth/authService';
 const VendorManagerLayout = () => {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const location = useLocation();
-  const mainRef = useRef<HTMLDivElement | null>(null);
-  const role = (authService.getRole() || 'VENDOR_MANAGER') as 'VENDOR_MANAGER' | 'VENDOR_MANAGER_HEAD';
+  const token = authService.getToken();
+  const storedRole = authService.getRole();
+  const allowedRoles = ['VENDOR_MANAGER', 'VENDOR_MANAGER_HEAD', 'BADGED_HIRING_MANAGER', 'BADGED_RECRUITER'];
+  const role = storedRole as 'VENDOR_MANAGER' | 'VENDOR_MANAGER_HEAD' | 'BADGED_HIRING_MANAGER' | 'BADGED_RECRUITER' | null;
 
   const handleLogout = () => {
     authService.logout();
@@ -21,16 +23,11 @@ const VendorManagerLayout = () => {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
       document.documentElement.scrollTop = 0;
       document.body.scrollTop = 0;
-      if (mainRef.current) {
-        mainRef.current.scrollTop = 0;
-        mainRef.current.scrollLeft = 0;
-        mainRef.current.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-      }
     };
 
     resetScroll();
     const frame = window.requestAnimationFrame(resetScroll);
-    const timer = window.setTimeout(resetScroll, 0);
+    const timer = window.setTimeout(resetScroll, 60);
 
     return () => {
       window.cancelAnimationFrame(frame);
@@ -38,20 +35,27 @@ const VendorManagerLayout = () => {
     };
   }, [location.pathname]);
 
+  if (!token || !role || !allowedRoles.includes(role)) {
+    return <Navigate to={`/login?redirect=${encodeURIComponent(`${location.pathname}${location.search}`)}`} replace />;
+  }
+
   return (
-    <Box direction="row" fill background="#F3F5F9" style={{ minHeight: '100vh' }}>
+    <Box direction="row" fill background="#F4F5F7" style={{ minHeight: '100vh' }}>
       <VendorManagerPortalSidebar expanded={sidebarExpanded} onHover={setSidebarExpanded} role={role} />
-      <Box flex>
+      <Box
+        flex
+        style={{
+          marginLeft: sidebarExpanded ? 220 : 88,
+          minWidth: 0,
+          transition: 'margin-left 0.2s ease',
+        }}
+      >
         <Topbar role={role} onLogout={handleLogout} />
         <Box
-          key={location.pathname}
           as="main"
-          ref={mainRef}
           flex
-          overflow="auto"
-          background="#F3F5F9"
-          pad="32px"
-          data-scroll-root="true"
+          background="#F4F5F7"
+          pad={{ horizontal: '32px', vertical: '34px' }}
         >
           <Outlet />
         </Box>
@@ -61,3 +65,5 @@ const VendorManagerLayout = () => {
 };
 
 export default VendorManagerLayout;
+
+

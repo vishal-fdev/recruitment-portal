@@ -12,6 +12,7 @@ import { JobsModule } from './jobs/jobs.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PartnerSlotsModule } from './partner-slots/partner-slots.module';
 import { MongoDatabaseModule } from './mongodb/mongodb.module';
+import { HpeBadgedHiringModule } from './hpe-badged-hiring/hpe-badged-hiring.module';
 
 @Module({
   imports: [
@@ -27,9 +28,8 @@ import { MongoDatabaseModule } from './mongodb/mongodb.module';
     JobsModule,
     DashboardModule,
     PartnerSlotsModule,
+    HpeBadgedHiringModule,
   ],
-  providers: [MailService], // ✅ ADD THIS
-  exports: [MailService],   // ✅ ADD THIS
 })
 export class AppModule {}
 

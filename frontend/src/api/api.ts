@@ -37,14 +37,19 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => {
-    console.log('✅ API Response:', response.config.url);
+    console.log('API Response:', response.config.url);
     return response;
   },
   (error) => {
-    console.error(
-      '❌ API ERROR:',
-      error?.response?.data || error.message
-    );
+    console.error('API ERROR:', error?.response?.data || error.message);
+
+    if (error?.response?.status === 401) {
+      authService.logout();
+      const currentPath = `${window.location.pathname}${window.location.search}`;
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+      }
+    }
 
     return Promise.reject(error);
   }

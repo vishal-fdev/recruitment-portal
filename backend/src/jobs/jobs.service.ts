@@ -2,9 +2,15 @@ import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { CandidateDocument, CandidateDocumentModel } from '../mongodb/schemas/candidate.schema';
+import {
+  CandidateDocument,
+  CandidateDocumentModel,
+} from '../mongodb/schemas/candidate.schema';
 import { JobDocument, JobDocumentModel } from '../mongodb/schemas/job.schema';
-import { VendorDocument, VendorDocumentModel } from '../mongodb/schemas/vendor.schema';
+import {
+  VendorDocument,
+  VendorDocumentModel,
+} from '../mongodb/schemas/vendor.schema';
 import { MailService } from '../common/mail.service';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/user.entity';
@@ -16,6 +22,11 @@ type StoredFileMeta = {
   path: string;
   fileName: string;
   mimeType: string;
+};
+
+type MutableJobPositionLike = Partial<JobPosition> & {
+  openings?: number;
+  currentOpenings?: number;
 };
 
 @Injectable()
@@ -65,6 +76,12 @@ export class JobsService {
     }
   }
 
+  private async syncHiringManagerUser(hiringManager?: string | null) {
+    const email = this.normalizeEmail(hiringManager);
+    if (!email) return;
+    await this.usersService.ensureActiveUser(email, UserRole.HIRING_MANAGER);
+  }
+
   private async notifyScreeningPanels(job: any) {
     const notified = new Set<string>();
 
@@ -107,7 +124,9 @@ export class JobsService {
     }
   }
 
-  private buildStoredFiles(files: Express.Multer.File[] = []): StoredFileMeta[] {
+  private buildStoredFiles(
+    files: Express.Multer.File[] = [],
+  ): StoredFileMeta[] {
     return files.map((file) => ({
       path: file.path,
       fileName: file.originalname,
@@ -165,12 +184,14 @@ export class JobsService {
     job.psqFiles = files.length ? JSON.stringify(files) : '';
   }
 
-  private getPositionCurrentOpenings(position: Partial<JobPosition> & { openings?: number }) {
+  private getPositionCurrentOpenings(
+    position: MutableJobPositionLike,
+  ) {
     return Number(position.currentOpenings ?? position.openings ?? 0);
   }
 
   private setPositionCurrentOpenings(
-    position: Partial<JobPosition> & { openings?: number },
+    position: MutableJobPositionLike,
     value: number,
   ) {
     position.currentOpenings = value;
@@ -187,7 +208,10 @@ export class JobsService {
   }
 
   private async getNextPositionId() {
-    const docs = await this.jobMongoModel.find({}, { positions: 1 }).lean().exec();
+    const docs = await this.jobMongoModel
+      .find({}, { positions: 1 })
+      .lean()
+      .exec();
     let maxId = 0;
     for (const doc of docs) {
       for (const position of doc.positions || []) {
@@ -198,7 +222,10 @@ export class JobsService {
   }
 
   private async getNextRoundId() {
-    const docs = await this.jobMongoModel.find({}, { interviewRounds: 1 }).lean().exec();
+    const docs = await this.jobMongoModel
+      .find({}, { interviewRounds: 1 })
+      .lean()
+      .exec();
     let maxId = 0;
     for (const doc of docs) {
       for (const round of doc.interviewRounds || []) {
@@ -209,7 +236,10 @@ export class JobsService {
   }
 
   private async getNextPanelId() {
-    const docs = await this.jobMongoModel.find({}, { interviewRounds: 1 }).lean().exec();
+    const docs = await this.jobMongoModel
+      .find({}, { interviewRounds: 1 })
+      .lean()
+      .exec();
     let maxId = 0;
     for (const doc of docs) {
       for (const round of doc.interviewRounds || []) {
@@ -222,7 +252,10 @@ export class JobsService {
   }
 
   private async getNextJobVendorId() {
-    const docs = await this.jobMongoModel.find({}, { jobVendors: 1 }).lean().exec();
+    const docs = await this.jobMongoModel
+      .find({}, { jobVendors: 1 })
+      .lean()
+      .exec();
     let maxId = 0;
     for (const doc of docs) {
       for (const mapping of doc.jobVendors || []) {
@@ -307,6 +340,7 @@ export class JobsService {
       backfillEmployeeId: doc.backfillEmployeeId ?? null,
       backfillEmployeeName: doc.backfillEmployeeName ?? null,
       description: doc.description ?? null,
+      calibrationNotes: doc.calibrationNotes ?? null,
       status: doc.status,
       isActive: doc.isActive,
       jdPath: doc.jdPath ?? '',
@@ -319,7 +353,9 @@ export class JobsService {
       psqFiles: doc.psqFiles ?? '',
       createdAt: doc.createdAt ? new Date(doc.createdAt) : null,
       positions: Array.isArray(doc.positions) ? doc.positions : [],
-      interviewRounds: Array.isArray(doc.interviewRounds) ? doc.interviewRounds : [],
+      interviewRounds: Array.isArray(doc.interviewRounds)
+        ? doc.interviewRounds
+        : [],
       jobVendors: Array.isArray(doc.jobVendors) ? doc.jobVendors : [],
       candidates: Array.isArray(doc.candidates) ? doc.candidates : [],
     };
@@ -330,19 +366,33 @@ export class JobsService {
   }
 
   private async findLeanJobById(jobId: number) {
-    const doc = await this.jobMongoModel.findOne({ postgresId: jobId }).lean().exec();
+    const doc = await this.jobMongoModel
+      .findOne({ postgresId: jobId })
+      .lean()
+      .exec();
     return this.mapMongoJob(doc);
   }
 
   private async getActiveVendors() {
-    const docs = await this.vendorMongoModel.find({ isActive: true }).lean().exec();
+    const docs = await this.vendorMongoModel
+      .find({ isActive: true })
+      .lean()
+      .exec();
     return docs
       .map((doc) => this.mapMongoVendor(doc))
-      .filter((vendor): vendor is NonNullable<ReturnType<JobsService['mapMongoVendor']>> => Boolean(vendor));
+      .filter(
+        (
+          vendor,
+        ): vendor is NonNullable<ReturnType<JobsService['mapMongoVendor']>> =>
+          Boolean(vendor),
+      );
   }
 
   private async getCandidatesForJob(jobId: number) {
-    const docs = await this.candidateMongoModel.find({ jobPostgresId: jobId }).lean().exec();
+    const docs = await this.candidateMongoModel
+      .find({ jobPostgresId: jobId })
+      .lean()
+      .exec();
     return docs.map((doc) => this.mapMongoCandidate(doc));
   }
 
@@ -391,22 +441,27 @@ export class JobsService {
   }
 
   async getJobsForUser(user: any): Promise<any[]> {
-    const mongoJobs = (await this.jobMongoModel.find().lean().exec()).map((doc) =>
-      this.mapMongoJob(doc),
+    const mongoJobs = (await this.jobMongoModel.find().lean().exec()).map(
+      (doc) => this.mapMongoJob(doc),
     );
 
     if (user.role === 'VENDOR') {
       const vendorId = user.vendor?.id || user.vendorId;
       if (!vendorId) return [];
 
-      const vendorDoc = await this.vendorMongoModel.findOne({ postgresId: vendorId }).lean().exec();
+      const vendorDoc = await this.vendorMongoModel
+        .findOne({ postgresId: vendorId })
+        .lean()
+        .exec();
       if (!vendorDoc || !vendorDoc.isActive) {
         return [];
       }
 
       return mongoJobs
         .filter((job) =>
-          [JobStatus.APPROVED, JobStatus.ON_HOLD, JobStatus.CLOSED].includes(job.status),
+          [JobStatus.APPROVED, JobStatus.ON_HOLD, JobStatus.CLOSED].includes(
+            job.status,
+          ),
         )
         .filter((job) =>
           (job.jobVendors || []).some(
@@ -424,7 +479,8 @@ export class JobsService {
                 Number(p.currentOpenings ?? p.openings ?? 0) > 0,
             ) || [];
           const hasMainOpenings =
-            Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0) > 0;
+            Number(job.currentNumberOfPositions ?? job.numberOfPositions ?? 0) >
+            0;
 
           return {
             ...this.attachStoredFilesToJob(job),
@@ -435,7 +491,8 @@ export class JobsService {
         .filter((job) => job.positions.length > 0 || job.hasMainOpenings)
         .sort(
           (a, b) =>
-            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime(),
         );
     }
 
@@ -455,7 +512,8 @@ export class JobsService {
         .map((job) => this.attachStoredFilesToJob(job))
         .sort(
           (a, b) =>
-            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime(),
         );
     }
 
@@ -468,14 +526,34 @@ export class JobsService {
         }))
         .sort(
           (a, b) =>
-            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime(),
+        );
+    }
+
+    if (user.role === 'HIRING_MANAGER') {
+      const hiringManagerEmail = this.normalizeEmail(user.email);
+
+      return mongoJobs
+        .filter(
+          (job) =>
+            job.isActive &&
+            this.normalizeEmail(job.hiringManager) === hiringManagerEmail,
+        )
+        .map((job) => this.attachStoredFilesToJob(job))
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime(),
         );
     }
 
     return mongoJobs
       .map((job) => this.attachStoredFilesToJob(job))
       .sort(
-        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
+        (a, b) =>
+          new Date(b.createdAt || 0).getTime() -
+          new Date(a.createdAt || 0).getTime(),
       );
   }
 
@@ -483,9 +561,14 @@ export class JobsService {
     const { interviewRounds, positions, ...jobData } = data;
 
     const jobId = await this.getNextJobId();
-    const positionDocs = await this.buildPositionDocs(Array.isArray(positions) ? positions : []);
-    const roundDocs = await this.buildInterviewRounds(Array.isArray(interviewRounds) ? interviewRounds : []);
+    const positionDocs = await this.buildPositionDocs(
+      Array.isArray(positions) ? positions : [],
+    );
+    const roundDocs = await this.buildInterviewRounds(
+      Array.isArray(interviewRounds) ? interviewRounds : [],
+    );
 
+    await this.syncHiringManagerUser(jobData.hiringManager);
     await this.syncScreeningPanelUsers(roundDocs);
 
     const created = await this.jobMongoModel.create({
@@ -541,9 +624,14 @@ export class JobsService {
     }
 
     const { interviewRounds, positions, ...jobData } = data;
-    const positionDocs = await this.buildPositionDocs(Array.isArray(positions) ? positions : []);
-    const roundDocs = await this.buildInterviewRounds(Array.isArray(interviewRounds) ? interviewRounds : []);
+    const positionDocs = await this.buildPositionDocs(
+      Array.isArray(positions) ? positions : [],
+    );
+    const roundDocs = await this.buildInterviewRounds(
+      Array.isArray(interviewRounds) ? interviewRounds : [],
+    );
 
+    await this.syncHiringManagerUser(jobData.hiringManager);
     await this.syncScreeningPanelUsers(roundDocs);
 
     Object.assign(job, {
@@ -625,9 +713,18 @@ export class JobsService {
       }
     }
 
+    if (
+      user?.role === 'HIRING_MANAGER' &&
+      this.normalizeEmail(job.hiringManager) !== this.normalizeEmail(user.email)
+    ) {
+      throw new NotFoundException('Job not found');
+    }
+
     const allVendors = await this.getActiveVendors();
     const vendors = allVendors.map((vendor) => {
-      const mapping = (job.jobVendors || []).find((jv: any) => jv?.vendor?.id === vendor.id);
+      const mapping = (job.jobVendors || []).find(
+        (jv: any) => jv?.vendor?.id === vendor.id,
+      );
 
       return {
         id: vendor.id,
@@ -651,12 +748,17 @@ export class JobsService {
       throw new NotFoundException('Job or Vendor not found');
     }
 
-    const vendorDoc = await this.vendorMongoModel.findOne({ postgresId: vendorId }).lean().exec();
+    const vendorDoc = await this.vendorMongoModel
+      .findOne({ postgresId: vendorId })
+      .lean()
+      .exec();
     if (!vendorDoc) {
       throw new NotFoundException('Job or Vendor not found');
     }
 
-    const currentMappings = Array.isArray(job.jobVendors) ? [...job.jobVendors] : [];
+    const currentMappings = Array.isArray(job.jobVendors)
+      ? [...job.jobVendors]
+      : [];
     const existingIndex = currentMappings.findIndex(
       (mapping: any) => mapping?.vendor?.id === vendorId,
     );
@@ -678,11 +780,15 @@ export class JobsService {
   }
 
   async closePosition(positionId: number) {
-    const job = await this.jobMongoModel.findOne({ 'positions.id': positionId }).exec();
+    const job = await this.jobMongoModel
+      .findOne({ 'positions.id': positionId })
+      .exec();
     if (!job) throw new NotFoundException('Position not found');
 
     const positions = Array.isArray(job.positions) ? [...job.positions] : [];
-    const positionIndex = positions.findIndex((position: any) => position?.id === positionId);
+    const positionIndex = positions.findIndex(
+      (position: any) => position?.id === positionId,
+    );
     if (positionIndex < 0) throw new NotFoundException('Position not found');
 
     const position = positions[positionIndex] as any;
@@ -721,6 +827,16 @@ export class JobsService {
     job.status = JobStatus.REJECTED;
     await job.save();
     return { success: true };
+  }
+
+  async updateCalibrationNotes(jobId: number, calibrationNotes: string) {
+    const job = await this.findJobDocById(jobId);
+    if (!job) throw new NotFoundException('Job not found');
+
+    job.calibrationNotes = (calibrationNotes || '').trim() || null;
+    await job.save();
+
+    return this.getJobById(jobId);
   }
 
   async attachJD(jobId: number, files: Express.Multer.File[]) {
@@ -763,7 +879,9 @@ export class JobsService {
     if (!job) throw new NotFoundException('Vendor not assigned to this job');
 
     const mappings = Array.isArray(job.jobVendors) ? [...job.jobVendors] : [];
-    const mappingIndex = mappings.findIndex((mapping: any) => mapping?.vendor?.id === vendorId);
+    const mappingIndex = mappings.findIndex(
+      (mapping: any) => mapping?.vendor?.id === vendorId,
+    );
     if (mappingIndex < 0) {
       throw new NotFoundException('Vendor not assigned to this job');
     }
@@ -807,11 +925,15 @@ export class JobsService {
   }
 
   async attachPositionJD(positionId: number, file: Express.Multer.File) {
-    const job = await this.jobMongoModel.findOne({ 'positions.id': positionId }).exec();
+    const job = await this.jobMongoModel
+      .findOne({ 'positions.id': positionId })
+      .exec();
     if (!job) throw new NotFoundException('Position not found');
 
     const positions = Array.isArray(job.positions) ? [...job.positions] : [];
-    const positionIndex = positions.findIndex((position: any) => position?.id === positionId);
+    const positionIndex = positions.findIndex(
+      (position: any) => position?.id === positionId,
+    );
     if (positionIndex < 0) throw new NotFoundException('Position not found');
 
     const position = positions[positionIndex] as any;
@@ -826,11 +948,15 @@ export class JobsService {
   }
 
   async attachPositionPSQ(positionId: number, file: Express.Multer.File) {
-    const job = await this.jobMongoModel.findOne({ 'positions.id': positionId }).exec();
+    const job = await this.jobMongoModel
+      .findOne({ 'positions.id': positionId })
+      .exec();
     if (!job) throw new NotFoundException('Position not found');
 
     const positions = Array.isArray(job.positions) ? [...job.positions] : [];
-    const positionIndex = positions.findIndex((position: any) => position?.id === positionId);
+    const positionIndex = positions.findIndex(
+      (position: any) => position?.id === positionId,
+    );
     if (positionIndex < 0) throw new NotFoundException('Position not found');
 
     const position = positions[positionIndex] as any;
@@ -845,16 +971,29 @@ export class JobsService {
   }
 
   async getPositionJD(positionId: number) {
-    const job = await this.jobMongoModel.findOne({ 'positions.id': positionId }).lean().exec();
-    const position = (job?.positions || []).find((entry: any) => entry?.id === positionId) as any;
-    if (!position || !position.jdPath) throw new NotFoundException('JD not found');
+    const job = await this.jobMongoModel
+      .findOne({ 'positions.id': positionId })
+      .lean()
+      .exec();
+    const position = (job?.positions || []).find(
+      (entry: any) => entry?.id === positionId,
+    ) as any;
+    if (!position || !position.jdPath)
+      throw new NotFoundException('JD not found');
     return position;
   }
 
   async getPositionPSQ(positionId: number) {
-    const job = await this.jobMongoModel.findOne({ 'positions.id': positionId }).lean().exec();
-    const position = (job?.positions || []).find((entry: any) => entry?.id === positionId) as any;
-    if (!position || !position.psqPath) throw new NotFoundException('PSQ not found');
+    const job = await this.jobMongoModel
+      .findOne({ 'positions.id': positionId })
+      .lean()
+      .exec();
+    const position = (job?.positions || []).find(
+      (entry: any) => entry?.id === positionId,
+    ) as any;
+    if (!position || !position.psqPath)
+      throw new NotFoundException('PSQ not found');
     return position;
   }
 }
+

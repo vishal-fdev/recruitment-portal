@@ -62,14 +62,18 @@ const CreateVendorModal = ({ onClose, onCreated }: Props) => {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to create vendor');
+        const errorBody = await res.json().catch(() => null);
+        const message = Array.isArray(errorBody?.message)
+          ? errorBody.message.join(', ')
+          : errorBody?.message || 'Failed to create vendor';
+        throw new Error(message);
       }
 
       onCreated();
       onClose();
     } catch (err) {
       console.error(err);
-      alert('Failed to create vendor');
+      alert(err instanceof Error ? err.message : 'Failed to create vendor');
     } finally {
       setSubmitting(false);
     }
@@ -150,6 +154,13 @@ const CreateVendorModal = ({ onClose, onCreated }: Props) => {
             label={submitting ? 'Creating...' : 'Create Vendor'}
             onClick={submit}
             disabled={submitting}
+            style={{
+              color: '#FFFFFF',
+              background: '#01A982',
+              border: 'none',
+              borderRadius: '999px',
+              fontWeight: 700,
+            }}
           />
         </Box>
       </Box>

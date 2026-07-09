@@ -4,10 +4,6 @@ import { Pencil } from 'lucide-react';
 import {
   Box,
   Button,
-  Card,
-  CardBody,
-  DataTable,
-  Heading,
   Select,
   Text,
   TextInput,
@@ -71,115 +67,113 @@ const EngagementTab = () => {
   };
 
   return (
-    <Card background="white" round="20px" border={{ color: 'border-weak' }} elevation="xsmall">
-      <CardBody pad="large" gap="medium">
-        <Box direction="row" justify="between" align="center" wrap gap="medium">
-          <Heading level={3} size="small" margin="none">
-            Engagement History
-          </Heading>
-          <Button label="+ Add" primary color="brand" onClick={addRow} />
-        </Box>
+    <Box background="white" round="12px" border={{ color: '#DDE3EB' }} elevation="xsmall" pad="24px" gap="24px">
+      <Box direction="row" justify="between" align="center" wrap gap="medium">
+        <Text size="18px" weight={600} color="#0B1220">
+          Engagement History
+        </Text>
+        <Button label="+ Add" primary color="brand" onClick={addRow} style={greenButtonStyle} />
+      </Box>
 
-        <DataTable
-          data={data.map((row, i) => ({ ...row, _index: i }))}
-          columns={[
-            {
-              property: 'engagementStatus',
-              header: 'Status',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <Select
-                    options={['', 'Active', 'Inactive']}
-                    value={datum.engagementStatus}
-                    onChange={({ value }) => updateField(datum._index, 'engagementStatus', String(value))}
-                  />
-                ) : (
-                  <Text>{datum.engagementStatus || '-'}</Text>
-                ),
-            },
-            {
-              property: 'engagementType',
-              header: 'Type',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <Select
-                    options={['', 'Labour', 'Project', 'Fixed Cost']}
-                    value={datum.engagementType}
-                    onChange={({ value }) => updateField(datum._index, 'engagementType', String(value))}
-                  />
-                ) : (
-                  <Text>{datum.engagementType || '-'}</Text>
-                ),
-            },
-            {
-              property: 'businessUnit',
-              header: 'Business Unit',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <TextInput
-                    value={datum.businessUnit}
-                    onChange={(e) => updateField(datum._index, 'businessUnit', e.target.value)}
-                  />
-                ) : (
-                  <Text>{datum.businessUnit || '-'}</Text>
-                ),
-            },
-            {
-              property: 'evaluationStatus',
-              header: 'Evaluation',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <Select
-                    options={['', 'Contract', 'Empanelled']}
-                    value={datum.evaluationStatus}
-                    onChange={({ value }) => updateField(datum._index, 'evaluationStatus', String(value))}
-                  />
-                ) : (
-                  <Text>{datum.evaluationStatus || '-'}</Text>
-                ),
-            },
-            {
-              property: 'evaluatedBy',
-              header: 'Evaluated By',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <TextInput
-                    value={datum.evaluatedBy}
-                    onChange={(e) => updateField(datum._index, 'evaluatedBy', e.target.value)}
-                  />
-                ) : (
-                  <Text>{datum.evaluatedBy || '-'}</Text>
-                ),
-            },
-            {
-              property: 'extendedDate',
-              header: 'Extended Date',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <TextInput
-                    type="date"
-                    value={datum.extendedDate || ''}
-                    onChange={(e) => updateField(datum._index, 'extendedDate', e.target.value)}
-                  />
-                ) : (
-                  <Text>{datum.extendedDate || '-'}</Text>
-                ),
-            },
-            {
-              property: 'actions',
-              header: 'Actions',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <Button plain label="Save" color="brand" onClick={() => void saveRow(datum._index)} />
-                ) : (
-                  <Button plain icon={<Pencil size={16} />} onClick={() => setEditingRow(datum._index)} />
-                ),
-            },
-          ]}
-        />
-      </CardBody>
-    </Card>
+      <div style={tableShellStyle}>
+        <div style={engagementHeaderStyle}>
+          {engagementHeaders.map((header) => (
+            <div key={header} style={tableHeaderCellStyle}>
+              {header}
+            </div>
+          ))}
+        </div>
+
+        {data.map((row, index) => (
+          <div key={row.id || index} style={engagementRowStyle}>
+            {editingRow === index ? (
+              <Select options={['', 'Active', 'Inactive']} value={row.engagementStatus} onChange={({ value }) => updateField(index, 'engagementStatus', String(value))} />
+            ) : (
+              <Cell value={row.engagementStatus} />
+            )}
+            {editingRow === index ? (
+              <Select options={['', 'Labour', 'Project', 'Fixed Cost']} value={row.engagementType} onChange={({ value }) => updateField(index, 'engagementType', String(value))} />
+            ) : (
+              <Cell value={row.engagementType} />
+            )}
+            <EditableText value={row.businessUnit} editing={editingRow === index} onChange={(value) => updateField(index, 'businessUnit', value)} />
+            {editingRow === index ? (
+              <Select options={['', 'Contract', 'Empanelled']} value={row.evaluationStatus} onChange={({ value }) => updateField(index, 'evaluationStatus', String(value))} />
+            ) : (
+              <Cell value={row.evaluationStatus} />
+            )}
+            <EditableText value={row.evaluatedBy} editing={editingRow === index} onChange={(value) => updateField(index, 'evaluatedBy', value)} />
+            <EditableText value={row.extendedDate || ''} editing={editingRow === index} type="date" onChange={(value) => updateField(index, 'extendedDate', value)} />
+            {editingRow === index ? (
+              <Button plain label="Save" onClick={() => void saveRow(index)} style={plainActionStyle} />
+            ) : (
+              <Button plain icon={<Pencil size={16} />} onClick={() => setEditingRow(index)} />
+            )}
+          </div>
+        ))}
+      </div>
+    </Box>
   );
 };
+
+const engagementHeaders = ['Status', 'Type', 'Business Unit', 'Evaluation', 'Evaluated By', 'Extended Date', 'Actions'];
+
+const Cell = ({ value }: { value?: string }) => <Text size="14px" color="#0B1220">{value || '-'}</Text>;
+
+const EditableText = ({
+  value,
+  editing,
+  type,
+  onChange,
+}: {
+  value: string;
+  editing: boolean;
+  type?: string;
+  onChange: (value: string) => void;
+}) => (
+  editing ? <TextInput type={type} value={value} onChange={(event) => onChange(event.target.value)} size="small" /> : <Cell value={value} />
+);
+
+const greenButtonStyle = {
+  color: '#FFFFFF',
+  background: '#01A982',
+  border: 'none',
+  borderRadius: '4px',
+  fontWeight: 600,
+  padding: '10px 18px',
+} as const;
+
+const tableShellStyle = {
+  width: '100%',
+  overflowX: 'auto',
+} as const;
+
+const engagementHeaderStyle = {
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr 1.45fr 1.45fr 1.45fr 1.45fr 1fr',
+  minWidth: 1160,
+  background: '#F0F2F5',
+} as const;
+
+const engagementRowStyle = {
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr 1.45fr 1.45fr 1.45fr 1.45fr 1fr',
+  minWidth: 1160,
+  alignItems: 'center',
+  borderBottom: '1px solid #E6EAF0',
+  padding: '10px 0',
+} as const;
+
+const tableHeaderCellStyle = {
+  padding: '14px 16px',
+  color: '#0B1220',
+  fontSize: 14,
+  fontWeight: 600,
+} as const;
+
+const plainActionStyle = {
+  color: '#01A982',
+  fontWeight: 600,
+} as const;
 
 export default EngagementTab;

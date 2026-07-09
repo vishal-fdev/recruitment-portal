@@ -14,14 +14,15 @@ import {
   Param,
   ParseIntPipe,
   Res,
+  BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
 
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { existsSync } from 'fs';
-import { extname, isAbsolute, resolve } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+import { extname, isAbsolute, join, resolve } from 'path';
 
 import { CandidatesService } from './candidates.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -42,7 +43,11 @@ export class CandidatesController {
   @UseInterceptors(
     FileInterceptor('resume', {
       storage: diskStorage({
-        destination: './uploads/resumes',
+        destination: (_, __, cb) => {
+          const uploadDir = join(process.cwd(), 'uploads', 'resumes');
+          mkdirSync(uploadDir, { recursive: true });
+          cb(null, uploadDir);
+        },
         filename: (_, file, cb) => {
           cb(null, Date.now() + extname(file.originalname));
         },
@@ -54,6 +59,10 @@ export class CandidatesController {
     @Body() body: any,
     @Req() req: any,
   ) {
+    if (!file) {
+      throw new BadRequestException('Resume is required');
+    }
+
     return this.service.createCandidate(
       body,
       `/uploads/resumes/${file.filename}`,

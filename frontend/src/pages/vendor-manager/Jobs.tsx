@@ -111,10 +111,10 @@ const Jobs = () => {
     <Box gap="medium">
       <Card background="white" round="20px" elevation="xsmall">
         <CardBody pad="medium">
-          <Heading level={2} margin="none">
+          <Heading level={2} margin="none" style={{ fontSize: 25, fontWeight: 600, lineHeight: 1.15 }}>
             Jobs
           </Heading>
-          <Paragraph margin={{ top: 'xsmall', bottom: 'none' }} color="text-paragraph">
+          <Paragraph margin={{ top: 'xsmall', bottom: 'none' }} color="#111827" style={{ fontWeight: 400 }}>
             Manage requisitions, assignments, and job status.
           </Paragraph>
         </CardBody>
@@ -148,11 +148,11 @@ const Jobs = () => {
                   <Box direction="row" justify="between" align="start" gap="medium" wrap>
                     <Box gap="small">
                       <Box direction="row" align="center" gap="small">
-                        <Text size="small" weight="bold" color="brand">{`HRQ${job.id}`}</Text>
+                        <Text size="small" weight={600} color="brand">{`HRQ${job.id}`}</Text>
                         <StageBadge status={job.status} />
                       </Box>
                       <Box>
-                        <Heading level={3} size="small" margin="none">
+                        <Heading level={3} size="small" margin="none" style={{ fontWeight: 600, lineHeight: 1.2 }}>
                           {job.title}
                         </Heading>
                         <Text color="text-paragraph">{job.location} · Level {job.level || '-'}</Text>
@@ -161,7 +161,13 @@ const Jobs = () => {
 
                     <Box direction="row" align="center" gap="small" onClick={(event) => event.stopPropagation()}>
                       {job.status === 'APPROVED' ? (
-                        <Button label="Assign Vendors" primary color="brand" onClick={() => void openAssignModal(job.id)} />
+                        <Button
+                          label="Assign Vendors"
+                          primary
+                          color="brand"
+                          onClick={() => void openAssignModal(job.id)}
+                          style={assignButtonStyle}
+                        />
                       ) : null}
 
                       <Box style={{ position: 'relative' }}>
@@ -216,6 +222,7 @@ const Jobs = () => {
                             plain
                             color="brand"
                             label="Download JD"
+                            style={downloadButtonStyle}
                             onClick={(event) => {
                               event.stopPropagation();
                               void handleDownload(job.id);
@@ -256,7 +263,7 @@ const Jobs = () => {
             </Box>
             <Box direction="row" gap="small" justify="end">
               <Button label="Cancel" onClick={() => setShowModal(false)} />
-              <Button label="Save" primary color="brand" onClick={() => void assignVendors()} />
+              <Button label="Save" primary color="brand" onClick={() => void assignVendors()} style={assignButtonStyle} />
             </Box>
           </Box>
         </Layer>
@@ -276,7 +283,7 @@ const MenuButton = ({
 }) => (
   <Button plain onClick={onClick}>
     <Box pad={{ horizontal: 'small', vertical: 'small' }} round="10px">
-      <Text size="small" color={danger ? 'status-critical' : 'text-strong'}>
+      <Text size="small" weight={500} color={danger ? 'status-critical' : 'text-strong'}>
         {children}
       </Text>
     </Box>
@@ -285,14 +292,29 @@ const MenuButton = ({
 
 const Info = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <Box background="#F8FAFC" round="16px" pad={{ horizontal: 'medium', vertical: 'small' }} width="220px">
-    <Text size="xsmall" weight="bold" color="#94A3B8">
+    <Text size="xsmall" weight={600} color="#94A3B8">
       {label}
     </Text>
     <Box margin={{ top: 'xsmall' }}>
-      {typeof value === 'string' ? <Text weight="bold">{value}</Text> : value}
+      {typeof value === 'string' ? <Text weight={600} color="#0F172A">{value}</Text> : value}
     </Box>
   </Box>
 );
+
+const assignButtonStyle = {
+  color: '#FFFFFF',
+  background: '#00A982',
+  border: 'none',
+  borderRadius: '999px',
+  fontWeight: 600,
+  padding: '9px 20px',
+} as const;
+
+const downloadButtonStyle = {
+  color: '#0B1220',
+  fontWeight: 500,
+  padding: 0,
+} as const;
 
 const formatStatus = (status: string) =>
   status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());

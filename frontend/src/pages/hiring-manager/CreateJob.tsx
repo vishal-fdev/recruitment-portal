@@ -1,14 +1,10 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import type { Dispatch, KeyboardEvent, ReactNode, SetStateAction } from 'react';
 import {
   Box,
   Button,
-  FormField,
-  Heading,
-  Layer,
   Text,
   TextInput,
-  TextArea,
 } from 'grommet';
 import api from '../../api/api';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -134,11 +130,6 @@ experience:''
 
 });
 
-const [backfill,setBackfill] = useState({
-employeeId:'',
-employeeName:''
-});
-
 const [childPositions,setChildPositions] = useState<ChildPosition[]>([]);
 const [activeBackfillIndex,setActiveBackfillIndex] = useState<number | null>(null);
 
@@ -155,23 +146,59 @@ const [rounds,setRounds] = useState<InterviewRound[]>([]);
 const [newRoundName,setNewRoundName] = useState('');
 const [newRoundMode,setNewRoundMode] = useState('Virtual');
 
+const [panels, setPanels] = useState<Panel[]>([]);
 const [panelName,setPanelName] = useState('');
 const [panelEmail,setPanelEmail] = useState('');
 const [editingPanel, setEditingPanel] = useState<{
   roundIndex: number;
   panelIndex: number;
 } | null>(null);
-const [panels,setPanels] = useState<Panel[]>([]);
 const [showAdditionalPositions, setShowAdditionalPositions] = useState(false);
 const [isSectionSaved, setIsSectionSaved] = useState(isEditMode);
 const [errors, setErrors] = useState<any>({});
 const [primarySkillInput, setPrimarySkillInput] = useState('');
 const [secondarySkillInput, setSecondarySkillInput] = useState('');
 
-// 🔥 MULTI BACKFILL SUPPORT
+const toDateInputValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const todayDate = toDateInputValue(new Date());
+
+const getDateErrors = () => {
+  const dateErrors: any = {};
+
+  if (form.startDate && form.startDate < todayDate) {
+    dateErrors.startDate = 'Start date cannot be backdated';
+  }
+
+  if (form.endDate && form.endDate < todayDate) {
+    dateErrors.endDate = 'End date cannot be backdated';
+  }
+
+  if (
+    form.startDate &&
+    form.endDate &&
+    form.startDate >= todayDate &&
+    form.endDate >= todayDate &&
+    form.endDate < form.startDate
+  ) {
+    dateErrors.endDate = 'End date cannot be before start date';
+  }
+
+  return dateErrors;
+};
+
+// ðŸ”¥ MULTI BACKFILL SUPPORT
 const [backfillList, setBackfillList] = useState<
   { employeeId: string; employeeName: string }[]
 >([]);
+
+void backfillList;
+void activeBackfillIndex;
 
 const applyJobToForm = (job: any) => {
   if (!job) return;
@@ -577,7 +604,7 @@ if (
   setIsSectionSaved(false);
 }
 
-// ✅ HANDLE MAIN BACKFILL
+// âœ… HANDLE MAIN BACKFILL
 if(name==='requestType'){
 
   if (name === 'requestType') {
@@ -641,7 +668,7 @@ const handleDrop = (e: React.DragEvent) => {
   }
 };
 
-// ✅ PSQ HANDLERS (ADD HERE)
+// âœ… PSQ HANDLERS (ADD HERE)
 
 const handlePSQDrop = (e: React.DragEvent) => {
   e.preventDefault();
@@ -737,27 +764,9 @@ setNewChild({
 };
 
 
-const removeChildPosition=(index:number)=>{
-setChildPositions(childPositions.filter((_,i)=>i!==index));
-setIsSectionSaved(false);
-};
-
-
-const handleChildRequestTypeChange = (index:number,value:'NEW'|'BACKFILL')=>{
-  const updated=[...childPositions];
-  updated[index].requestType=value;
-
-  if(value === 'BACKFILL'){
-    setActiveBackfillIndex(index);
-    setBackfill({employeeId:'',employeeName:''});
-  }
-
-  setChildPositions(updated);
-};
-
 const saveBackfill = () => {
 
-  // ✅ CASE 1: MAIN JOB BACKFILL
+  // âœ… CASE 1: MAIN JOB BACKFILL
   if(activeBackfillIndex === -2){
     setForm(prev => ({
       ...prev,
@@ -770,7 +779,7 @@ const saveBackfill = () => {
     return;
   }
 
-  // ✅ CASE 2: NEW CHILD
+  // âœ… CASE 2: NEW CHILD
   if(activeBackfillIndex === -1){
     setNewChild(prev => ({
       ...prev,
@@ -783,7 +792,7 @@ const saveBackfill = () => {
     return;
   }
 
-  // ✅ CASE 3: EXISTING CHILD
+  // âœ… CASE 3: EXISTING CHILD
   if(activeBackfillIndex !== null && activeBackfillIndex >= 0){
     const updated = [...childPositions];
 
@@ -798,6 +807,8 @@ const saveBackfill = () => {
 
   setActiveBackfillIndex(null);
 };
+
+void saveBackfill;
 
 
 
@@ -814,7 +825,7 @@ const addPanel = () => {
   setRounds((prevRounds) => {
     let updated = [...prevRounds];
 
-    // ✅ EDIT MODE
+    // âœ… EDIT MODE
     if (editingPanel) {
       updated[editingPanel.roundIndex].panels[editingPanel.panelIndex] = newPanel;
       return updated;
@@ -824,13 +835,13 @@ const addPanel = () => {
       (r) => r.roundName === newRoundName
     );
 
-    // ✅ ADD MODE
+    // âœ… ADD MODE
     if (existingRoundIndex !== -1) {
       updated[existingRoundIndex].panels.push(newPanel);
       return updated;
     }
 
-    // ✅ CREATE NEW ROUND
+    // âœ… CREATE NEW ROUND
     return [
       ...prevRounds,
       {
@@ -879,11 +890,14 @@ const validatePositionSection = () => {
   if (!form.dealName.trim()) newErrors.dealName = 'Required';
   if (!form.workLocation.trim()) newErrors.workLocation = 'Required';
   if (!form.region.trim()) newErrors.region = 'Required';
+  Object.assign(newErrors, getDateErrors());
 
   setErrors(newErrors);
 
   return Object.keys(newErrors).length === 0;
 };
+
+void validatePositionSection;
 
 const handleSavePositionSection = () => {
   const newErrors: any = {};
@@ -896,6 +910,7 @@ const handleSavePositionSection = () => {
   if (!form.dealName.trim()) newErrors.dealName = 'Required';
   if (!form.workLocation.trim()) newErrors.workLocation = 'Required';
   if (!form.region.trim()) newErrors.region = 'Required';
+  Object.assign(newErrors, getDateErrors());
 
   if (showAdditionalPositions) {
     if (!childPositions.length) {
@@ -939,6 +954,13 @@ if (!isSectionSaved) {
   return;
 }
 
+const dateErrors = getDateErrors();
+if (Object.keys(dateErrors).length > 0) {
+  setErrors((prev: any) => ({ ...prev, ...dateErrors }));
+  alert('Start date and end date cannot be backdated');
+  return;
+}
+
 try{
 
 setLoading(true);
@@ -946,7 +968,7 @@ setLoading(true);
 const jobRes = isEditMode
   ? await api.patch(`/jobs/${id}`, {
       ...form,
-      status: 'PENDING_APPROVAL', // 🔥 resend for approval
+      status: 'PENDING_APPROVAL', // ðŸ”¥ resend for approval
       positions: childPositions,
       interviewRounds: rounds
     })
@@ -988,7 +1010,7 @@ jdFiles.forEach((file) => fd.append('jd', file));
 await api.post(`/jobs/${jobId}/jd`,fd,{headers:{'Content-Type':'multipart/form-data'}});
 }
 
-// ✅ PSQ UPLOAD (ADD THIS BLOCK)
+// âœ… PSQ UPLOAD (ADD THIS BLOCK)
 if(psqFiles.length){
   const fd = new FormData();
   psqFiles.forEach((file) => fd.append('psq', file));
@@ -1006,6 +1028,7 @@ try {
 } catch (err) {
   console.warn('Job fetch skipped (non-blocking)', err);
 }
+void positionsFromDB;
 navigate('/hiring-manager/jobs');
 
 }catch{
@@ -1030,20 +1053,20 @@ return(
   <button
     type="button"
     onClick={() => navigate('/hiring-manager/jobs')}
-    style={{ background: '#01A982', color: 'white', borderRadius: 6, padding: '8px 16px', fontSize: 14, fontWeight: 500, border: 'none', boxShadow: '0 1px 2px rgba(15,23,42,0.08)' }}
+    style={{ background: '#00A982', color: 'white', borderRadius: 6, padding: '10px 18px', fontSize: 14, fontWeight: 700, border: 'none', boxShadow: '0 1px 2px rgba(15,23,42,0.08)' }}
   >
-    ← Back
+    â† Back
   </button>
 </div>
 
 
-<div style={{ background: 'white', boxShadow: '0 1px 3px rgba(15,23,42,0.12)', borderRadius: 8, padding: 24 }}>
+<div style={styles.postingHeader}>
 
-<h1 style={{ fontSize: 24, fontWeight: 600 }}>
+<h1 style={{ fontSize: 24, lineHeight: 1.2, fontWeight: 700, margin: 0, color: '#020B24' }}>
 {isEditMode ? 'Edit Job' : 'Job Posting'}
 </h1>
 
-<p style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>
+<p style={{ fontSize: 14, color: '#526179', marginTop: 6 }}>
 Complete all required fields to submit for CWF request
 </p>
 
@@ -1096,12 +1119,13 @@ style={styles.readOnlyInput}
 
 
 <Field label="Hiring Manager *">
-<input
-value={form.hiringManager}
-disabled
-style={styles.readOnlyInput}
-/>
-</Field>
+  <input
+  name="hiringManager"
+  value={form.hiringManager}
+  onChange={handleChange}
+  style={styles.input}
+  />
+  </Field>
 
 
 <Field label="Work Type *">
@@ -1158,7 +1182,7 @@ onChange={(e) => {
     numberOfPositions: count
   }));
 
-  // 🔥 auto prepare backfill if needed
+  // ðŸ”¥ auto prepare backfill if needed
   if (form.requestType === 'BACKFILL') {
     setBackfillList(
       Array.from({ length: count || 1 }, () => ({
@@ -1258,13 +1282,13 @@ style={styles.input}
     }}
     style={styles.additionalPositionsLauncher}
   >
-    <p style={{ color: '#4B5563', fontSize: 14 }}>
+    <p style={{ color: '#334155', fontSize: 14 }}>
       + Add more positions (Click here to add more positions)
     </p>
 
     <button
       type="button"
-      style={{ marginTop: 12, padding: '8px 20px', background: '#059669', color: 'white', borderRadius: 6, border: 'none' }}
+      style={{ marginTop: 13, padding: '10px 22px', background: '#00A982', color: 'white', borderRadius: 4, border: 'none', fontSize: 16 }}
     >
       Add Positions
     </button>
@@ -1441,8 +1465,10 @@ type="date"
 name="startDate"
 value={form.startDate}
 onChange={handleChange}
+min={todayDate}
 style={styles.input}
 />
+{errors.startDate && <p style={styles.errorText}>{errors.startDate}</p>}
 </Field>
 
 
@@ -1452,8 +1478,10 @@ type="date"
 name="endDate"
 value={form.endDate}
 onChange={handleChange}
+min={form.startDate || todayDate}
 style={styles.input}
 />
+{errors.endDate && <p style={styles.errorText}>{errors.endDate}</p>}
 </Field>
 
 
@@ -1489,7 +1517,12 @@ style={styles.input}
   style={{
     border: `2px dashed ${isDragging ? '#10B981' : '#D1D5DB'}`,
     borderRadius: 8,
-    padding: 24,
+    padding: 28,
+    minHeight: 128,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
     textAlign: 'center',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
@@ -1499,7 +1532,7 @@ style={styles.input}
 
   {!jdFiles.length ? (
     <>
-      <p style={{ color: '#4B5563' }}>
+      <p style={{ color: '#334155', margin: 0, fontSize: 16 }}>
         Drag & drop JD here or click to upload
       </p>
 
@@ -1514,7 +1547,7 @@ style={styles.input}
 
       <label
         htmlFor="jdUpload"
-        style={{ marginTop: 12, display: 'inline-block', padding: '8px 16px', background: '#059669', color: 'white', borderRadius: 6, cursor: 'pointer' }}
+        style={{ marginTop: 16, display: 'inline-block', padding: '10px 16px', background: '#00A982', color: 'white', borderRadius: 4, cursor: 'pointer', fontSize: 16 }}
       >
         Choose File
       </label>
@@ -1527,7 +1560,7 @@ style={styles.input}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: 12, borderRadius: 8, boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }}
         >
           <div style={{ fontSize: 14, color: '#047857' }}>
-            📄 {file.name}
+            ðŸ“„ {file.name}
           </div>
 
           <button
@@ -1587,7 +1620,12 @@ Only PDF, DOC, DOCX allowed
   style={{
     border: `2px dashed ${isDraggingPSQ ? '#3B82F6' : '#D1D5DB'}`,
     borderRadius: 8,
-    padding: 24,
+    padding: 28,
+    minHeight: 128,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
     textAlign: 'center',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
@@ -1597,7 +1635,7 @@ Only PDF, DOC, DOCX allowed
 
   {!psqFiles.length ? (
     <>
-      <p style={{ color: '#4B5563' }}>
+      <p style={{ color: '#334155', margin: 0, fontSize: 16 }}>
         Drag & drop PSQ here or click to upload
       </p>
 
@@ -1612,7 +1650,7 @@ Only PDF, DOC, DOCX allowed
 
       <label
         htmlFor="psqUpload"
-        style={{ marginTop: 12, display: 'inline-block', padding: '8px 16px', background: '#2563EB', color: 'white', borderRadius: 6, cursor: 'pointer' }}
+        style={{ marginTop: 16, display: 'inline-block', padding: '10px 16px', background: '#2563EB', color: 'white', borderRadius: 4, cursor: 'pointer', fontSize: 16 }}
       >
         Choose File
       </label>
@@ -1625,7 +1663,7 @@ Only PDF, DOC, DOCX allowed
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', padding: 12, borderRadius: 8, boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }}
         >
           <div style={{ fontSize: 14, color: '#1D4ED8' }}>
-            📄 {file.name}
+            ðŸ“„ {file.name}
           </div>
 
           <button
@@ -1680,9 +1718,9 @@ Only PDF, DOC, DOCX allowed
 </Section>
 {/* JD */}
 
-<div style={{ marginTop: 16 }}>
+<div style={{ marginTop: 1 }}>
 
-<label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 4 }}>
+<label style={{ display: 'block', fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
 Justification
 </label>
 
@@ -1700,7 +1738,7 @@ style={styles.textarea}
   <button
     type="button"
     onClick={handleSavePositionSection}
-    style={{ padding: '8px 24px', background: '#2563EB', color: 'white', borderRadius: 6, border: 'none' }}
+    style={{ padding: '10px 24px', background: '#2563EB', color: 'white', borderRadius: 4, border: 'none', fontSize: 16 }}
   >
     Save & Continue
   </button>
@@ -1848,13 +1886,13 @@ Add Panel
 
 {panels.map((p,i)=>(
 <div key={i} style={{ marginTop: 8, fontSize: 14 }}>
-{p.name} — {p.email}
+{p.name} â€” {p.email}
 </div>
 ))}
 
 
 
-{/* ✅ ADDED ROUNDS DISPLAY */}
+{/* âœ… ADDED ROUNDS DISPLAY */}
 
 {rounds.length > 0 && (
 <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1873,7 +1911,7 @@ Add Panel
   <li key={i} style={styles.inlineRowBetween}>
 
     <span>
-      • {panel.name} — {panel.email}
+      â€¢ {panel.name} â€” {panel.email}
     </span>
 
     <div style={{ display: 'flex', gap: 8 }}>
@@ -1920,7 +1958,7 @@ Add Panel
 
 <button
 onClick={()=>navigate(-1)}
-style={{ padding: '8px 24px', border: '1px solid #D1D5DB', borderRadius: 6, background: 'white' }}
+style={{ padding: '10px 24px', border: '1px solid #D1D5DB', borderRadius: 4, background: 'white', fontSize: 16 }}
 >
 Cancel
 </button>
@@ -1929,7 +1967,7 @@ Cancel
 <button
 onClick={submit}
 disabled={loading}
-style={{ background: '#059669', color: 'white', padding: '8px 24px', borderRadius: 6, border: 'none' }}
+style={{ background: '#00A982', color: 'white', padding: '10px 24px', borderRadius: 4, border: 'none', fontSize: 16 }}
 >
 {loading ? 'Saving...' : isEditMode ? 'Update & Resubmit' : 'Submit Request'}
 </button>
@@ -1940,24 +1978,24 @@ style={{ background: '#059669', color: 'white', padding: '8px 24px', borderRadiu
 
 {activeBackfillIndex !== null && (
 
-<div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+<div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
 
 <div style={styles.modalContent}>
 
-<div style={{ ...styles.inlineRowBetween, marginBottom: 16 }}>
+<div style={{ marginBottom: 18 }}>
 
-  <h3 style={{ fontSize: 18, fontWeight: 600 }}>
+  <h3 style={{ fontSize: 18, lineHeight: '24px', fontWeight: 700, color: '#111827', margin: 0 }}>
     Enter Backfill Details
   </h3>
 
 </div>
 
-{/* 🔥 MULTIPLE EMPLOYEES */}
+{/* ðŸ”¥ MULTIPLE EMPLOYEES */}
 {backfillList.map((emp, index) => (
 
 <div key={index} style={{ marginBottom: 16, borderBottom: '1px solid #E5E7EB', paddingBottom: 12 }}>
 
-<p style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
+<p style={{ fontSize: 14, lineHeight: '20px', fontWeight: 700, color: '#111827', margin: '0 0 10px' }}>
 Employee {index + 1}
 </p>
 
@@ -1971,7 +2009,7 @@ onChange={(e) => {
 }}
 inputMode="numeric"
 maxLength={9}
-style={{ ...styles.input, ...styles.fullWidth, marginBottom: 8 }}
+style={{ ...styles.input, ...styles.fullWidth, marginBottom: 10 }}
 />
 
 <input
@@ -1989,7 +2027,7 @@ style={{ ...styles.input, ...styles.fullWidth }}
 
 ))}
 
-<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
+<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 0 }}>
 
 <button
 onClick={() => {
@@ -2033,12 +2071,16 @@ if (activeBackfillIndex !== null && activeBackfillIndex >= 0) {
 disabled={!isBackfillListValid}
 title={!isBackfillListValid ? 'Enter employee ID and employee name for every backfill entry' : undefined}
 style={{
-  padding: '8px 16px',
-  borderRadius: 6,
+  width: 64,
+  height: 40,
+  padding: 0,
+  borderRadius: 5,
   color: 'white',
   background: isBackfillListValid ? '#059669' : '#D1D5DB',
   cursor: isBackfillListValid ? 'pointer' : 'not-allowed',
   border: 'none',
+  fontSize: 14,
+  fontWeight: 500,
 }}
 >
 Save
@@ -2070,24 +2112,16 @@ const Section = ({
   title: string;
   children: ReactNode;
 }) => (
-  <Box
-    background="white"
-    round="8px"
-    pad="24px"
-    gap="24px"
-    style={styles.sectionShadow}
-  >
-    <Box border={{ side: 'bottom', color: '#E5E7EB' }} pad={{ bottom: '8px' }}>
-      <Heading level={3} size="small" margin="none">
-        {title}
-      </Heading>
-    </Box>
+  <div style={styles.section}>
+    <div style={styles.sectionHeader}>
+      {title}
+    </div>
     {children}
-  </Box>
+  </div>
 );
 
 const Grid = ({ children }: { children: ReactNode }) => (
-  <Box style={styles.twoColumnGrid}>{children}</Box>
+  <div style={styles.twoColumnGrid}>{children}</div>
 );
 
 const Field = ({
@@ -2097,9 +2131,10 @@ const Field = ({
   label: string;
   children: ReactNode;
 }) => (
-  <FormField label={label} margin="none">
+  <div style={styles.field}>
+    <label style={styles.fieldLabel}>{label}</label>
     {children}
-  </FormField>
+  </div>
 );
 
 const SkillInput = ({
@@ -2179,23 +2214,49 @@ const SkillInput = ({
 );
 
 const styles: Record<string, React.CSSProperties> = {
-  pageShell: { width: '100%', padding: '0 32px', display: 'flex', flexDirection: 'column', gap: 32 },
-  sectionShadow: { boxShadow: '0 1px 3px rgba(15, 23, 42, 0.12)' },
-  twoColumnGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 24 },
+  pageShell: { width: '100%', boxSizing: 'border-box', padding: '0 32px', display: 'flex', flexDirection: 'column', gap: 32, overflowX: 'hidden' },
+  postingHeader: { background: 'white', boxShadow: '0 1px 3px rgba(15,23,42,0.12)', border: '1px solid #E5E7EB', borderRadius: 4, padding: 24 },
+  section: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 24,
+    background: 'white',
+    border: '1px solid #E5E7EB',
+    borderRadius: 4,
+    padding: 24,
+    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.12)',
+    boxSizing: 'border-box',
+  },
+  sectionHeader: {
+    borderBottom: '1px solid #E5E7EB',
+    paddingBottom: 10,
+    fontSize: 18,
+    lineHeight: '24px',
+    fontWeight: 700,
+    color: '#020B24',
+  },
+  twoColumnGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: 24, rowGap: 26, width: '100%', boxSizing: 'border-box' },
   fourColumnGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 },
   threeColumnGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16, marginTop: 16 },
-  input: { width: '100%', border: '1px solid #D1D5DB', borderRadius: 6, padding: '10px 12px', fontSize: 14, background: 'white' },
-  readOnlyInput: { width: '100%', border: '1px solid #D1D5DB', borderRadius: 6, padding: '10px 12px', fontSize: 14, background: '#F3F4F6' },
-  textarea: { width: '100%', border: '1px solid #D1D5DB', borderRadius: 6, padding: '10px 12px', fontSize: 14, background: 'white' },
+  field: { display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 },
+  fieldLabel: { display: 'block', fontSize: 14, lineHeight: '18px', fontWeight: 700, color: '#020B24' },
+  input: { width: '100%', boxSizing: 'border-box', height: 42, border: '1px solid #CBD5E1', borderRadius: 5, padding: '8px 12px', fontSize: 16, background: 'white' },
+  readOnlyInput: { width: '100%', boxSizing: 'border-box', height: 42, border: '1px solid #CBD5E1', borderRadius: 5, padding: '8px 12px', fontSize: 16, background: '#F3F4F6' },
+  textarea: { width: '100%', boxSizing: 'border-box', minHeight: 112, border: '1px solid #CBD5E1', borderRadius: 4, padding: '10px 12px', fontSize: 14, background: 'white' },
   errorText: { color: '#EF4444', fontSize: 12, marginTop: 4 },
-  fullWidth: { width: '100%' },
+  fullWidth: { width: '100%', boxSizing: 'border-box' },
   additionalPositionsLauncher: {
     border: '2px dashed #D1D5DB',
     borderRadius: 12,
     padding: 32,
+    minHeight: 138,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
     textAlign: 'center',
     cursor: 'pointer',
-    background: 'linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%)',
+    background: '#F9FAFB',
     transition: 'border-color 0.2s ease',
   },
   outlinedCard: { border: '1px solid #E5E7EB', borderRadius: 8, padding: 16 },
@@ -2207,11 +2268,21 @@ const styles: Record<string, React.CSSProperties> = {
   skillTextInput: { minWidth: 180, flex: 1, fontSize: 14 },
   suggestionMenu: { position: 'absolute', zIndex: 10, marginTop: 4, width: '100%', border: '1px solid #E5E7EB', borderRadius: 6, background: 'white', boxShadow: '0 10px 15px rgba(15, 23, 42, 0.1)' },
   skillPill: { display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999, padding: '4px 12px', background: '#ECFDF5' },
-  footerActions: { display: 'flex', justifyContent: 'flex-end', gap: 16, paddingBottom: 40 },
-  footerRow: { display: 'flex', justifyContent: 'flex-end' },
+  footerActions: { display: 'flex', justifyContent: 'flex-end', gap: 16, paddingBottom: 40, marginTop: 16, width: '100%', boxSizing: 'border-box' },
+  footerRow: { display: 'flex', justifyContent: 'flex-end', marginTop: 24 },
   warningBanner: { border: '1px solid #FCD34D', background: '#FFFBEB', borderRadius: 6, padding: '12px 16px', fontSize: 14, color: '#92400E' },
-  modalContent: { width: 500, maxHeight: '80vh', overflowY: 'auto' },
+  modalContent: {
+    width: 500,
+    maxHeight: '80vh',
+    overflowY: 'auto',
+    background: 'white',
+    borderRadius: 4,
+    padding: '28px 24px 24px',
+    boxShadow: '0 22px 45px rgba(15, 23, 42, 0.24)',
+    boxSizing: 'border-box',
+  },
 };
+
 
 
 

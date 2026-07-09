@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   Box,
   Button,
@@ -105,6 +105,7 @@ const PartnerSlotManagementView = ({ role }: Props) => {
   const [attendanceStatus, setAttendanceStatus] =
     useState<SlotAttendanceStatus>('ATTENDED');
   const [submitting, setSubmitting] = useState(false);
+  const today = new Date().toLocaleDateString('en-CA');
 
   const loadData = async () => {
     setLoading(true);
@@ -860,21 +861,22 @@ const PartnerSlotManagementView = ({ role }: Props) => {
 
             <Box margin={{ top: '24px' }} gap="16px">
               <Field label="Interview Date">
-                <TextInput
+                <input
                   type="date"
                   value={slotForm.interviewDate}
+                  min={today}
                   onChange={(event) =>
                     setSlotForm((prev) => ({
                       ...prev,
                       interviewDate: event.currentTarget.value,
                     }))
                   }
-                  style={{ borderRadius: 12, fontSize: 14 }}
+                  style={nativeSlotFieldStyle}
                 />
               </Field>
 
               <Field label="Interview Time">
-                <TextInput
+                <input
                   type="time"
                   value={slotForm.interviewTime}
                   onChange={(event) =>
@@ -883,7 +885,7 @@ const PartnerSlotManagementView = ({ role }: Props) => {
                       interviewTime: event.currentTarget.value,
                     }))
                   }
-                  style={{ borderRadius: 12, fontSize: 14 }}
+                  style={nativeSlotFieldStyle}
                 />
               </Field>
 
@@ -1422,6 +1424,19 @@ const formatRoundName = (roundName?: string) => {
   if (roundName.toUpperCase() === 'TECH') return 'Technical Evaluation';
   if (roundName.toUpperCase() === 'SCREENING') return 'Screening';
   return roundName;
+};
+
+const nativeSlotFieldStyle: CSSProperties = {
+  width: '100%',
+  minHeight: 44,
+  border: '1px solid #CBD5E1',
+  borderRadius: 12,
+  padding: '10px 12px',
+  fontSize: 14,
+  color: '#0F172A',
+  background: '#FFFFFF',
+  outline: 'none',
+  boxSizing: 'border-box',
 };
 
 const formatDate = (value?: string) => {

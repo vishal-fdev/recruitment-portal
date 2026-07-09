@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Anchor,
@@ -213,7 +213,9 @@ const CandidateDetails = () => {
   ];
 
   const isHiringManagerView = pathname.startsWith('/hiring-manager/');
+  const isHiringManagerContext = isHiringManagerView || role === 'HIRING_MANAGER';
   const isVendorManagerView = pathname.startsWith('/vendor-manager/');
+  const statusKey = String(candidate.status || '').toUpperCase();
   const isFinalForHm = hmFinalStatuses.includes(candidate.status);
   const canVmFinalize =
     isVendorManagerView &&
@@ -253,13 +255,18 @@ const CandidateDetails = () => {
     !hasAttendedInterviewAwaitingHmFeedback;
 
   const canHmSubmitStageDecision =
-    normalizedStatus === 'SUBMITTED' || hasAttendedInterviewAwaitingHmFeedback;
+    normalizedStatus === 'SUBMITTED' ||
+    statusKey === 'SUBMITTED' ||
+    hasAttendedInterviewAwaitingHmFeedback;
 
   const canHmEdit =
-    isHiringManagerView &&
+    isHiringManagerContext &&
     !isFinalForHm &&
     !hmSlotGateMessage &&
     canHmSubmitStageDecision;
+
+  const shouldShowHiringManagerAction =
+    isHiringManagerContext && ['SUBMITTED', 'NEW', 'SCREENING'].includes(statusKey);
 
   const interviewGateMessage =
     normalizedStatus === 'SCREEN_SELECTED'
@@ -429,19 +436,35 @@ const CandidateDetails = () => {
         color="brand"
         onClick={() => navigate(backRoute)}
         alignSelf="start"
+        style={{
+          color: '#FFFFFF',
+          fontWeight: 600,
+          fontSize: 12,
+          borderRadius: 6,
+          minHeight: 32,
+          padding: '8px 16px',
+        }}
       />
 
-      <Card round="24px" border={{ color: '#B8F6E6' }} background="white" overflow="hidden">
+      <Card round="16px" border={{ color: '#B8F6E6' }} background="white" style={{ minHeight: 354 }}>
         <CardHeader pad={{ horizontal: '20px', vertical: '16px' }} border={{ side: 'bottom', color: '#B8F6E6' }}>
           <Box direction="row" justify="between" align="start" width="100%">
-            <Heading level={3} margin="none" size="20px">
+            <Heading level={3} margin="none" size="18px" weight={600}>
               Candidate Details
             </Heading>
             <StageBadge status={candidate.status} />
           </Box>
         </CardHeader>
-        <CardBody pad="20px" gap="medium">
-          <Grid columns={{ count: 'fit', size: '220px' }} gap="medium">
+        <CardBody pad={{ horizontal: '20px', vertical: '18px' }} gap="medium" style={{ minHeight: 292 }}>
+          <Box
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+              columnGap: 36,
+              rowGap: 18,
+              alignItems: 'start',
+            }}
+          >
             <InfoColumn
               items={[
                 { icon: <User size={13} />, label: 'Candidate Name', value: candidate.name },
@@ -531,10 +554,10 @@ const CandidateDetails = () => {
                 { icon: <Calendar size={13} />, label: 'Resume Upload Date', value: formatDate(candidate.createdAt) },
               ]}
             />
-          </Grid>
+          </Box>
 
           <Box border={{ side: 'top', color: '#B8F6E6' }} pad={{ top: '12px' }}>
-            <Grid columns={{ count: 'fit', size: '320px' }} gap="large">
+            <Grid columns={['1fr', '1fr']} gap="large">
               <SkillSection title="Primary Skills" skills={candidate.primarySkills} />
               <SkillSection title="Secondary Skills" skills={candidate.secondarySkills} />
             </Grid>
@@ -542,21 +565,45 @@ const CandidateDetails = () => {
         </CardBody>
       </Card>
 
-      <Card round="24px" border={{ color: '#B8F6E6' }} background="white" overflow="hidden">
+      <Card
+        round="16px"
+        border={{ color: '#B8F6E6' }}
+        background="white"
+        style={{ overflow: 'visible', flex: '0 0 auto' }}
+      >
         <CardHeader pad={{ horizontal: '20px', vertical: '12px' }} background="#F0FFF9" border={{ side: 'bottom', color: '#B8F6E6' }}>
-          <Heading level={4} margin="none" size="16px">
+          <Heading level={4} margin="none" size="15px" weight={600}>
             Interview History
           </Heading>
         </CardHeader>
-        <CardBody pad="16px" gap="medium">
-          <Box round="20px" border={{ color: '#B8F6E6' }} background="#F0FFF9" pad="16px" gap="small">
+        <CardBody pad="16px" gap="medium" style={{ overflow: 'visible', flex: '0 0 auto' }}>
+          <Box
+            round="14px"
+            border={{ color: '#B8F6E6' }}
+            background="#F0FFF9"
+            pad="16px"
+            gap="small"
+            style={{ minHeight: 72, overflow: 'visible', flex: '0 0 auto' }}
+          >
             <Box direction="row" wrap justify="between" align="center" gap="small">
               <Box direction="row" wrap gap="small" align="center">
-                <Box as="span" round="full" background="#34D399" pad={{ horizontal: '12px', vertical: '4px' }}>
-                  <Text size="xsmall" weight={600} color="white">
-                    {candidate.job?.id ? `HRQ${candidate.job.id}` : '-'}
-                  </Text>
-                </Box>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: 24,
+                    padding: '4px 12px',
+                    borderRadius: 999,
+                    background: '#34D399',
+                    color: '#FFFFFF',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    lineHeight: '16px',
+                  }}
+                >
+                  {candidate.job?.id ? `HRQ${candidate.job.id}` : '-'}
+                </span>
                 <Text weight={500} color="#0F172A">
                   {candidate.job?.title || '-'}
                 </Text>
@@ -565,7 +612,7 @@ const CandidateDetails = () => {
                 {interviewHistory.length} interview rounds
               </Text>
             </Box>
-            <Box direction="row" wrap gap="medium">
+            <Box direction="row" wrap gap="medium" pad={{ left: '16px' }} style={{ lineHeight: '18px' }}>
               <Text size="xsmall" color="#475569">HRQ Status: {candidate.job?.status || '-'}</Text>
               <Text size="xsmall" color="#475569">Partner: {candidate.vendor?.name || '-'}</Text>
             </Box>
@@ -623,7 +670,14 @@ const CandidateDetails = () => {
               </Card>
             ))
           ) : (
-            <Box round="20px" border={{ color: '#B8F6E6', style: 'dashed' }} pad={{ vertical: '40px', horizontal: '16px' }} align="center">
+            <Box
+              round="14px"
+              border={{ color: '#B8F6E6', style: 'dashed' }}
+              pad={{ vertical: '34px', horizontal: '16px' }}
+              align="center"
+              justify="center"
+              style={{ minHeight: 104, overflow: 'visible', flex: '0 0 auto' }}
+            >
               <Text size="small" color="#94A3B8">
                 No interview history available yet.
               </Text>
@@ -633,7 +687,7 @@ const CandidateDetails = () => {
       </Card>
 
       {candidate.status === 'DROPPED' && (
-        <Card round="24px" border={{ color: '#FECACA' }} background="white">
+        <Card round="16px" border={{ color: '#FECACA' }} background="white">
           <CardBody pad="20px" gap="small">
             <Heading level={4} margin="none" size="16px">
               Drop Justification
@@ -646,7 +700,7 @@ const CandidateDetails = () => {
       )}
 
       {candidate.status === 'YET_TO_JOIN' && candidate.ytjJustification && (
-        <Card round="24px" border={{ color: '#FDE68A' }} background="white">
+        <Card round="16px" border={{ color: '#FDE68A' }} background="white">
           <CardBody pad="20px" gap="small">
             <Heading level={4} margin="none" size="16px">
               Yet To Join Details
@@ -662,7 +716,7 @@ const CandidateDetails = () => {
       )}
 
       {isHiringManagerView && ['SCREEN_SELECTED', 'TECH_SELECTED'].includes(normalizedStatus) && (
-        <Card round="24px" border={{ color: '#B8F6E6' }} background="white">
+        <Card round="16px" border={{ color: '#B8F6E6' }} background="white">
           <CardBody pad="20px" gap="medium">
             <Box direction="row" wrap justify="between" align="start" gap="medium">
               <Box>
@@ -735,79 +789,131 @@ const CandidateDetails = () => {
         </Card>
       )}
 
-      {(canHmEdit || canVmFinalize) && (
-        <Card round="24px" border={{ color: '#B8F6E6' }} background="white">
-          <CardBody pad="20px" gap="medium">
-            <Heading level={4} margin="none" size="16px">
+      {isHiringManagerView && canHmEdit && (
+        <div
+          style={{
+            marginTop: 10,
+            background: '#FFFFFF',
+            border: '1px solid #B8F6E6',
+            borderRadius: 16,
+            padding: '22px 20px',
+            minHeight: 128,
+            boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
+            position: 'relative',
+            zIndex: 1,
+            flex: '0 0 auto',
+          }}
+        >
+          <div style={{ color: '#0F172A', fontSize: 15, fontWeight: 600, marginBottom: 18 }}>
+            Candidate Action
+          </div>
+          <div style={{ color: '#475569', fontSize: 14, marginBottom: 16 }}>
+            Update candidate status from{' '}
+            <span style={{ color: '#334155', fontWeight: 700 }}>{candidate.status}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                setPendingHmDecision('SELECT');
+                setShowRejectBox(true);
+              }}
+              style={{
+                appearance: 'none',
+                border: 'none',
+                borderRadius: 6,
+                background: '#00A982',
+                color: '#FFFFFF',
+                fontSize: 14,
+                fontWeight: 700,
+                padding: '10px 20px',
+                minWidth: 124,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.65 : 1,
+              }}
+            >
+              {hmSelectLabel}
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                setPendingHmDecision('REJECT');
+                setShowRejectBox(true);
+              }}
+              style={{
+                appearance: 'none',
+                border: 'none',
+                borderRadius: 6,
+                background: '#F43F5E',
+                color: '#FFFFFF',
+                fontSize: 14,
+                fontWeight: 700,
+                padding: '10px 20px',
+                minWidth: 124,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.65 : 1,
+              }}
+            >
+              {hmRejectLabel}
+            </button>
+          </div>
+
+          {showRejectBox && (
+            <Box gap="small" margin={{ top: 'medium' }}>
+              <TextArea
+                rows={4}
+                placeholder="Enter feedback / justification..."
+                value={feedback}
+                onChange={(event) => setFeedback(event.currentTarget.value)}
+              />
+              <Box direction="row" wrap gap="small">
+                <Button
+                  label="Cancel"
+                  onClick={() => {
+                    setShowRejectBox(false);
+                    setPendingHmDecision(null);
+                    setFeedback('');
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={loading || !pendingHmDecision}
+                  onClick={() =>
+                    pendingHmDecision
+                      ? void submitHmDecision(pendingHmDecision)
+                      : undefined
+                  }
+                  style={{
+                    appearance: 'none',
+                    border: 'none',
+                    borderRadius: 6,
+                    background: pendingHmDecision === 'REJECT' ? '#F43F5E' : '#00A982',
+                    color: '#FFFFFF',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    padding: '10px 20px',
+                    cursor: loading || !pendingHmDecision ? 'not-allowed' : 'pointer',
+                    opacity: loading || !pendingHmDecision ? 0.65 : 1,
+                  }}
+                >
+                  {pendingHmDecision === 'REJECT'
+                    ? `Confirm ${hmRejectLabel}`
+                    : `Confirm ${hmSelectLabel}`}
+                </button>
+              </Box>
+            </Box>
+          )}
+        </div>
+      )}
+
+      {(canVmFinalize || (isHiringManagerView && hmSlotGateMessage)) && (
+        <Card round="16px" border={{ color: '#B8F6E6' }} background="white">
+          <CardBody pad={{ horizontal: '20px', vertical: '22px' }} gap="medium" style={{ minHeight: 128 }}>
+            <Heading level={4} margin="none" size="15px" weight={600}>
               Candidate Action
             </Heading>
-
-            {canHmEdit && (
-              <Box gap="medium">
-                <Text size="small" color="#475569">
-                  Update candidate status from <Text weight={600}>{candidate.status}</Text>
-                </Text>
-
-                <Box direction="row" wrap gap="small">
-                  <Button
-                    primary
-                    color="brand"
-                    disabled={loading}
-                    label={hmSelectLabel}
-                    onClick={() => {
-                      setPendingHmDecision('SELECT');
-                      setShowRejectBox(true);
-                    }}
-                  />
-                  <Button
-                    primary
-                    color="status-critical"
-                    disabled={loading}
-                    label={hmRejectLabel}
-                    onClick={() => {
-                      setPendingHmDecision('REJECT');
-                      setShowRejectBox(true);
-                    }}
-                  />
-                </Box>
-
-                {showRejectBox && (
-                  <Box gap="small">
-                    <TextArea
-                      rows={4}
-                      placeholder="Enter feedback / justification..."
-                      value={feedback}
-                      onChange={(event) => setFeedback(event.currentTarget.value)}
-                    />
-                    <Box direction="row" wrap gap="small">
-                      <Button
-                        label="Cancel"
-                        onClick={() => {
-                          setShowRejectBox(false);
-                          setPendingHmDecision(null);
-                          setFeedback('');
-                        }}
-                      />
-                      <Button
-                        primary
-                        color={pendingHmDecision === 'REJECT' ? 'status-critical' : 'brand'}
-                        disabled={loading || !pendingHmDecision}
-                        label={
-                          pendingHmDecision === 'REJECT'
-                            ? `Confirm ${hmRejectLabel}`
-                            : `Confirm ${hmSelectLabel}`
-                        }
-                        onClick={() =>
-                          pendingHmDecision
-                            ? void submitHmDecision(pendingHmDecision)
-                            : undefined
-                        }
-                      />
-                    </Box>
-                  </Box>
-                )}
-              </Box>
-            )}
 
             {isHiringManagerView && hmSlotGateMessage && (
               <Text size="small" color="status-warning">
@@ -827,7 +933,8 @@ const CandidateDetails = () => {
                       primary
                       color="brand"
                       disabled={loading}
-                      label="Yet To Join"
+                      label={<Text color="white" weight={600} size="small">Yet To Join</Text>}
+                      style={{ background: '#00A982', color: '#FFFFFF', border: 'none', borderRadius: 6, padding: '10px 20px' }}
                       onClick={() => setShowYtjBox(true)}
                     />
                   )}
@@ -838,14 +945,16 @@ const CandidateDetails = () => {
                         primary
                         color="brand"
                         disabled={loading}
-                        label="Onboarded"
+                        label={<Text color="white" weight={600} size="small">Onboarded</Text>}
+                        style={{ background: '#00A982', color: '#FFFFFF', border: 'none', borderRadius: 6, padding: '10px 20px' }}
                         onClick={() => void submitVendorManagerDecision('ONBOARDED')}
                       />
                       <Button
                         primary
                         color="status-critical"
                         disabled={loading}
-                        label="Drop"
+                        label={<Text color="white" weight={600} size="small">Drop</Text>}
+                        style={{ background: '#F43F5E', color: '#FFFFFF', border: 'none', borderRadius: 6, padding: '10px 20px' }}
                         onClick={() => setShowDropBox(true)}
                       />
                     </>
@@ -872,6 +981,7 @@ const CandidateDetails = () => {
                       label="Save YTJ"
                       onClick={() => void submitVendorManagerDecision('YET_TO_JOIN')}
                       alignSelf="start"
+                      style={{ color: '#FFFFFF', fontWeight: 600, borderRadius: 6 }}
                     />
                   </Box>
                 )}
@@ -895,6 +1005,7 @@ const CandidateDetails = () => {
                       label="Confirm Drop"
                       onClick={() => void submitVendorManagerDecision('DROPPED')}
                       alignSelf="start"
+                      style={{ color: '#FFFFFF', fontWeight: 600, borderRadius: 6 }}
                     />
                   </Box>
                 )}
@@ -921,22 +1032,25 @@ const CandidateDetails = () => {
 
             <Box gap="medium">
               <Field label="Interview Date">
-                <TextInput
+                <input
                   type="date"
                   value={slotForm.interviewDate}
+                  min={today}
                   onChange={(event) =>
                     setSlotForm((prev) => ({ ...prev, interviewDate: event.currentTarget.value }))
                   }
+                  style={nativeFieldStyle}
                 />
               </Field>
 
               <Field label="Interview Time">
-                <TextInput
+                <input
                   type="time"
                   value={slotForm.interviewTime}
                   onChange={(event) =>
                     setSlotForm((prev) => ({ ...prev, interviewTime: event.currentTarget.value }))
                   }
+                  style={nativeFieldStyle}
                 />
               </Field>
 
@@ -979,18 +1093,66 @@ const CandidateDetails = () => {
 
 export default CandidateDetails;
 
+const nativeFieldStyle: CSSProperties = {
+  width: '100%',
+  minHeight: 44,
+  border: '1px solid #CBD5E1',
+  borderRadius: 6,
+  padding: '10px 12px',
+  fontSize: 14,
+  color: '#0F172A',
+  background: '#FFFFFF',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
+const Field = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) => (
+  <Box margin={{ top: '24px' }}>
+    <Text margin={{ bottom: '8px' }} size="small" weight={500} color="#334155">
+      {label}
+    </Text>
+    {children}
+  </Box>
+);
+
+const SlotInfo = ({ label, value }: { label: string; value: ReactNode }) => (
+  <Box round="12px" background="#F8FAFC" pad={{ horizontal: '12px', vertical: '10px' }}>
+    <Text size="11px" color="#94A3B8" style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+      {label}
+    </Text>
+    <Text margin={{ top: '4px' }} size="small" weight={500} color="#334155">
+      {value}
+    </Text>
+  </Box>
+);
+
 const InfoColumn = ({ items }: { items: Array<{ icon: ReactNode; label: string; value: ReactNode }> }) => (
-  <Box gap="12px">
+  <Box gap="16px" style={{ minWidth: 0 }}>
     {items.map((item) => (
-      <Box key={item.label} direction="row" align="start" gap="8px">
-        <Box margin={{ top: '2px' }} style={{ color: '#34D399' }}>
+      <Box key={item.label} direction="row" align="start" gap="8px" style={{ minHeight: 36, minWidth: 0 }}>
+        <Box margin={{ top: '2px' }} style={{ color: '#34D399', flex: '0 0 auto' }}>
           {item.icon}
         </Box>
-        <Box>
-          <Text size="10px" style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }} color="#94A3B8">
+        <Box gap="3px" style={{ minWidth: 0 }}>
+          <Text
+            size="10px"
+            style={{ display: 'block', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: '12px' }}
+            color="#94A3B8"
+          >
             {item.label}
           </Text>
-          <Text size="small" weight={500} color="#334155">
+          <Text
+            size="small"
+            weight={600}
+            color="#0F172A"
+            style={{ display: 'block', lineHeight: '18px', overflowWrap: 'anywhere' }}
+          >
             {item.value || '-'}
           </Text>
         </Box>
@@ -1007,7 +1169,7 @@ const SkillSection = ({
   skills?: string;
 }) => (
   <Box>
-    <Text size="xsmall" weight={500} color="#64748B" margin={{ bottom: '8px' }}>
+    <Text size="xsmall" weight={500} color="#64748B" margin={{ bottom: '8px' }} style={{ lineHeight: '16px' }}>
       {title}
     </Text>
     <Box direction="row" wrap gap="8px">

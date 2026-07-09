@@ -12,11 +12,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Box, Button, Card, CardBody, Grid, Heading, Paragraph, Text } from 'grommet';
+import { Box, Button, Card, CardBody, Grid, Text } from 'grommet';
 import type { DashboardStats, SubmissionStat } from '../../services/dashboardService';
 import { getDashboardStats } from '../../services/dashboardService';
 import { getVendorCandidates } from '../../services/candidateService';
 import { getJobs, type Job } from '../../services/jobService';
+import { DashboardEmpty, DashboardHero, DashboardSection } from '../../components/DashboardHero';
 
 type CandidateRecord = {
   id: number;
@@ -104,25 +105,19 @@ const DashboardHome = () => {
 
   return (
     <Box gap="large">
-      <Box gap="xsmall">
-        <Heading level={2} margin="none" color="text-strong">
-          Vendor dashboard
-        </Heading>
-        <Box direction="row" align="center" gap="small">
-          <Box width="10px" height="10px" round="full" background="#96F7E4" />
-          <Text color="text-paragraph">Live recruitment activity</Text>
-        </Box>
-      </Box>
+      <DashboardHero
+        title="Vendor dashboard"
+        subtitle="Live recruitment activity"
+        metrics={[
+          { accent: '#01A982', title: 'ASSIGNED JOBS', value: loading ? '...' : assignedJobs, helper: `${jobsCreatedToday} new today`, helperColor: '#01A982' },
+          { accent: '#3B82F6', title: 'CANDIDATES SUBMITTED', value: loading ? '...' : candidatesSubmitted, helper: `${submittedThisWeek} this week`, helperColor: '#01A982' },
+          { accent: '#7C6CF2', title: 'IN INTERVIEW STAGE', value: loading ? '...' : interviewCandidates.length, helper: `Across ${interviewJobsCount} jobs`, helperColor: '#94A3B8' },
+          { accent: '#F59E0B', title: 'OFFERS / PLACED', value: loading ? '...' : offersPlaced, helper: 'This quarter', helperColor: '#01A982' },
+        ]}
+      />
 
-      <Grid columns={{ count: 'fit', size: ['small', 'small'] }} gap="medium">
-        <StatCard accent="#01A982" title="ASSIGNED JOBS" value={loading ? '...' : assignedJobs} helper={`${jobsCreatedToday} new today`} helperColor="#01A982" />
-        <StatCard accent="#3B82F6" title="CANDIDATES SUBMITTED" value={loading ? '...' : candidatesSubmitted} helper={`${submittedThisWeek} this week`} helperColor="#01A982" />
-        <StatCard accent="#7C6CF2" title="IN INTERVIEW STAGE" value={loading ? '...' : interviewCandidates.length} helper={`Across ${interviewJobsCount} jobs`} helperColor="#94A3B8" />
-        <StatCard accent="#F59E0B" title="OFFERS / PLACED" value={loading ? '...' : offersPlaced} helper="This quarter" helperColor="#01A982" />
-      </Grid>
-
-      <Grid columns={{ count: 'fit', size: ['medium', 'medium'] }} gap="medium">
-        <DashboardCard title="Candidate stage summary">
+      <div style={twoColumnGridStyle}>
+        <DashboardSection title="Candidate stage summary" minHeight={300} bodyMinHeight={200}>
           {stageData.length ? (
             <Grid columns={['flex', '220px']} gap="medium">
               <Box height="320px">
@@ -141,11 +136,11 @@ const DashboardHome = () => {
                 {stageData.map((entry, index) => (
                   <Box key={entry.name} direction="row" align="center" gap="small">
                     <Box width="12px" height="12px" round="full" background={CHART_COLORS[index % CHART_COLORS.length]} />
-                    <Box flex>
-  <Text color="text-paragraph" size="small">
-    {entry.name}
-  </Text>
-</Box>
+                  <Box flex overflow="hidden">
+                    <Text color="text-paragraph" size="small" truncate>
+                      {entry.name}
+                    </Text>
+                  </Box>
                     <Text weight="bold" size="small">
                       {entry.value}
                     </Text>
@@ -154,13 +149,15 @@ const DashboardHome = () => {
               </Box>
             </Grid>
           ) : (
-            <EmptyState message="No candidate stage data available yet." />
+            <DashboardEmpty message="No candidate stage data available yet." height="200px" />
           )}
-        </DashboardCard>
+        </DashboardSection>
 
-        <DashboardCard
+        <DashboardSection
           title="Assigned jobs"
-          action={<Button plain label="View all" color="brand" onClick={() => navigate('/vendor/candidates')} />}
+          action={<Button plain label="View all" color="brand" onClick={() => navigate('/vendor/jobs')} />}
+          minHeight={300}
+          bodyMinHeight={200}
         >
           <Box gap="small">
             {assignedJobsList.length ? (
@@ -175,24 +172,30 @@ const DashboardHome = () => {
                 >
                   <CardBody pad="medium">
                     <Box direction="row" align="center" gap="medium" wrap>
-                      <Box width="110px">
-  <Text color="text-weak">
-    {`JOB-${String(job.id).padStart(3, '0')}`}
-  </Text>
-</Box>
+                  <Box width="110px" flex={false}>
+                    <Text color="text-weak">{`JOB-${String(job.id).padStart(3, '0')}`}</Text>
+                  </Box>
                       <Box flex>
                         <Text weight="bold">{job.title}</Text>
                       </Box>
-                      <Box width="92px">
-  <Text color="text-weak">
-    {job.location || '-'}
-  </Text>
-</Box>
+                  <Box width="92px" flex={false}>
+                    <Text color="text-weak">{job.location || '-'}</Text>
+                  </Box>
                       <Button
                         type="button"
                         label="Submit"
                         primary
                         color="brand"
+                        style={{
+                          background: '#00A982',
+                          border: 'none',
+                          borderRadius: '999px',
+                          color: '#FFFFFF',
+                          fontSize: 15,
+                          fontWeight: 600,
+                          minHeight: 37,
+                          padding: '8px 20px',
+                        }}
                         onClick={(event) => {
                           event.stopPropagation();
                           navigate(`/vendor/candidates/create?jobId=${job.id}`);
@@ -203,14 +206,14 @@ const DashboardHome = () => {
                 </Card>
               ))
             ) : (
-              <EmptyState message="No assigned jobs available." />
-            )}
+              <DashboardEmpty message="No assigned jobs available." height="200px" />
+          )}
           </Box>
-        </DashboardCard>
-      </Grid>
+        </DashboardSection>
+      </div>
 
-      <Grid columns={{ count: 'fit', size: ['medium', 'medium'] }} gap="medium">
-        <DashboardCard title="Weekly profile submissions">
+      <div style={twoColumnGridStyle}>
+        <DashboardSection title="Weekly profile submissions" minHeight={300} bodyMinHeight={200}>
           {weeklySubmissions.length ? (
             <Box gap="small">
               <Box height="320px">
@@ -231,11 +234,11 @@ const DashboardHome = () => {
               </Box>
             </Box>
           ) : (
-            <EmptyState message="No weekly submission data available yet." />
+            <DashboardEmpty message="No weekly submission data available yet." height="200px" />
           )}
-        </DashboardCard>
+        </DashboardSection>
 
-        <DashboardCard title="My candidates - live status">
+        <DashboardSection title="My candidates - live status" minHeight={300} bodyMinHeight={200}>
           <Box gap="small">
             {candidateLiveStatus.length ? (
               candidateLiveStatus.map((candidate) => (
@@ -277,14 +280,28 @@ const DashboardHome = () => {
                 </Card>
               ))
             ) : (
-              <EmptyState message="No live candidate activity yet." />
-            )}
+              <DashboardEmpty message="No live candidate activity yet." height="200px" />
+          )}
           </Box>
-        </DashboardCard>
-      </Grid>
+        </DashboardSection>
+      </div>
+
+      <div style={bottomSpacerStyle} />
     </Box>
   );
 };
+
+const twoColumnGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 24,
+  width: '100%',
+} as const;
+
+const bottomSpacerStyle = {
+  height: 72,
+  flexShrink: 0,
+} as const;
 
 const StatCard = ({
   title,
@@ -313,34 +330,6 @@ const StatCard = ({
       </Text>
     </CardBody>
   </Card>
-);
-
-const DashboardCard = ({
-  title,
-  children,
-  action,
-}: {
-  title: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) => (
-  <Card background="white" round="22px" border={{ color: 'border-weak' }} elevation="xsmall">
-    <CardBody pad="large" gap="medium">
-      <Box direction="row" justify="between" align="center" gap="medium">
-        <Heading level={3} size="small" margin="none">
-          {title}
-        </Heading>
-        {action}
-      </Box>
-      {children}
-    </CardBody>
-  </Card>
-);
-
-const EmptyState = ({ message }: { message: string }) => (
-  <Box height="320px" align="center" justify="center">
-    <Text color="text-weak">{message}</Text>
-  </Box>
 );
 
 const formatStageLabel = (value: string) =>

@@ -1,1 +1,1 @@
-export { default } from './HiringManagerDashboard';
+export { default } from './HiringManagerDashboardV2';

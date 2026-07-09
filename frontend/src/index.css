@@ -10,3 +10,19 @@ body {
   background-color: #f3f4f6;
   color: #111827;
 }
+
+button[style*="#01A982"],
+button[style*="#00A982"],
+button[style*="rgb(1, 169, 130)"],
+button[style*="rgb(0, 169, 130)"],
+button[style*="rgb(0, 169, 128)"] {
+  color: #ffffff !important;
+}
+
+button[style*="#01A982"] *,
+button[style*="#00A982"] *,
+button[style*="rgb(1, 169, 130)"] *,
+button[style*="rgb(0, 169, 130)"] *,
+button[style*="rgb(0, 169, 128)"] * {
+  color: #ffffff !important;
+}

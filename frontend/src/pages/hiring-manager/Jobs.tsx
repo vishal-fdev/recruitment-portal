@@ -5,10 +5,7 @@ import {
   Button,
   Card,
   CardBody,
-  CardHeader,
   Grid,
-  Heading,
-  Paragraph,
   Spinner,
   Text,
 } from 'grommet';
@@ -63,41 +60,49 @@ const HMJobs = () => {
   };
 
   return (
-    <Box gap="large">
+    <Box gap="26px">
       <Box direction="row" justify="between" align="center" gap="medium" wrap>
-        <Box gap="xsmall">
-          <Heading level={2} margin="none">
+        <Box gap="2px">
+          <Text size="26px" weight={700} color="#0B1220" style={{ lineHeight: 1.12 }}>
             My job openings
-          </Heading>
-          <Paragraph size="small" color="dark-4" margin="none">
+          </Text>
+          <Text size="13px" color="#526179">
             Create and manage job openings
-          </Paragraph>
+          </Text>
         </Box>
 
         {role === 'HIRING_MANAGER' && (
           <Button
             primary
-            color="brand"
+            color="#00A982"
             label="+ Create Job"
             onClick={() => navigate('/hiring-manager/jobs/create')}
+            style={{
+              borderRadius: '14px',
+              padding: '13px 22px',
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#FFFFFF',
+              boxShadow: '0 12px 22px rgba(1, 169, 130, 0.18)',
+            }}
           />
         )}
       </Box>
 
-      <Box gap="medium">
+      <Box gap="16px">
         {loading && (
-          <Card
+          <Box
             background="white"
-            round="large"
-            pad="large"
-            border={{ color: 'border', size: 'xsmall' }}
-            elevation="xsmall"
+            round="20px"
+            pad={{ horizontal: '28px', vertical: '34px' }}
+            border={{ color: '#DDE3EB' }}
+            style={{ boxShadow: '0 2px 6px rgba(15, 23, 42, 0.06)' }}
           >
             <Box direction="row" gap="small" align="center">
               <Spinner size="small" />
-              <Text>Loading...</Text>
+              <Text size="14px" color="#526179">Loading...</Text>
             </Box>
-          </Card>
+          </Box>
         )}
 
         {!loading &&
@@ -130,31 +135,45 @@ const HMJobs = () => {
                   </Box>
 
                   <Box direction="row" gap="small" wrap>
-                    <Button
-                      label="Download JD"
-                      color="dark-1"
-                      primary
+                    <button
+                      type="button"
                       disabled={!((job.jdFiles?.length ?? 0) > 0 || job.jdFileName)}
                       onClick={(event) => {
                         event.stopPropagation();
+                        if (!((job.jdFiles?.length ?? 0) > 0 || job.jdFileName)) return;
                         triggerDownload(downloadJD(job.id));
                       }}
-                    />
-                    <Button
-                      label="Download PSQ"
-                      color="dark-1"
-                      primary
+                      style={actionButtonStyle(!((job.jdFiles?.length ?? 0) > 0 || job.jdFileName))}
+                    >
+                      Download JD
+                    </button>
+                    <button
+                      type="button"
                       disabled={!((job.psqFiles?.length ?? 0) > 0 || job.psqFileName)}
                       onClick={(event) => {
                         event.stopPropagation();
+                        if (!((job.psqFiles?.length ?? 0) > 0 || job.psqFileName)) return;
                         triggerDownload(downloadPSQ(job.id));
                       }}
-                    />
+                      style={actionButtonStyle(!((job.psqFiles?.length ?? 0) > 0 || job.psqFileName))}
+                    >
+                      Download PSQ
+                    </button>
                     {(job.status === 'PENDING_APPROVAL' || job.status === 'REJECTED') && (
                       <Button
                         label="Resubmit"
                         primary
                         color="brand"
+                        style={{
+                          borderRadius: '999px',
+                          minHeight: '37px',
+                          padding: '8px 20px',
+                          color: '#FFFFFF',
+                          fontSize: '16px',
+                          fontWeight: 700,
+                          background: '#00A982',
+                          border: 'none',
+                        }}
                         onClick={(event) => {
                           event.stopPropagation();
                           navigate(`/hiring-manager/edit-job/${job.id}`, {
@@ -183,17 +202,19 @@ const HMJobs = () => {
           ))}
 
         {!loading && jobs.length === 0 && (
-          <Card
+          <Box
             background="white"
             round="20px"
-            pad="large"
-            border={{ color: 'border', size: 'xsmall' }}
-            elevation="xsmall"
+            border={{ color: '#DDE3EB' }}
+            height="102px"
+            align="center"
+            justify="center"
+            style={{ boxShadow: '0 2px 6px rgba(15, 23, 42, 0.06)' }}
           >
-            <Text textAlign="center" size="small" color="dark-4">
+            <Text textAlign="center" size="14px" color="#526179">
               No jobs found.
             </Text>
-          </Card>
+          </Box>
         )}
       </Box>
     </Box>
@@ -211,6 +232,21 @@ const Info = ({ label, value }: { label: string; value: string }) => (
   </Box>
 );
 
+const actionButtonStyle = (isDisabled: boolean) => ({
+  minHeight: '37px',
+  minWidth: '156px',
+  padding: '8px 18px',
+  border: 'none',
+  borderRadius: '999px',
+  background: isDisabled ? '#333333' : '#1F2937',
+  color: '#FFFFFF',
+  opacity: isDisabled ? 0.92 : 1,
+  fontSize: '16px',
+  fontWeight: 700,
+  lineHeight: 1,
+  cursor: isDisabled ? 'not-allowed' : 'pointer',
+});
+
 const StatusBadge = ({ status }: { status: string }) => {
   const colors = getStatusColors(status);
 
@@ -221,10 +257,14 @@ const StatusBadge = ({ status }: { status: string }) => {
       gap="xsmall"
       background={colors.background}
       round="full"
-      pad={{ horizontal: 'small', vertical: 'xsmall' }}
+      pad={{ horizontal: '12px', vertical: '5px' }}
+      style={{
+        minHeight: 28,
+        boxShadow: `inset 0 0 0 1px ${colors.border}`,
+      }}
     >
-      <Box width="10px" height="10px" round="full" background={colors.dot} />
-      <Text size="xsmall" weight={500} color={colors.text}>
+      <Box width="9px" height="9px" round="full" background={colors.dot} />
+      <Text size="12px" weight={700} color={colors.text}>
         {formatStatus(status)}
       </Text>
     </Box>
@@ -236,15 +276,15 @@ const formatStatus = (status: string) =>
 
 const getStatusColors = (status: string) => {
   if (status === 'APPROVED') {
-    return { background: '#DDFBF2', text: '#0F766E', dot: '#01A982' };
+    return { background: '#DDFBF2', text: '#007C65', dot: '#01A982', border: '#C9F8EA' };
   }
   if (status === 'REJECTED') {
-    return { background: '#FEE2E2', text: '#B91C1C', dot: '#EF4444' };
+    return { background: '#FEE2E2', text: '#B91C1C', dot: '#EF4444', border: '#FECACA' };
   }
   if (status === 'PENDING_APPROVAL') {
-    return { background: '#FEF3C7', text: '#B45309', dot: '#F59E0B' };
+    return { background: '#FFF1C7', text: '#B46000', dot: '#F59E0B', border: '#FFE5A3' };
   }
-  return { background: '#E5E7EB', text: '#64748B', dot: '#94A3B8' };
+  return { background: '#E5E7EB', text: '#64748B', dot: '#94A3B8', border: '#D9DEE7' };
 };
 
 export default HMJobs;

@@ -24,6 +24,8 @@ const normalizeRole = (role: string): UserRole => {
     case 'VENDOR_MANAGER':
     case 'VENDOR_MANAGER_HEAD':
     case 'HIRING_MANAGER':
+    case 'BADGED_HIRING_MANAGER':
+    case 'BADGED_RECRUITER':
     case 'PANEL':
       return role;
     default:
@@ -50,6 +52,8 @@ const Login = () => {
     if (role === 'VENDOR') return '/vendor';
     if (role === 'VENDOR_MANAGER') return '/vendor-manager';
     if (role === 'VENDOR_MANAGER_HEAD') return '/vendor-manager-head';
+    if (role === 'BADGED_HIRING_MANAGER') return '/vendor-manager/badged-hiring';
+    if (role === 'BADGED_RECRUITER') return '/vendor-manager/badged-hiring';
     if (role === 'PANEL') return '/panel';
     return '/hiring-manager';
   };
@@ -135,21 +139,6 @@ const Login = () => {
           }}
         />
 
-        {[25, 50, 75].map((top) => (
-          <Box
-            key={top}
-            style={{
-              position: 'absolute',
-              top: `${top}%`,
-              left: '-10%',
-              width: '120%',
-              height: 2,
-              background: 'rgba(52, 211, 153, 0.40)',
-              filter: 'blur(2px)',
-            }}
-          />
-        ))}
-
         <Box
           direction="row"
           justify="between"
@@ -162,7 +151,7 @@ const Login = () => {
           responsive
           style={{ position: 'relative', zIndex: 1 }}
         >
-          <Box pad="40px" width={{ max: '560px' }} gap="medium">
+          <Box pad="40px" width={{ max: '620px' }} gap="medium">
             <Text size="small" color="#E5E7EB" style={{ letterSpacing: '0.08em' }}>
               Welcome to
             </Text>
@@ -170,16 +159,16 @@ const Login = () => {
             <Heading
               level={1}
               margin="none"
-              size="56px"
+              size="48px"
               color="white"
-              style={{ lineHeight: 1.05 }}
+              style={{ lineHeight: 1.22, fontWeight: 700 }}
             >
               Hewlett Packard
               <br />
               Enterprise
             </Heading>
 
-            <Paragraph margin="none" size="medium" color="#E5E7EB">
+            <Paragraph margin="none" size="medium" color="#E5E7EB" style={{ maxWidth: 620, lineHeight: 1.55 }}>
               Manage hiring workflows, vendor collaboration, and recruitment
               operations securely across the enterprise platform.
             </Paragraph>
@@ -191,14 +180,14 @@ const Login = () => {
 
           <Box
             width="380px"
-            round="24px"
+            round="14px"
             pad="40px"
             gap="large"
-            background="rgba(0, 0, 0, 0.30)"
+            background="rgba(0, 0, 0, 0.42)"
             border={{ color: 'rgba(255, 255, 255, 0.20)' }}
             style={{
-              backdropFilter: 'blur(20px)',
-              boxShadow: '0 24px 60px rgba(0, 0, 0, 0.35)',
+              backdropFilter: 'blur(16px)',
+              boxShadow: '0 20px 52px rgba(0, 0, 0, 0.30)',
             }}
           >
             <Heading level={3} margin="none" textAlign="center" color="white">
@@ -221,6 +210,7 @@ const Login = () => {
                       borderRadius: 8,
                       background: '#FFFFFF',
                       fontSize: 14,
+                      boxShadow: 'none',
                     }}
                   />
                 </FormField>
@@ -232,9 +222,12 @@ const Login = () => {
                   primary
                   color="#059669"
                   style={{
+                    color: '#FFFFFF',
+                    background: '#08A77D',
+                    border: 'none',
                     borderRadius: 8,
                     padding: '10px 16px',
-                    fontWeight: 500,
+                    fontWeight: 700,
                   }}
                 />
               </Box>
@@ -247,3 +240,4 @@ const Login = () => {
 };
 
 export default Login;
+

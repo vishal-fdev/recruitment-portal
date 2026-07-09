@@ -1,5 +1,5 @@
 import { Outlet, useLocation } from 'react-router-dom';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { Box } from 'grommet';
 import Topbar from '../components/Topbar';
 import Sidebar from '../components/Sidebar';
@@ -8,7 +8,6 @@ import { authService } from '../auth/authService';
 const VendorLayout = () => {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const location = useLocation();
-  const mainRef = useRef<HTMLDivElement | null>(null);
   const role = 'VENDOR';
 
   const handleLogout = () => {
@@ -21,16 +20,11 @@ const VendorLayout = () => {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
       document.documentElement.scrollTop = 0;
       document.body.scrollTop = 0;
-      if (mainRef.current) {
-        mainRef.current.scrollTop = 0;
-        mainRef.current.scrollLeft = 0;
-        mainRef.current.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-      }
     };
 
     resetScroll();
     const frame = window.requestAnimationFrame(resetScroll);
-    const timer = window.setTimeout(resetScroll, 0);
+    const timer = window.setTimeout(resetScroll, 60);
 
     return () => {
       window.cancelAnimationFrame(frame);
@@ -39,19 +33,22 @@ const VendorLayout = () => {
   }, [location.pathname]);
 
   return (
-    <Box direction="row" fill background="#F3F4F6" style={{ minHeight: '100vh' }}>
+    <Box direction="row" fill background="#F4F5F7" style={{ minHeight: '100vh' }}>
       <Sidebar role={role} expanded={sidebarExpanded} onHover={setSidebarExpanded} />
-      <Box flex>
+      <Box
+        flex
+        style={{
+          marginLeft: sidebarExpanded ? 220 : 88,
+          minWidth: 0,
+          transition: 'margin-left 0.2s ease',
+        }}
+      >
         <Topbar role={role} onLogout={handleLogout} />
         <Box
-          key={location.pathname}
           as="main"
-          ref={mainRef}
           flex
-          overflow="auto"
-          pad="32px"
-          background="#F3F4F6"
-          data-scroll-root="true"
+          pad={{ horizontal: '26px', vertical: '22px' }}
+          background="#F4F5F7"
         >
           <Outlet />
         </Box>

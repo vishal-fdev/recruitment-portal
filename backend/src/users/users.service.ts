@@ -115,7 +115,8 @@ export class UsersService implements OnModuleInit {
     const usersToSeed: Array<{ email: string; role: UserRole }> = [
       { email: 'vendormanager@test.com', role: UserRole.VENDOR_MANAGER },
       { email: 'hiringmanager@test.com', role: UserRole.HIRING_MANAGER },
-      { email: 'shanu.saha@test.com', role: UserRole.HIRING_MANAGER },
+      { email: 'badgedhiring@test.com', role: UserRole.VENDOR_MANAGER },
+      { email: 'shanu.saha@test.com', role: UserRole.VENDOR_MANAGER_HEAD },
       { email: 'rishikesh.kumar@test.com', role: UserRole.VENDOR_MANAGER_HEAD },
     ];
 
@@ -227,3 +228,4 @@ export class UsersService implements OnModuleInit {
     return JSON.parse(JSON.stringify(value));
   }
 }
+

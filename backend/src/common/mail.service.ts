@@ -3,7 +3,8 @@ import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService implements OnModuleInit {
-  private transporter: nodemailer.Transporter;
+  private transporter?: nodemailer.Transporter;
+  private smtpReady = false;
 
   private buildLoginRedirect(email: string, path: string) {
     const frontendUrl = process.env.FRONTEND_URL;
@@ -19,66 +20,52 @@ export class MailService implements OnModuleInit {
   }
 
   private buildVendorHeadRedirect(path: string) {
-    return this.buildLoginRedirect(
-      process.env.VENDOR_HEAD_EMAIL || '',
-      path,
-    );
+    return this.buildLoginRedirect(process.env.VENDOR_HEAD_EMAIL || '', path);
   }
 
-  onModuleInit() {
-    console.log('🚀 Initializing MailService...');
+  async onModuleInit() {
+    const mailUser = process.env.MAIL_USER;
+    const mailPass = process.env.MAIL_PASS;
 
-    console.log('MAIL_USER:', process.env.MAIL_USER);
-    console.log('MAIL_PASS exists:', !!process.env.MAIL_PASS);
-    console.log('VENDOR_HEAD_EMAIL:', process.env.VENDOR_HEAD_EMAIL);
-
-    if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-      console.error('❌ MAIL ENV VARIABLES MISSING');
+    if (!mailUser || !mailPass) {
+      console.warn('MailService disabled: MAIL_USER or MAIL_PASS is missing.');
       return;
     }
 
     this.transporter = nodemailer.createTransport({
-      service: 'gmail', // ✅ more reliable for Gmail
+      service: 'gmail',
       auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
+        user: mailUser,
+        pass: mailPass,
       },
     });
 
-    // ✅ Verify connection
-    this.transporter.verify()
-      .then(() => {
-        console.log('✅ SMTP SERVER READY');
-      })
-      .catch((error) => {
-        console.error('❌ SMTP CONNECTION ERROR:', error);
-      });
+    try {
+      await this.transporter.verify();
+      this.smtpReady = true;
+      console.log('MailService ready.');
+    } catch (error: any) {
+      this.smtpReady = false;
+      this.transporter = undefined;
+      console.warn(`MailService disabled: SMTP login failed (${error?.code || error?.responseCode || 'auth error'}). Update MAIL_USER/MAIL_PASS to enable email notifications.`);
+    }
   }
 
   async sendApprovalEmail(job: any) {
-    console.log('📧 EMAIL FUNCTION CALLED');
-
-    if (!this.transporter) {
-      console.error('❌ Transporter not initialized');
+    if (!this.transporter || !this.smtpReady) {
       return;
     }
 
     try {
-      console.log('📧 Sending email for job:', job.id);
-
       const approveUrl = `${process.env.BACKEND_URL}/job-approvals/approve/${job.id}`;
       const rejectUrl = `${process.env.BACKEND_URL}/job-approvals/reject/${job.id}`;
-      const viewUrl = this.buildVendorHeadRedirect(
-        `/vendor-manager-head/jobs/${job.id}`,
-      );
+      const viewUrl = this.buildVendorHeadRedirect(`/vendor-manager-head/jobs/${job.id}`);
 
       const html = `
       <div style="font-family: Arial; padding: 20px;">
         <h2>New Job Approval Required</h2>
-
         <p><strong>Job Title:</strong> ${job.title}</p>
         <p><strong>Location:</strong> ${job.location}</p>
-
         <div style="margin-top: 20px;">
           <a href="${approveUrl}" style="background:#16a34a;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;margin-right:10px;">Approve</a>
           <a href="${rejectUrl}" style="background:#dc2626;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;margin-right:10px;">Reject</a>
@@ -87,30 +74,24 @@ export class MailService implements OnModuleInit {
       </div>
       `;
 
-      const info = await this.transporter.sendMail({
+      await this.transporter.sendMail({
         from: `"Recruitment Portal" <${process.env.MAIL_USER}>`,
         to: process.env.VENDOR_HEAD_EMAIL,
         subject: `Job Approval Required - ${job.title}`,
         html,
       });
-
-      console.log('✅ Email sent successfully:', info.messageId);
-
-    } catch (error) {
-      console.error('❌ EMAIL ERROR FULL:', error);
+    } catch (error: any) {
+      console.warn(`Approval email skipped: ${error?.message || 'send failed'}`);
     }
   }
 
   async sendPanelAssignmentEmail(panel: { name?: string; email?: string }, job: any) {
-    if (!this.transporter || !panel.email) {
+    if (!this.transporter || !this.smtpReady || !panel.email) {
       return;
     }
 
     try {
-      const viewUrl = this.buildLoginRedirect(
-        panel.email,
-        `/panel/jobs/${job.id}`,
-      );
+      const viewUrl = this.buildLoginRedirect(panel.email, `/panel/jobs/${job.id}`);
 
       const html = `
       <div style="font-family: Arial; padding: 20px;">
@@ -133,8 +114,8 @@ export class MailService implements OnModuleInit {
         subject: `Screening Panel Assignment - ${job.title}`,
         html,
       });
-    } catch (error) {
-      console.error('❌ PANEL EMAIL ERROR:', error);
+    } catch (error: any) {
+      console.warn(`Panel assignment email skipped: ${error?.message || 'send failed'}`);
     }
   }
 }

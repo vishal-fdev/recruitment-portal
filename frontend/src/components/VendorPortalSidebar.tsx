@@ -3,7 +3,14 @@ import { Box, Button, Nav, Text } from 'grommet';
 import { BriefcaseBusiness, LayoutDashboard, Layers, Users } from 'lucide-react';
 import { authService } from '../auth/authService';
 
-const navItems = [
+type NavItem = {
+  label: string;
+  path: string;
+  icon: typeof LayoutDashboard;
+  end?: boolean;
+};
+
+const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/vendor', icon: LayoutDashboard, end: true },
   { label: 'Candidate Management', path: '/vendor/candidates', icon: Users },
   { label: 'Interview Management', path: '/vendor/partner-slots', icon: Layers },

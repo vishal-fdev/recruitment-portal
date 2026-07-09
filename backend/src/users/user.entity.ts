@@ -14,6 +14,8 @@ export enum UserRole {
   VENDOR_MANAGER = 'VENDOR_MANAGER',
   VENDOR_MANAGER_HEAD = 'VENDOR_MANAGER_HEAD',
   HIRING_MANAGER = 'HIRING_MANAGER',
+  BADGED_HIRING_MANAGER = 'BADGED_HIRING_MANAGER',
+  BADGED_RECRUITER = 'BADGED_RECRUITER',
   PANEL = 'PANEL',
 }
 
@@ -44,3 +46,4 @@ export class User {
   @JoinColumn()
   vendor?: Vendor;
 }
+

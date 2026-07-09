@@ -4,13 +4,13 @@ import { hpe } from 'grommet-theme-hpe';
 export const appTheme = deepMerge(hpe, {
   global: {
     font: {
-      family: '"Inter", "Segoe UI", sans-serif',
+      family: '"DM Sans", "Inter", "Segoe UI", sans-serif',
       size: '14px',
       height: '20px',
     },
     colors: {
       brand: '#01A982',
-      background: '#F3F5F9',
+      background: '#F4F5F7',
       text: '#111827',
       sidebar: '#13192A',
       sidebarAlt: '#151B2D',
@@ -18,11 +18,14 @@ export const appTheme = deepMerge(hpe, {
   },
   button: {
     border: {
-      radius: '10px',
+      radius: '6px',
     },
     padding: {
-      vertical: '10px',
-      horizontal: '16px',
+      vertical: '7px',
+      horizontal: '14px',
+    },
+    primary: {
+      color: '#FFFFFF',
     },
   },
   layer: {

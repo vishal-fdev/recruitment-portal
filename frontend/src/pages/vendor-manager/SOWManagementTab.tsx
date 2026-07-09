@@ -4,10 +4,6 @@ import { Pencil } from 'lucide-react';
 import {
   Box,
   Button,
-  Card,
-  CardBody,
-  DataTable,
-  Heading,
   Select,
   Text,
   TextInput,
@@ -71,101 +67,109 @@ const SowManagementTab = () => {
   };
 
   return (
-    <Card background="white" round="20px" border={{ color: 'border-weak' }} elevation="xsmall">
-      <CardBody pad="large" gap="medium">
-        <Box direction="row" justify="between" align="center" wrap gap="medium">
-          <Heading level={3} size="small" margin="none">
-            SOW Management
-          </Heading>
-          <Button label="+ Add New SOW" primary color="brand" onClick={addRow} />
-        </Box>
+    <Box background="white" round="12px" border={{ color: '#DDE3EB' }} elevation="xsmall" pad="24px" gap="16px">
+      <Box direction="row" justify="between" align="center" wrap gap="medium">
+        <Text size="18px" weight={600} color="#0B1220">
+          SOW Management
+        </Text>
+        <Button label="+ Add New SOW" primary color="brand" onClick={addRow} style={greenButtonStyle} />
+      </Box>
 
-        <DataTable
-          data={data.map((row, i) => ({ ...row, _index: i }))}
-          columns={[
-            {
-              property: 'sowNumber',
-              header: 'SOW Number',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <TextInput value={datum.sowNumber} onChange={(e) => updateField(datum._index, 'sowNumber', e.target.value)} />
-                ) : (
-                  <Text>{datum.sowNumber || '-'}</Text>
-                ),
-            },
-            {
-              property: 'startDate',
-              header: 'Start Date',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <TextInput type="date" value={datum.startDate} onChange={(e) => updateField(datum._index, 'startDate', e.target.value)} />
-                ) : (
-                  <Text>{datum.startDate || '-'}</Text>
-                ),
-            },
-            {
-              property: 'endDate',
-              header: 'End Date',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <TextInput type="date" value={datum.endDate} onChange={(e) => updateField(datum._index, 'endDate', e.target.value)} />
-                ) : (
-                  <Text>{datum.endDate || '-'}</Text>
-                ),
-            },
-            {
-              property: 'tcValue',
-              header: 'TC Value',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <TextInput value={datum.tcValue} onChange={(e) => updateField(datum._index, 'tcValue', e.target.value)} />
-                ) : (
-                  <Text>{datum.tcValue || '-'}</Text>
-                ),
-            },
-            {
-              property: 'approvalStatus',
-              header: 'Approval Status',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <Select
-                    options={['', 'Pending', 'Approved']}
-                    value={datum.approvalStatus}
-                    onChange={({ value }) => updateField(datum._index, 'approvalStatus', String(value))}
-                  />
-                ) : (
-                  <Text>{datum.approvalStatus || '-'}</Text>
-                ),
-            },
-            {
-              property: 'status',
-              header: 'Status',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <Select
-                    options={['Active', 'Inactive']}
-                    value={datum.status}
-                    onChange={({ value }) => updateField(datum._index, 'status', String(value))}
-                  />
-                ) : (
-                  <Text>{datum.status || '-'}</Text>
-                ),
-            },
-            {
-              property: 'actions',
-              header: 'Actions',
-              render: (datum) =>
-                editingRow === datum._index ? (
-                  <Button plain label="Save" color="brand" onClick={() => void saveRow(datum._index)} />
-                ) : (
-                  <Button plain icon={<Pencil size={16} />} onClick={() => setEditingRow(datum._index)} />
-                ),
-            },
-          ]}
-        />
-      </CardBody>
-    </Card>
+      <div style={tableShellStyle}>
+        <div style={sowHeaderStyle}>
+          {sowHeaders.map((header) => (
+            <div key={header} style={tableHeaderCellStyle}>
+              {header}
+            </div>
+          ))}
+        </div>
+
+        {data.map((row, index) => (
+          <div key={row.id || index} style={sowRowStyle}>
+            <EditableText value={row.sowNumber} editing={editingRow === index} onChange={(value) => updateField(index, 'sowNumber', value)} />
+            <EditableText value={row.startDate} editing={editingRow === index} type="date" onChange={(value) => updateField(index, 'startDate', value)} />
+            <EditableText value={row.endDate} editing={editingRow === index} type="date" onChange={(value) => updateField(index, 'endDate', value)} />
+            <EditableText value={row.tcValue} editing={editingRow === index} onChange={(value) => updateField(index, 'tcValue', value)} />
+            {editingRow === index ? (
+              <Select options={['', 'Pending', 'Approved']} value={row.approvalStatus} onChange={({ value }) => updateField(index, 'approvalStatus', String(value))} />
+            ) : (
+              <Cell value={row.approvalStatus} />
+            )}
+            {editingRow === index ? (
+              <Select options={['Active', 'Inactive']} value={row.status} onChange={({ value }) => updateField(index, 'status', String(value))} />
+            ) : (
+              <Cell value={row.status} />
+            )}
+            {editingRow === index ? (
+              <Button plain label="Save" onClick={() => void saveRow(index)} style={plainActionStyle} />
+            ) : (
+              <Button plain icon={<Pencil size={16} />} onClick={() => setEditingRow(index)} />
+            )}
+          </div>
+        ))}
+      </div>
+    </Box>
   );
 };
+
+const sowHeaders = ['SOW Number', 'Start Date', 'End Date', 'TC Value', 'Approval Status', 'Status', 'Actions'];
+
+const Cell = ({ value }: { value?: string }) => <Text size="14px" color="#0B1220">{value || '-'}</Text>;
+
+const EditableText = ({
+  value,
+  editing,
+  type,
+  onChange,
+}: {
+  value: string;
+  editing: boolean;
+  type?: string;
+  onChange: (value: string) => void;
+}) => (
+  editing ? <TextInput type={type} value={value} onChange={(event) => onChange(event.target.value)} size="small" /> : <Cell value={value} />
+);
+
+const greenButtonStyle = {
+  color: '#FFFFFF',
+  background: '#01A982',
+  border: 'none',
+  borderRadius: '4px',
+  fontWeight: 600,
+  padding: '10px 18px',
+} as const;
+
+const tableShellStyle = {
+  width: '100%',
+  overflowX: 'auto',
+} as const;
+
+const sowHeaderStyle = {
+  display: 'grid',
+  gridTemplateColumns: '1.25fr 1.05fr 1.05fr 1.15fr 1.25fr 1fr 1fr',
+  minWidth: 1160,
+  background: '#F0F2F5',
+} as const;
+
+const sowRowStyle = {
+  display: 'grid',
+  gridTemplateColumns: '1.25fr 1.05fr 1.05fr 1.15fr 1.25fr 1fr 1fr',
+  minWidth: 1160,
+  alignItems: 'center',
+  borderBottom: '1px solid #E6EAF0',
+  padding: '10px 0',
+} as const;
+
+const tableHeaderCellStyle = {
+  padding: '14px 16px',
+  color: '#0B1220',
+  fontSize: 14,
+  fontWeight: 600,
+} as const;
+
+const plainActionStyle = {
+  color: '#01A982',
+  fontWeight: 600,
+} as const;
 
 export default SowManagementTab;

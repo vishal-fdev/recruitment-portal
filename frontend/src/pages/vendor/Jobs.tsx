@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
+import type { MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
-  DataTable,
   Heading,
   Layer,
-  Paragraph,
   Text,
 } from 'grommet';
 import api from '../../api/api';
-import StageBadge from '../../components/StageBadge';
+
+interface JobFile {
+  fileName: string;
+}
 
 interface Job {
   id: number;
@@ -26,6 +28,9 @@ interface Job {
     currentOpenings?: number;
   }[];
   jdFileName?: string;
+  psqFileName?: string;
+  jdFiles?: JobFile[];
+  psqFiles?: JobFile[];
 }
 
 type JobRow = Job & {
@@ -46,6 +51,7 @@ const Jobs = () => {
 
   const loadJobs = async () => {
     try {
+      setLoading(true);
       const res = await api.get('/jobs');
       const sorted = (res.data || []).sort((a: Job, b: Job) => b.id - a.id);
       setJobs(sorted);
@@ -57,10 +63,18 @@ const Jobs = () => {
     }
   };
 
-  const handleDownload = async (e: React.MouseEvent, jobId: number, fileName?: string) => {
-    e.stopPropagation();
+  const handleDownload = async (
+    event: MouseEvent,
+    jobId: number,
+    type: 'jd' | 'psq',
+    fileName?: string,
+    index?: number,
+  ) => {
+    event.stopPropagation();
+
     try {
-      const response = await api.get(`/jobs/${jobId}/jd/download`, {
+      const suffix = index === undefined ? '' : `/${index}`;
+      const response = await api.get(`/jobs/${jobId}/${type}/download${suffix}`, {
         responseType: 'blob',
       });
 
@@ -68,19 +82,19 @@ const Jobs = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName || `JOB-${jobId}.pdf`;
+      link.download = fileName || `HRQ${jobId}-${type.toUpperCase()}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Failed to download JD', error);
-      setDownloadError('Unable to download JD right now.');
+      console.error(`Failed to download ${type.toUpperCase()}`, error);
+      setDownloadError(`Unable to download ${type.toUpperCase()} right now.`);
     }
   };
 
-  const submitCandidate = (e: React.MouseEvent, jobId: number) => {
-    e.stopPropagation();
+  const submitCandidate = (event: MouseEvent, jobId: number) => {
+    event.stopPropagation();
     navigate(`/vendor/candidates/create?jobId=${jobId}`);
   };
 
@@ -107,101 +121,117 @@ const Jobs = () => {
   });
 
   return (
-    <Box gap="large">
-      <Box gap="xsmall">
-        <Heading level={2} margin="none" color="text-strong">
-          Available Job Requisitions
-        </Heading>
-        <Paragraph margin="none" color="text-paragraph">
-          View jobs assigned to you and submit candidates
-        </Paragraph>
-      </Box>
+    <Box style={styles.page}>
+      <div style={styles.headingBlock}>
+        <h1 style={styles.pageTitle}>Job Requisitions</h1>
+        <p style={styles.pageCaption}>Submit candidates and manage assigned job requisitions</p>
+      </div>
 
-      <Box
-        background="white"
-        round="20px"
-        border={{ color: 'border-weak' }}
-        overflow="auto"
-        pad="none"
-        elevation="xsmall"
-      >
-        <DataTable
-          data={rows}
-          step={20}
-          sortable
-          columns={[
-            {
-              property: 'hrqId',
-              header: <Text weight="bold">HRQID</Text>,
-              render: (datum) => <Text weight="bold">{datum.hrqId}</Text>,
-              align: 'center',
-            },
-            {
-              property: 'title',
-              header: <Text weight="bold">Role Hired For</Text>,
-              align: 'center',
-            },
-            {
-              property: 'location',
-              header: <Text weight="bold">Location</Text>,
-              align: 'center',
-            },
-            {
-              property: 'experience',
-              header: <Text weight="bold">Experience</Text>,
-              align: 'center',
-            },
-            {
-              property: 'totalPositions',
-              header: <Text weight="bold">Total Positions</Text>,
-              align: 'center',
-            },
-            {
-              property: 'currentPositions',
-              header: <Text weight="bold">Current Positions</Text>,
-              align: 'center',
-            },
-            {
-              property: 'status',
-              header: <Text weight="bold">Status</Text>,
-              render: (datum) => <StageBadge status={datum.status} />,
-              align: 'center',
-            },
-            {
-              property: 'jd',
-              header: <Text weight="bold">JD</Text>,
-              render: (datum) =>
-                datum.jdFileName ? (
-                  <Button
-                    label="Download JD"
-                    plain
-                    color="brand"
-                    onClick={(event) => void handleDownload(event, datum.id, datum.jdFileName)}
-                  />
-                ) : (
-                  <Text color="text-weak">-</Text>
-                ),
-              align: 'center',
-            },
-            {
-              property: 'action',
-              header: <Text weight="bold">Action</Text>,
-              render: (datum) => (
-                <Button
-                  label="Submit Candidates"
-                  primary
-                  color="brand"
-                  onClick={(event) => submitCandidate(event, datum.id)}
-                />
-              ),
-              align: 'center',
-            },
-          ]}
-          onClickRow={({ datum }) => openJobDetails(datum.id)}
-          fill
-          pin
-        />
-      </Box>
+      <div style={styles.tableCard}>
+        <div style={styles.tableScroller}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                {[
+                  'HRQ ID',
+                  'ROLE HIRED FOR',
+                  'LOCATION',
+                  'EXPERIENCE',
+                  'TOTAL POSITIONS',
+                  'CURRENT POSITIONS',
+                  'STATUS',
+                  'JD',
+                  'PSQ',
+                  'ACTION',
+                ].map((header) => (
+                  <th key={header} style={styles.headerCell}>
+                    {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr>
+                  <td colSpan={10} style={styles.emptyCell}>
+                    Loading jobs...
+                  </td>
+                </tr>
+              )}
+
+              {!loading &&
+                rows.map((job, index) => (
+                  <tr
+                    key={job.id}
+                    onClick={() => openJobDetails(job.id)}
+                    style={{
+                      ...styles.row,
+                      background: index % 2 === 0 ? '#FFFFFF' : '#F7F9FB',
+                    }}
+                  >
+                    <td style={styles.cell}>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openJobDetails(job.id);
+                        }}
+                        style={styles.hrqLink}
+                      >
+                        {job.hrqId}
+                      </button>
+                    </td>
+                    <td style={styles.cell}>{job.title || '-'}</td>
+                    <td style={styles.cell}>{job.location || '-'}</td>
+                    <td style={styles.cell}>{job.experience || '-'}</td>
+                    <td style={styles.centerCell}>{job.totalPositions}</td>
+                    <td style={styles.centerCell}>{job.currentPositions}</td>
+                    <td style={styles.centerCell}>
+                      <span style={styles.statusPill}>{getStatusLabel(job.status)}</span>
+                    </td>
+                    <td style={styles.centerCell}>
+                      <FileLinks
+                        files={job.jdFiles}
+                        fallbackFileName={job.jdFileName}
+                        label="Download JD"
+                        onDownload={(event, fileName, fileIndex) =>
+                          void handleDownload(event, job.id, 'jd', fileName, fileIndex)
+                        }
+                      />
+                    </td>
+                    <td style={styles.centerCell}>
+                      <FileLinks
+                        files={job.psqFiles}
+                        fallbackFileName={job.psqFileName}
+                        label="Download PSQ"
+                        onDownload={(event, fileName, fileIndex) =>
+                          void handleDownload(event, job.id, 'psq', fileName, fileIndex)
+                        }
+                      />
+                    </td>
+                    <td style={styles.centerCell}>
+                      <button
+                        type="button"
+                        onClick={(event) => submitCandidate(event, job.id)}
+                        style={styles.createButton}
+                      >
+                        Create
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+              {!loading && rows.length === 0 && (
+                <tr>
+                  <td colSpan={10} style={styles.emptyCell}>
+                    No jobs found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {downloadError ? (
         <Layer
@@ -226,3 +256,170 @@ const Jobs = () => {
 };
 
 export default Jobs;
+
+const FileLinks = ({
+  files,
+  fallbackFileName,
+  label,
+  onDownload,
+}: {
+  files?: JobFile[];
+  fallbackFileName?: string;
+  label: string;
+  onDownload: (event: MouseEvent, fileName?: string, index?: number) => void;
+}) => {
+  const normalizedFiles = files?.length ? files : fallbackFileName ? [{ fileName: fallbackFileName }] : [];
+
+  if (!normalizedFiles.length) {
+    return <span>-</span>;
+  }
+
+  return (
+    <div style={styles.fileLinks}>
+      {normalizedFiles.map((file, index) => (
+        <button
+          key={`${label}-${file.fileName}-${index}`}
+          type="button"
+          onClick={(event) => onDownload(event, file.fileName, files?.length ? index : undefined)}
+          style={styles.downloadLink}
+        >
+          {normalizedFiles.length > 1 ? `${label} ${index + 1}` : `${label} 1`}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+const getStatusLabel = (status?: string) => {
+  if (status === 'CLOSED') return 'CLOSED';
+  if (status === 'ON_HOLD') return 'HOLD';
+  return 'OPEN';
+};
+
+const styles = {
+  page: {
+    padding: '0 18px',
+  },
+  headingBlock: {
+    marginBottom: 24,
+  },
+  pageTitle: {
+    color: '#0B1F3A',
+    fontSize: 34,
+    fontWeight: 600,
+    lineHeight: 1.15,
+    margin: 0,
+  },
+  pageCaption: {
+    color: '#536783',
+    fontSize: 15,
+    fontWeight: 400,
+    lineHeight: 1.4,
+    margin: '8px 0 0',
+  },
+  tableCard: {
+    background: '#FFFFFF',
+    border: '1px solid #DDE5EE',
+    borderRadius: 16,
+    boxShadow: '0 2px 6px rgba(15, 23, 42, 0.06)',
+    overflow: 'hidden',
+    width: '100%',
+  },
+  tableScroller: {
+    overflowX: 'auto' as const,
+  },
+  table: {
+    borderCollapse: 'separate' as const,
+    borderSpacing: 0,
+    color: '#0B1F3A',
+    fontSize: 13,
+    minWidth: 1320,
+    width: '100%',
+  },
+  headerCell: {
+    background: '#93F0DD',
+    color: '#0B1F3A',
+    fontSize: 12,
+    fontWeight: 500,
+    letterSpacing: 0,
+    padding: '18px 22px',
+    textAlign: 'center' as const,
+    whiteSpace: 'nowrap' as const,
+  },
+  row: {
+    cursor: 'pointer',
+    height: 65,
+  },
+  cell: {
+    borderBottom: '1px solid #EDF0F4',
+    color: '#10213D',
+    fontSize: 13,
+    fontWeight: 400,
+    padding: '18px 22px',
+    textAlign: 'center' as const,
+    verticalAlign: 'middle' as const,
+  },
+  centerCell: {
+    borderBottom: '1px solid #EDF0F4',
+    color: '#10213D',
+    fontSize: 13,
+    fontWeight: 400,
+    padding: '18px 22px',
+    textAlign: 'center' as const,
+    verticalAlign: 'middle' as const,
+    whiteSpace: 'nowrap' as const,
+  },
+  hrqLink: {
+    background: 'transparent',
+    border: 'none',
+    color: '#008E70',
+    cursor: 'pointer',
+    font: 'inherit',
+    fontWeight: 600,
+    padding: 0,
+  },
+  statusPill: {
+    background: '#DFFBEF',
+    borderRadius: 999,
+    color: '#008E70',
+    display: 'inline-flex',
+    fontSize: 12,
+    fontWeight: 600,
+    justifyContent: 'center',
+    minWidth: 56,
+    padding: '6px 13px',
+  },
+  createButton: {
+    background: '#00A982',
+    border: 'none',
+    borderRadius: 8,
+    color: '#FFFFFF',
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 700,
+    minHeight: 32,
+    minWidth: 67,
+    padding: '8px 14px',
+  },
+  fileLinks: {
+    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 4,
+  },
+  downloadLink: {
+    background: 'transparent',
+    border: 'none',
+    color: '#008E70',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 600,
+    padding: 0,
+  },
+  emptyCell: {
+    color: '#8A99B6',
+    fontSize: 14,
+    padding: '52px 16px',
+    textAlign: 'center' as const,
+  },
+};

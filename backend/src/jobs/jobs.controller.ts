@@ -80,6 +80,23 @@ export class JobsController {
     return this.jobsService.closeJob(id);
   }
 
+  @Patch(':id/calibration')
+  @Roles(
+    UserRole.HIRING_MANAGER,
+    UserRole.VENDOR_MANAGER,
+    UserRole.VENDOR_MANAGER_HEAD,
+    UserRole.PANEL,
+  )
+  updateCalibrationNotes(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { calibrationNotes?: string },
+  ) {
+    return this.jobsService.updateCalibrationNotes(
+      id,
+      body.calibrationNotes || '',
+    );
+  }
+
   @Patch(':id/hold')
 @Roles(UserRole.VENDOR_MANAGER)
 holdJob(@Param('id', ParseIntPipe) id: number) {

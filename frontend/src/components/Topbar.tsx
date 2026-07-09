@@ -7,7 +7,7 @@ interface TopbarProps {
   onLogout: () => void;
 }
 
-const Topbar = ({ role: _role, onLogout }: TopbarProps) => {
+const Topbar = ({ onLogout }: TopbarProps) => {
   const getUserName = () => {
     try {
       const token = localStorage.getItem('token');
@@ -33,7 +33,7 @@ const Topbar = ({ role: _role, onLogout }: TopbarProps) => {
       align="center"
       justify="between"
       pad={{ horizontal: '32px' }}
-      height="80px"
+      height="86px"
       background="white"
       border={{ side: 'bottom', color: 'rgba(17,24,39,0.08)' }}
       style={{
@@ -51,7 +51,7 @@ const Topbar = ({ role: _role, onLogout }: TopbarProps) => {
         <Box
           round="999px"
           background="rgba(1,169,130,0.14)"
-          pad={{ horizontal: '16px', vertical: '6px' }}
+          pad={{ horizontal: '14px', vertical: '5px' }}
         >
           <Text size="12px" weight={500} color="#047857">
             {userName}
@@ -63,8 +63,8 @@ const Topbar = ({ role: _role, onLogout }: TopbarProps) => {
           onClick={onLogout}
           label={
             <Box direction="row" align="center" gap="8px">
-              <LogOut size={18} color="#4B5563" />
-              <Text size="14px" color="#4B5563">
+              <LogOut size={15} color="#4B5563" />
+              <Text size="13px" color="#4B5563">
                 Logout
               </Text>
             </Box>

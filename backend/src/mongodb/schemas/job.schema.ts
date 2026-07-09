@@ -72,6 +72,9 @@ export class JobDocumentModel {
   @Prop({ type: String, default: null })
   description!: string | null;
 
+  @Prop({ type: String, default: null })
+  calibrationNotes!: string | null;
+
   @Prop({ enum: Object.values(JobStatus), default: JobStatus.PENDING_APPROVAL })
   status!: JobStatus;
 

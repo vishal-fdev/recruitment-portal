@@ -183,6 +183,16 @@ export const rejectJob = async (jobId: number) => {
   return res.data;
 };
 
+export const updateCalibrationNotes = async (
+  jobId: number,
+  calibrationNotes: string,
+): Promise<Job> => {
+  const res = await api.patch(`/jobs/${jobId}/calibration`, {
+    calibrationNotes,
+  });
+  return res.data;
+};
+
 export const closeJob = async (jobId: number) => {
   const res = await api.patch(`/jobs/${jobId}/close`);
   return res.data;

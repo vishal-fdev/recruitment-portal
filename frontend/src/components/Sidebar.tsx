@@ -1,9 +1,9 @@
 import { NavLink } from 'react-router-dom';
 import { Box, Nav, Text } from 'grommet';
-import { Briefcase, BriefcaseBusiness, LayoutDashboard, Layers, Users } from 'lucide-react';
+import { BadgeCheck, Briefcase, BriefcaseBusiness, FileSpreadsheet, LayoutDashboard, Layers, UserPlus, Users } from 'lucide-react';
 import type { JSX } from 'react/jsx-runtime';
 
-type Role = 'VENDOR' | 'VENDOR_MANAGER' | 'VENDOR_MANAGER_HEAD' | 'HIRING_MANAGER' | 'PANEL';
+type Role = 'VENDOR' | 'VENDOR_MANAGER' | 'VENDOR_MANAGER_HEAD' | 'HIRING_MANAGER' | 'BADGED_HIRING_MANAGER' | 'BADGED_RECRUITER' | 'PANEL';
 
 interface SidebarProps {
   role: Role;
@@ -15,6 +15,7 @@ const navConfig: Record<Role, { label: string; path: string; icon: JSX.Element }
   VENDOR: [
     { label: 'Dashboard', path: '/vendor', icon: <LayoutDashboard size={18} /> },
     { label: 'Candidate Management', path: '/vendor/candidates', icon: <Users size={18} /> },
+    { label: 'Job Requisitions', path: '/vendor/jobs', icon: <Briefcase size={18} /> },
     { label: 'Interview Management', path: '/vendor/partner-slots', icon: <Layers size={18} /> },
   ],
   VENDOR_MANAGER: [
@@ -35,6 +36,19 @@ const navConfig: Record<Role, { label: string; path: string; icon: JSX.Element }
     { label: 'Candidate Management', path: '/hiring-manager/candidates', icon: <Users size={18} /> },
     { label: 'Partner Slot Management', path: '/hiring-manager/partner-slots', icon: <Layers size={18} /> },
     { label: 'Job Requisitions', path: '/hiring-manager/jobs', icon: <Briefcase size={18} /> },
+  ],
+  BADGED_HIRING_MANAGER: [
+    { label: 'Dashboard', path: '/badged-hiring', icon: <LayoutDashboard size={18} /> },
+    { label: 'Job Requisitions', path: '/badged-hiring/jobs', icon: <Briefcase size={18} /> },
+    { label: 'Recruiters', path: '/badged-hiring/recruiters', icon: <UserPlus size={18} /> },
+    { label: 'Candidate Submissions', path: '/badged-hiring/submissions', icon: <Users size={18} /> },
+    { label: 'HPE Badged Hiring', path: '/badged-hiring/hpe-badged-hiring', icon: <FileSpreadsheet size={18} /> },
+  ],
+  BADGED_RECRUITER: [
+    { label: 'Dashboard', path: '/badged-recruiter', icon: <LayoutDashboard size={18} /> },
+    { label: 'Job Requisitions', path: '/badged-recruiter/jobs', icon: <Briefcase size={18} /> },
+    { label: 'Submit Candidate', path: '/badged-recruiter/candidates/create', icon: <BadgeCheck size={18} /> },
+    { label: 'My Submissions', path: '/badged-recruiter/submissions', icon: <Users size={18} /> },
   ],
   PANEL: [
     { label: 'Dashboard', path: '/panel', icon: <LayoutDashboard size={18} /> },
@@ -79,18 +93,26 @@ const Sidebar = ({ role, expanded, onHover }: SidebarProps) => {
       as="aside"
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
-      width={expanded ? '280px' : '88px'}
+      width={expanded ? '220px' : '88px'}
       height="100vh"
       flex={false}
       background="#13192A"
       border={{ side: 'right', color: 'rgba(255,255,255,0.1)' }}
-      style={{ position: 'sticky', top: 0, zIndex: 40, transition: 'width 0.3s ease', overflow: 'hidden' }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        bottom: 0,
+        zIndex: 60,
+        transition: 'width 0.2s ease',
+        overflow: 'hidden',
+      }}
     >
-      <Box direction="row" align="center" gap="12px" pad={{ horizontal: '16px', vertical: '20px' }} border={{ side: 'bottom', color: 'rgba(255,255,255,0.1)' }}>
+      <Box direction="row" align="center" gap="10px" pad={{ horizontal: '16px', vertical: '16px' }} border={{ side: 'bottom', color: 'rgba(255,255,255,0.08)' }}>
         <Box align="center" justify="center" width="32px" height="32px" round="7px" background="#01A982">
           <BriefcaseBusiness size={16} />
         </Box>
-        <Box style={{ maxWidth: expanded ? 180 : 0, opacity: expanded ? 1 : 0, overflow: 'hidden', transition: 'all 0.3s ease' }}>
+        <Box style={{ maxWidth: expanded ? 150 : 0, opacity: expanded ? 1 : 0, overflow: 'hidden', transition: 'all 0.2s ease' }}>
           <Text size="14px" weight={600} color="white">
             Dribble
           </Text>
@@ -100,13 +122,13 @@ const Sidebar = ({ role, expanded, onHover }: SidebarProps) => {
         </Box>
       </Box>
 
-      <Box pad={{ horizontal: '16px', top: '18px' }} style={{ opacity: expanded ? 1 : 0, transition: 'opacity 0.3s ease' }}>
+      <Box pad={{ horizontal: '18px', top: '18px', bottom: '5px' }} style={{ opacity: expanded ? 1 : 0, transition: 'opacity 0.2s ease' }}>
         <Text size="10px" weight={500} color="rgba(255,255,255,0.2)" style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}>
           Main Menu
         </Text>
       </Box>
 
-      <Nav margin={{ top: '8px' }} gap="4px" pad={{ horizontal: '8px' }}>
+      <Nav margin={{ top: '4px' }} gap="2px" pad={{ horizontal: '8px' }}>
         {navConfig[role].map((item, index) => (
           <NavLink key={item.path} to={item.path} end={index === 0}>
             {({ isActive }) => (
@@ -115,8 +137,8 @@ const Sidebar = ({ role, expanded, onHover }: SidebarProps) => {
                 align="center"
                 justify={expanded ? 'start' : 'center'}
                 gap={expanded ? '9px' : '0'}
-                pad={{ horizontal: '12px', vertical: '10px' }}
-                round="8px"
+                pad={{ horizontal: '12px', vertical: '8px' }}
+                round="6px"
                 background={isActive ? 'rgba(1,169,130,0.12)' : undefined}
               >
                 <Box color={isActive ? '#01A982' : 'rgba(255,255,255,0.5)'}>{item.icon}</Box>
@@ -128,7 +150,7 @@ const Sidebar = ({ role, expanded, onHover }: SidebarProps) => {
                     opacity: expanded ? 1 : 0,
                     overflow: 'hidden',
                     whiteSpace: 'nowrap',
-                    transition: 'all 0.3s ease',
+                    transition: 'all 0.2s ease',
                   }}
                 >
                   {item.label}
@@ -146,7 +168,7 @@ const Sidebar = ({ role, expanded, onHover }: SidebarProps) => {
               {user.initials}
             </Text>
           </Box>
-          <Box style={{ minWidth: 0, maxWidth: expanded ? 180 : 0, opacity: expanded ? 1 : 0, overflow: 'hidden', transition: 'all 0.3s ease' }}>
+          <Box style={{ minWidth: 0, maxWidth: expanded ? 150 : 0, opacity: expanded ? 1 : 0, overflow: 'hidden', transition: 'all 0.2s ease' }}>
             <Text size="12px" weight={500} color="rgba(255,255,255,0.8)" truncate>
               {user.name}
             </Text>
@@ -161,3 +183,4 @@ const Sidebar = ({ role, expanded, onHover }: SidebarProps) => {
 };
 
 export default Sidebar;
+
